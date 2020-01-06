@@ -1229,6 +1229,77 @@ class visitech_faststack:
 
         return stack_iter()
 
+    def save_stack(self,data,filename_prefix='visitech_faststack',sequence_type='multipage'):
+        """
+        save stacks to tiff files
+
+        Parameters
+        ----------
+        data : numpy ndarray with 3 or 4 dimensions
+            image series pixel values with dimension order (z,y,x) or (t,z,y,x)
+        filename_prefix : string, optional
+            prefix to use for filename. The time/z-axis index is appended if
+            relevant. The default is 'visitech_faststack'.
+        sequence_type : string, optional
+            The way to store the data. The following options are available:
+                * 'image_sequence' : stores as a series of 2D images with time and or frame number appended
+                * 'multipage' : store all data in a single multipage tiff file
+                * 'multipage_sequence' : stores a multipage tiff file for each time step
+            The default is 'multipage'.
+
+        Returns
+        -------
+        None, but writes file(s) to working directory.
+
+        """
+        from PIL import Image
+        
+        shape = np.shape(data)
+        
+        #store as series of named 2D images
+        if sequence_type == 'image_sequence':
+            #for (t,z,y,x)
+            if len(shape) == 4:
+                for i,t in enumerate(data):
+                    for j,im in enumerate(t):
+                        filename = filename_prefix + '_t{:03d}_z{:03d}.tif'.format(i,j)
+                        Image.fromarray(im).save(filename)
+            #for (z,y,x)
+            elif len(shape) == 3:
+                for i,im in enumerate(data):
+                    filename = filename_prefix + '_z{:03d}.tif'.format(i,j)
+                    Image.fromarray(im).save(filename)  
+            else:
+                raise ValueError('data must be 3-dimensional (z,y,x) or 4-dimensional (t,z,y,x)')
+            
+        #store as single multipage tiff
+        elif sequence_type == 'multipage':
+            #for (t,z,y,x)
+            if len(shape) == 4:
+                data = [Image.fromarray(im) for _ in data for im in _]
+                data[0].save(filename_prefix+'.tif',append_images=data[1:],save_all=True,)
+            #for (z,y,x)
+            elif len(shape) == 3:
+                data = [Image.fromarray(im) for im in data]
+                data[0].save(filename_prefix+'.tif',append_images=data[1:],save_all=True,)
+            else:
+                raise ValueError('data must be 3-dimensional (z,y,x) or 4-dimensional (t,z,y,x)')
+            
+        elif sequence_type == 'multipage_sequence':
+            if len(shape) == 4:
+                for i,t in enumerate(data):
+                    t = [Image.fromarray(im) for im in t]
+                    t[0].save(filename_prefix+'_t{:03d}.tif'.format(i),append_images=t[1:],save_all=True)
+            elif len(shape) == 3:
+                print("[WARNING] scm_confocal.faststack.save_stack(): 'multipage_sequence' invalid sequence_type for 3-dimensional data. Saving as option 'multipage' instead")
+                data = [Image.fromarray(im) for im in data]
+                data[0].save(filename_prefix+'.tif',append_images=data[1:],save_all=True)
+            else:
+                raise ValueError('data must be 4-dimensional (t,z,y,x)')
+
+        else:
+            raise ValueError("invalid option for sequence_type: must be 'image_sequence', 'multipage' or 'multipage_sequence'")
+    
     def _get_metadata_string(filename,read_from_end=True):
         """reads out the raw metadata from a file"""
 
