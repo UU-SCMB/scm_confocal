@@ -198,16 +198,21 @@ class sp8_series:
             
             #reshape the filenames and apply slicing, then ravel back to flat list
             filenames = np.reshape(filenames,newshape[:-2])[slices]
-
-            #change dim order if multiple channels, move to 0th axis
-            for i,dim in enumerate(order):
-                if dim == 'channel':
-                    filenames = np.moveaxis(filenames,i,0)
-                    order = [order[i]] + order[:i] + order[i+1:]
-
-            newshape = list(np.shape(filenames)) + newshape[-2:]
-            filenames = list(filenames.ravel())
-
+        
+        else:
+            filenames = np.reshape(filenames,newshape[:-2])
+            
+        #change dim order if multiple channels, move to 0th axis
+        for i,dim in enumerate(order):
+            if dim == 'channel':
+                filenames = np.moveaxis(filenames,i,0)
+                order = [order[i]] + order[:i] + order[i+1:]
+        
+        #get final shape and flatten list of filenames in correct order
+        newshape = list(np.shape(filenames)) + newshape[-2:]
+        filenames = list(filenames.ravel())
+        
+        #load and reshape data
         data = self.load_data(filenames=filenames,dtype=dtype)
         data = np.reshape(data,tuple(newshape))
         
