@@ -12,6 +12,7 @@ class util:
         multiple of the bin factor. Executes averaging of bins in floating
         point precision, which is memory intensive for large stacks. Using
         smaller blocks reduces memory usage, but is less efficient.
+        
         Parameters
         ----------
         images : numpy.ndarray
@@ -27,6 +28,7 @@ class util:
         dtype : (numpy) datatype, optional
             datatype to use for output. Averaging of the binned pixels always
             occurs in floating point precision. The default is np.uint8.
+        
         Returns
         -------
         images : numpy.ndarray
@@ -125,6 +127,7 @@ class util:
         """
         Linear regression in log space of the MSD to get diffusion constant, which
         is a powerlaw in linear space of the form A*x**n
+        
         Parameters
         ----------
         x : list or numpy.array
@@ -134,6 +137,7 @@ class util:
         weights : list or numpy.array, optional
             list of weights to use for each (x,y) coordinate. The default is 
             None.
+        
         Returns
         -------
         A : float
@@ -176,6 +180,7 @@ class util:
                              tmin=None, tmax=None):
         """
         calculate the mean square displacement vs time for linked particles
+        
         Parameters
         ----------
         features : pandas.DataFrame
@@ -197,6 +202,7 @@ class util:
             left edge of first bin. The default is min(t_col).
         tmax : float, optional
            right edge of last bin, The default is max(t_col).
+        
         Returns
         -------
         binedges : numpy.array
@@ -271,6 +277,7 @@ class util:
         """
         Calculate the mean square movement of all tracked features between
         subsequent frames using efficient pandas linear algebra
+        
         Parameters
         ----------
         features : pandas.Dataframe
@@ -282,6 +289,7 @@ class util:
         feat_col : str
             name of column containing feature identifyers. The default is
             'particle'.
+        
         Returns
         -------
         msd : numpy.array
@@ -317,6 +325,7 @@ class util:
     def subtract_background(images, val=0, percentile=False):
         """
         subtract a constant value from a numpy array without going below 0
+        
         Parameters
         ----------
         images : numpy ndarray
@@ -326,6 +335,7 @@ class util:
             an absolute value to subtrackt. The default is False.
         val : int or float, optional
             Value or percentile to subtract. The default is 0.
+        
         Returns
         -------
         images : numpy ndarray
@@ -347,6 +357,7 @@ class util:
         manually flattens list of images to list of pixel values and plots
         histogram. Can combine multiple calls with newfig and legendname
         options
+        
         Parameters
         ----------
         images : numpy ndarray
@@ -360,6 +371,7 @@ class util:
             label to use for the legend. The default is None.
         title : string, optional
             text to use as plot title. The default is 'intensity histogram'.
+        
         Returns
         -------
         pyplot figure handle
@@ -386,6 +398,7 @@ class util:
         For multiplying the values of a numpy array while accounting for
         integer overflow issues in integer datatypes. Corrected values larger
         than the datatype max are set to the max value.
+        
         Parameters
         ----------
         data : numpy.ndarray
@@ -395,6 +408,7 @@ class util:
         dtype : (numpy) datatype, optional
             Datatype to scale data to. The default is the same type as the
             input data.
+        
         Returns
         -------
         data : numpy.ndarray
@@ -421,7 +435,18 @@ class util:
     
     def saveprompt(question="Save/overwrite? 1=YES, 0=NO. "):
         """
-        aks user to save, returns boolean
+        Asks user a question (whether to save). If 1 is entered, it returns
+        True, for any other answer it returns False
+        
+        Parameters
+        -------
+        question : string
+            The question to prompt the user for
+        
+        Returns
+        -------
+        save : bool
+            whether to save
         """
         try:
             savefile = int(input(question))
@@ -440,12 +465,14 @@ class util:
     def write_textfile(params,filename="parameters.txt"):
         """
         stores parameter names and values in text file
+        
         Parameters
         ----------
         params : dictionary of name:value
             the data to store
         filename : str, optional
             file name to us for saving. The default is "parameters.txt".
+        
         Returns
         -------
         None.
