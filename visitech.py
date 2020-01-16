@@ -11,6 +11,7 @@ class visitech_series:
     def __init__(self,filename,magnification=63,binning=1):
         """
         initialize class (lazy-loads data)
+        
         Parameters
         ----------
         filenames : string
@@ -40,6 +41,7 @@ class visitech_series:
     def load_data(self,indices=slice(None,None,None),dtype=np.uint16):
         """
         load images from datafile into 3D numpy array
+        
         Parameters
         ----------
         indices : slice object or list of ints, optional
@@ -76,6 +78,7 @@ class visitech_series:
         part of the data. For slicing along the x or y axis this is not
         possible and whole (xy) images must be loaded prior to discarding
         data outside the specified x or y axis range.
+        
         Parameters
         ----------
         dim_range : dict, optional
@@ -92,6 +95,7 @@ class visitech_series:
         remove_backsteps : bool
             whether to discard the frames which were recorded on the backsteps
             downwards
+            
         Returns
         -------
         data : numpy.ndarray
@@ -176,6 +180,7 @@ class visitech_series:
         data outside the specified x or y axis range.
         The shape of the stack can be accessed without loading data using the 
         stack_shape attribute after creating the yield_stack object.
+        
         Parameters
         ----------
         dim_range : dict, optional
@@ -192,6 +197,7 @@ class visitech_series:
         remove_backsteps : bool
             whether to discard the frames which were recorded on the backsteps
             downwards
+            
         Returns
         -------
         zstack : iterable/generator yielding numpy.ndarray
@@ -316,11 +322,13 @@ class visitech_series:
     def get_metadata(self,read_from_end=True):
         """
         loads OME metadata from visitech .ome.tif file and returns xml tree object
+        
         Parameters
         ----------
         read_from_end : bool, optional
             Whether to look for the metadata from the end of the file.
             The default is True.
+            
         Returns
         -------
         xml.etree.ElementTree
@@ -344,6 +352,7 @@ class visitech_series:
         """
         finds the stack's dimensionality and logical shape based on the
         embedded metadata
+        
         Returns
         -------
         shape : tuple of ints
@@ -396,11 +405,13 @@ class visitech_series:
         loads the part of the metadata containing information about the time,
         position etc. for each frame of the series and returns a dataframe
         indexes by image frame
+        
         Parameters
         ----------
         indices : slice object, optional
             which image frames to load the metadata for. The default is all
             frames.
+            
         Returns
         -------
         imagedata : pandas.DataFrame
@@ -424,7 +435,7 @@ class visitech_series:
         return imagedata
 
     def get_pixelsize(self):
-        """shortcut to get (z,y,x) pixelsize with unit"""
+        """shortcut to get `(z,y,x)` pixelsize with unit"""
         try:
             self.dimensions
         except AttributeError:
@@ -489,6 +500,7 @@ class visitech_faststack:
     def __init__(self,filename,zsize,zstep,zbacksteps,zstart=0,magnification=63,binning=1):
         """
         initialize class (lazy-loads data)
+        
         Parameters
         ----------
         filenames : string
@@ -530,11 +542,13 @@ class visitech_faststack:
     def load_data(self,indices=slice(None,None,None),dtype=np.uint16):
         """
         load images from datafile into 3D numpy array
+        
         Parameters
         ----------
         indices : slice object or list of ints, optional
             which images from tiffstack to load. The default is
             slice(None,None,None).
+            
         Returns
         -------
         numpy.ndarray containing image data in dim order (im,y,x)
@@ -559,9 +573,10 @@ class visitech_faststack:
         For loading only part of the total dataset, the dim_range parameter can
         be used to specify a range along any of the dimensions. This will be
         more memory efficient than loading the entire stack and then discarding
-        part of the data. For slicing along the x or y axis this is not
+        part of the data. For slicing along the `x` or `y` axis this is not
         possible and whole (xy) images must be loaded prior to discarding
-        data outside the specified x or y axis range.
+        data outside the specified `x` or `y` axis range.
+        
         Parameters
         ----------
         dim_range : dict, optional
@@ -571,7 +586,9 @@ class visitech_faststack:
             time steps or a particular z-range. An example use for only taking
             time steps up to 5 and z-slice 20 to 30 would
             be:
+            
                 dim_range={'time':slice(None,5), 'z-axis':slice(20,30)}.
+            
             The default is {} which corresponds to the full file.
         dtype : (numpy) datatype, optional
             type to scale data to. The default is np.uint16.
@@ -581,6 +598,7 @@ class visitech_faststack:
         offset : int
             offset the indices by a constant number of frames in case the first
             im is not the first slice of the first stack
+            
         Returns
         -------
         data : numpy.ndarray
@@ -660,6 +678,7 @@ class visitech_faststack:
         data outside the specified x or y axis range.
         The shape of the stack can be accessed without loading data using the 
         stack_shape attribute after creating the yield_stack object.
+        
         Parameters
         ----------
         dim_range : dict, optional
@@ -669,7 +688,9 @@ class visitech_faststack:
             time steps or a particular z-range. An example use for only taking
             time steps up to 5 and z-slice 20 to 30 would
             be:
+            
                 dim_range={'time':slice(None,5), 'z-axis':slice(20,30)}.
+            
             The default is {} which corresponds to the full file.
         dtype : (numpy) datatype, optional
             type to scale data to. The default is np.uint16.
@@ -679,6 +700,7 @@ class visitech_faststack:
         offset : int
             offset the indices by a constant number of frames in case the first
             im is not the first slice of the first stack
+            
         Returns
         -------
         zstack : iterable/generator yielding numpy.ndarray
@@ -760,6 +782,7 @@ class visitech_faststack:
     def save_stack(self,data,filename_prefix='visitech_faststack',sequence_type='multipage'):
         """
         save stacks to tiff files
+        
         Parameters
         ----------
         data : numpy ndarray with 3 or 4 dimensions
@@ -767,12 +790,13 @@ class visitech_faststack:
         filename_prefix : string, optional
             prefix to use for filename. The time/z-axis index is appended if
             relevant. The default is 'visitech_faststack'.
-        sequence_type : string, optional
+        sequence_type : {'multipage','image_sequence','multipage_sequence'}, optional
             The way to store the data. The following options are available:
                 * 'image_sequence' : stores as a series of 2D images with time and or frame number appended
                 * 'multipage' : store all data in a single multipage tiff file
                 * 'multipage_sequence' : stores a multipage tiff file for each time step
             The default is 'multipage'.
+            
         Returns
         -------
         None, but writes file(s) to working directory.
@@ -879,11 +903,13 @@ class visitech_faststack:
     def get_metadata(self,read_from_end=True):
         """
         loads OME metadata from visitech .ome.tif file and returns xml tree object
+        
         Parameters
         ----------
         read_from_end : bool, optional
             Whether to look for the metadata from the end of the file.
             The default is True.
+            
         Returns
         -------
         xml.etree.ElementTree
