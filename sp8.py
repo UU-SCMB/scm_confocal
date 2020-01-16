@@ -10,6 +10,15 @@ class sp8_series:
     functions it is required that the xml metadata is present in a subfolder of
     the working directory called 'MetaData', which is normally generated
     automatically when exporting tif files as raw data.
+    
+    Attributes
+    ----------
+    filenames : list of str
+        the filenames loaded associated with the series
+    data : numpy array
+        the image data as loaded on the most recent call of sp8_series.load_data()
+    metadata : xml.Elementtree root
+        the recording parameters associated with the image series
     """
     
     def __init__(self,fmt='*.tif'):
@@ -83,14 +92,18 @@ class sp8_series:
         automatically to a np.ndarray of the appropriate dimensionality.
         
         Array dimensions are specified as follows:
+        
             - If the number of detector channels is 2 or higher, the first
               array axis is the detector channel index (named 'channel').
+              
             - If the number of channels is 1, the first array axis is the first
               available dimension (instead of 'channel').
+              
             - Each subsequent array axis corresponds to a dimension as
               specified by and in reversed order of the metadata exported by
               the microscope software, excluding dimensions which are not
               available. The default order of dimensions in the metadata is:
+              
                  - (0 = 'channel')
                  -  1 = 'x-axis'
                  -  2 = 'y-axis'
@@ -98,7 +111,7 @@ class sp8_series:
                  -  4 = 'time'
                  -  5 = 'detection wavelength'
                  -  6 = 'excitation wavelength'
-        
+                 
             - As an example, a 2 channel xyt measurement would result in a 4-d
               array with axis order ('channel','time','y-axis',
               'x-axis'), and a single channel xyz scan would be returned as
@@ -120,7 +133,9 @@ class sp8_series:
             channel of multichannel data or a particular z-range. An example
             use for only taking time steps up to 5 and z-slice 20 to 30 would
             be:
+            
                 dim_range={'time':slice(None,5), 'z-axis':slice(20,30)}.
+                
             The default is {}.
         dtype : (numpy) datatype, optional
             type to scale data to. The default is np.uint8.
