@@ -133,7 +133,9 @@ class sp8_series:
             channel of multichannel data or a particular z-range. An example
             use for only taking time steps up to 5 and z-slice 20 to 30 would
             be:
+            
                 dim_range={'time':slice(None,5), 'z-axis':slice(20,30)}.
+                
             The default is {}.
         dtype : (numpy) datatype, optional
             type to scale data to. The default is np.uint8.
