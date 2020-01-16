@@ -10,6 +10,15 @@ class sp8_series:
     functions it is required that the xml metadata is present in a subfolder of
     the working directory called 'MetaData', which is normally generated
     automatically when exporting tif files as raw data.
+    
+    Attributes
+    ----------
+    filenames : list of str
+        the filenames loaded associated with the series
+    data : numpy array
+        the image data as loaded on the most recent call of sp8_series.load_data()
+    metadata : xml.Elementtree root
+        the recording parameters associated with the image series
     """
     
     def __init__(self,fmt='*.tif'):
@@ -91,14 +100,13 @@ class sp8_series:
               specified by and in reversed order of the metadata exported by
               the microscope software, excluding dimensions which are not
               available. The default order of dimensions in the metadata is:
-                 - (0 = 'channel')
-                 -  1 = 'x-axis'
-                 -  2 = 'y-axis'
-                 -  3 = 'z-axis'
-                 -  4 = 'time'
-                 -  5 = 'detection wavelength'
-                 -  6 = 'excitation wavelength'
-        
+                 * (0 = 'channel')
+                 *  1 = 'x-axis'
+                 *  2 = 'y-axis'
+                 *  3 = 'z-axis'
+                 *  4 = 'time'
+                 *  5 = 'detection wavelength'
+                 *  6 = 'excitation wavelength'
             - As an example, a 2 channel xyt measurement would result in a 4-d
               array with axis order ('channel','time','y-axis',
               'x-axis'), and a single channel xyz scan would be returned as
