@@ -190,7 +190,9 @@ class visitech_series:
             time steps or a particular z-range. An example use for only taking
             time steps up to 5 and z-slice 20 to 30 would
             be:
+            
                 dim_range={'time':slice(None,5), 'z-axis':slice(20,30)}.
+                
             The default is {} which corresponds to the full file.
         dtype : (numpy) datatype, optional
             type to scale data to. The default is np.uint16.
@@ -792,9 +794,11 @@ class visitech_faststack:
             relevant. The default is 'visitech_faststack'.
         sequence_type : {'multipage','image_sequence','multipage_sequence'}, optional
             The way to store the data. The following options are available:
-                * 'image_sequence' : stores as a series of 2D images with time and or frame number appended
-                * 'multipage' : store all data in a single multipage tiff file
-                * 'multipage_sequence' : stores a multipage tiff file for each time step
+            
+                - 'image_sequence' : stores as a series of 2D images with time and or frame number appended
+                - 'multipage' : store all data in a single multipage tiff file
+                - 'multipage_sequence' : stores a multipage tiff file for each time step
+            
             The default is 'multipage'.
             
         Returns
