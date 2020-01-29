@@ -17,6 +17,8 @@ which may print something like
 '<current user>\\AppData\\Local\\Continuum\\anaconda3\\lib\\site-packages\\numpy\\__init__.py'
 ```
 
+Alternatively, you can install the master branch directly from github to the site packages folder using anaconda prompt and the git package.
+
 ## Usage
 The classes in this package typically require specific exporting formats from the confocal, and differ in specific implementation details because of this. I have attempted to be consistent in naming functions but each class has its own peculiarities based on personal need.
 
