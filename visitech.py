@@ -4,7 +4,7 @@ import os
 
 class visitech_series:
     """
-    functions for image series taken with the multi-D acquisition menue in 
+    functions for image series taken with the multi-D acquisition menu in 
     MicroManager with the Visitech saved to multipage .ome.tiff files. For the
     custom fast stack sequence use visitech_faststack.
     """
@@ -49,6 +49,7 @@ class visitech_series:
             slice(None,None,None).
         dtype : np int datatype
             data type / bit depth to rescale data to.
+        
         Returns
         -------
         numpy.ndarray containing image data in dim order (im,y,x)
@@ -339,14 +340,14 @@ class visitech_series:
         """
         import xml.etree.ElementTree as et
 
-        metadata = visitech_faststack._get_metadata_string(self.filename)
+        metadata = visitech_faststack._get_metadata_string(self.filename,read_from_end=read_from_end)
 
         #remove specifications
         metadata = metadata.replace('xmlns="http://www.openmicroscopy.org/Schemas/OME/2013-06"','')
         metadata = metadata.replace('xmlns="http://www.openmicroscopy.org/Schemas/SA/2013-06"','')
         metadata = metadata.replace('xmlns="http://www.openmicroscopy.org/Schemas/OME/2015-01"','')
         metadata = metadata.replace('xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.openmicroscopy.org/Schemas/OME/2015-01 http://www.openmicroscopy.org/Schemas/OME/2015-01/ome.xsd"','')
-        print(metadata)
+        
         self.metadata = et.fromstring(metadata)
         return self.metadata
 
