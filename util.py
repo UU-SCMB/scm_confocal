@@ -177,7 +177,7 @@ class util:
     
     def mean_square_displacement(features, pos_cols = ['x','y','z'], t_col='t (s)',
                              nparticles=None, pickrandom=False, nbins=20,
-                             tmin=None, tmax=None):
+                             tmin=None, tmax=None, parallel=False, cores=None):
         """
         calculate the mean square displacement vs time for linked particles
         
@@ -202,6 +202,13 @@ class util:
             left edge of first bin. The default is min(t_col).
         tmax : float, optional
            right edge of last bin, The default is max(t_col).
+        parallel : bool, optional
+            whether to use the parallelized implementation. Requires rest of 
+            the code to be protected in a if __name__ == '__main__' block. The
+            default is False.
+        cores : int, optional
+            the number of cores to use when using the parallelized
+            implementation. When parallel=False this option is ignored
         
         Returns
         -------
@@ -216,9 +223,6 @@ class util:
         features = features[['particle']+[t_col]+pos_cols]
         features = features.set_index('particle')
         dims = len(pos_cols)
-        
-        #initialize empty array to contain [[dt1,dr1],[dt2,dr2],...]
-        dt_dr = np.empty((0,2))
         
         #converting to set assures unique values only
         particles = set(features.index)
@@ -237,21 +241,47 @@ class util:
                 sortedindices = np.argsort(-counts)[:nparticles]
                 particles = vals[sortedindices]
         
-        #iterate over all particles and all time intervals for that particle and 
-        # append [[dr,dt]] to dt_dr each time
-        for p in particles:
-            pdata = features.loc[p]
-            for j in range(len(pdata)):
-                for i in range(j):
-                    dt_dr = np.append(
-                            dt_dr,
-                            [[
-                                    pdata.iat[j,0] - pdata.iat[i,0],
-                                    sum([(pdata.iat[j,d] - pdata.iat[i,d])**2 for d in range(1,dims+1)])
-                            ]],
-                            axis = 0
-                            )
+        #when using parallel processing
+        if parallel:
+            
+            import multiprocessing as mp
+            from itertools import repeat
+            
+            if cores == None:
+                cores = mp.cpu_count()
+            print('processing MSD using {} cores'.format(cores))
+            
+            #set up multiprocessing pool and run
+            pool = mp.Pool(cores)
+            pf = pool.starmap_async(_per_particle_function,zip(particles,repeat(features),repeat(dims)))
+            
+            #get results and terminate
+            pool.close()
+            pool.join()
+            dt_dr = np.concatenate(pf.get(), axis=0)
+            pool.terminate()
+            
         
+        #normal single core process
+        else:
+            #initialize empty array to contain [[dt1,dr1],[dt2,dr2],...]
+            dt_dr = np.empty((0,2))
+            
+            #iterate over all particles and all time intervals for that particle and 
+            # append [[dr,dt]] to dt_dr each time
+            for p in particles:
+                pdata = features.loc[p]
+                for j in range(len(pdata)):
+                    for i in range(j):
+                        dt_dr = np.append(
+                                dt_dr,
+                                [[
+                                        pdata.iat[j,0] - pdata.iat[i,0],
+                                        sum([(pdata.iat[j,d] - pdata.iat[i,d])**2 for d in range(1,dims+1)])
+                                ]],
+                                axis = 0
+                                )
+            
         #check bins
         if tmin == None:
             tmin = min(dt_dr[:,0])
@@ -669,3 +699,23 @@ class util:
             for key,val in params.items():
                 file.write(str(key)+' = '+str(val)+'\n')
         print("input parameters saved in",filename)
+        
+#define helper function to map over particle list for util.mean_square_displacement
+def _per_particle_function(p,features,dims):
+    
+    #init empty list and particle data
+    p_dt_dr = np.empty((0,2))
+    pdata = features.loc[p]
+    
+    #loop over each time interval in particle data and append
+    for j in range(len(pdata)):
+        for i in range(j):
+            p_dt_dr = np.append(
+                    p_dt_dr,
+                    [[
+                            pdata.iat[j,0] - pdata.iat[i,0],
+                            sum([(pdata.iat[j,d] - pdata.iat[i,d])**2 for d in range(1,dims+1)])
+                    ]],
+                    axis = 0
+                    )
+    return p_dt_dr
