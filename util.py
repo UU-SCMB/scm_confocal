@@ -433,6 +433,193 @@ class util:
         
         return data
     
+    def average_nearest_neighbour_distance(features,pos_cols=['x (um)','y (um)','z (um)']):
+        """
+        finds average distance of nearest neighbours from pandas array of
+        coordinates.
+
+        Parameters
+        ----------
+        features : pandas DataFrame
+            dataframe containing the particle coordinates
+        pos_cols : list of strings, optional
+            Names of columns to use for coordinates. The default is
+            ['x (um)','y (um)','z (um)'].
+
+        Returns
+        -------
+        float
+            average distance to the closest particle for all the pairs in the 
+            set
+
+        """
+        from scipy.spatial import cKDTree
+        
+        indices = slice(len(features))
+        tree = cKDTree(features[pos_cols])
+        pos = tree.data[indices]
+        r, i = tree.query(pos,k=2)
+        return np.mean(r[:,1])
+    
+    def pair_correlation_3d(features,rmax,dr=None,ndensity=None,boundary=None,columns=('z','y','x')):
+        """
+        calculates the pair correlation function, also known as the radial
+        distribution function, for a set of 3D coordinates. Note that this does
+        not correct for edge-effects in a finite volume.
+
+        Parameters
+        ----------
+        features : pandas DataFrame
+            contains coordinates in (z,y,x)
+        rmax : float
+            maximum cutoff radius to use
+        dr : float, optional
+            step size for the bins. The default is None which does dr=rmax/20.
+        ndensity : float, optional
+            number density of particles in sample. The default is None which
+            computes the number density from the input data.
+        boundary : TYPE, optional
+            DESCRIPTION. The default is None.
+        columns : tuple of strings (z,y,x), optional
+            headers of columns to use for coordinates. The default is
+            ('z','y','x'). CURRENTLY NOT IMPLEMENTED
+
+        Returns
+        -------
+        edges : list
+            edges of the bins
+        counts : list
+            normalized number of particle pairs for each bin
+        
+        See also
+        --------
+        util.pair_correlation_edgecorrection()
+        
+        """
+        
+        #set default stepsize
+        if dr == None:
+            dr = rmax/20
+        
+        #set default boundaries to limits of coordinates
+        if boundary == None:
+            xmin, xmax = features.x.min(), features.x.max()
+            ymin, ymax = features.y.min(), features.y.max()
+            zmin, zmax = features.z.min(), features.z.max()
+        #otherwise remove particles outside of given limits
+        else:
+            zmin,zmax,ymin,ymax,xmin,xmax = boundary
+            features = features[
+                    (features.x >= xmin) & (features.x <= xmax) &
+                    (features.y >= ymin) & (features.y <= ymax) &
+                    (features.z >= zmin) & (features.z <= zmax)
+                    ]
+        
+        #calculate number density
+        if ndensity == None:
+            ndensity = len(features) / ((xmax-xmin)*(ymax-ymin)*(zmax-zmin))
+        
+        #create bin edges and other parameters
+        nparticles = len(features)
+        edges = np.arange(0,rmax+dr,dr)
+    
+        # initialize tree for fast neighbor search (see scipy documentation)
+        ckdtree = np.spatial.cKDTree(features[['x', 'y', 'z']])
+        
+        # factor to multiply number density with to account for locally higher density
+        density_upperbound_guess = 10
+        
+        #max array that fits in memory. Should be ~available bytes in memory / 16
+        max_array_size = 5e8
+        
+        # Estimate upper bound for number of neighbours within rmax, in order to
+        # protect against creating an array which does not fit in memory
+        neighbours_upper_bound = int((4./3.) * np.pi * (edges.max() + dr)**3 * ndensity * density_upperbound_guess)
+        if nparticles * neighbours_upper_bound > max_array_size:
+            print('distance array too big for memory, using sequential brute force method. WARNING: NOT IMPLEMENTED!')
+            #loop over shells with thickness dr
+            '''
+            counts = sp.zeros(len(edges)-1)
+            for b in range(len(counts)):
+                rlow,rhigh = edges[b]**2,edges[b+1]**2
+                nparticles = len(features)
+                for i in range(nparticles-1):
+                    for j in range(i+1,nparticles):
+                        r = (features.x.iloc[i]-features.x.iloc[j])**2 + \
+                        (features.y.iloc[i]-features.y.iloc[j])**2 + \
+                        (features.z.iloc[i]-features.z.iloc[j])**2
+                        if r >= rlow and r < rhigh:
+                            counts[b] += 1
+            '''
+            return (None,None)
+            
+        else:
+            #calculate distance array
+            dist, indices = ckdtree.query(ckdtree.data[slice(nparticles)], k=neighbours_upper_bound, distance_upper_bound=rmax)
+            
+            # drop zero and infinite dist values
+            mask = (dist > 0) & np.isfinite(dist)
+            dist = dist[mask]
+            
+            #bin the distances and normalize appropriately
+            counts = np.histogram(dist, bins=edges)[0]
+            counts = [counts[i]/(4/3*np.pi*(edges[i+1]**3-edges[i]**3)) for i in range(len(edges)-1)]
+            counts = [count/nparticles/ndensity for count in counts]
+        
+        return (edges,counts)
+    
+    def pair_correlation_edgecorrection(rmax,boundary,dr=None,n=2000,repeat=10):
+        """
+        calculates the pair correlation function, also known as radial
+        distribution function, for an ideal gas in a given box. Useful to
+        correct the RDF within a finite volume for edge effects
+
+        Parameters
+        ----------
+        rmax : float
+            maximum cutoff radius to use.
+        boundary : tuple of floats as (zmin,zmax,ymin,ymax,xmin,xmax)
+            boundaries define the box shape and size
+        dr : float, optional
+            step size for the bins. The default is dr=rmax/20
+        n : int, optional
+             number of random points to sample. The default is 2000.
+        repeat : int, optional
+            number of times to repeat the calculation and average. The default
+            is 10.
+
+        Returns
+        -------
+        counts : list
+            counts per bin for an ideal gas
+        
+        See also
+        --------
+        util.pair_correlation_3d()
+
+        """
+        
+        #set default stepsize
+        if dr == None:
+            dr = rmax/20    
+    
+        edges = np.arange(0,rmax+dr,dr)
+        counts = np.zeros((repeat,len(edges)-1))
+        
+        #create dataframe
+        from pandas import DataFrame
+        gasdata = DataFrame(columns=['z','y','x'])
+            
+        for i in range(repeat):
+            gasdata['z'] = np.random.uniform(low=boundary[0],high=boundary[1],size=n)
+            gasdata['y'] = np.random.uniform(low=boundary[2],high=boundary[3],size=n)
+            gasdata['x'] = np.random.uniform(low=boundary[4],high=boundary[5],size=n)    
+            counts[i] = util.pair_correlation_3d(gasdata,rmax,dr=dr,boundary=boundary)[1]
+        
+        counts = np.mean(counts,axis=0)
+        
+        return counts
+    
     def saveprompt(question="Save/overwrite? 1=YES, 0=NO. "):
         """
         Asks user a question (whether to save). If 1 is entered, it returns
