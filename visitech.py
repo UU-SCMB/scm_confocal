@@ -1,6 +1,7 @@
 import numpy as np
 import pims
 import os
+from decimal import Decimal
 
 class visitech_series:
     """
@@ -529,10 +530,14 @@ class visitech_faststack:
         print('starting PIMS')
         self.datafile = pims.TiffStack(filename)
         print('PIMS initialized')
-
+        
+        #use decimal objects for stack and step size for preventing floating point errors
+        zsize = Decimal('{:}'.format(zsize))
+        zstep = Decimal('{:}'.format(zstep))
+        
         #find logical sizes of data
         self.nf = len(self.datafile)
-        self.nz = int(zsize/zstep) + 1
+        self.nz = int((zsize - (zsize % zstep)) / zsize + 1)
         self.nt = self.nf//(self.nz + zbacksteps)
         self.backsteps = zbacksteps
 
