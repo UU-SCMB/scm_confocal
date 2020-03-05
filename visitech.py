@@ -543,8 +543,8 @@ class visitech_faststack:
 
         #find physical sizes of data
         self.binning = binning
-        self.zsteps = np.linspace(zstart,zstart+zsize,self.nz,endpoint=True)
-        self.pixelsize = (zstep,6.5/magnification*binning,6.5/magnification*binning)
+        self.zsteps = np.linspace(zstart,zstart+float(zsize),self.nz,endpoint=True)
+        self.pixelsize = (float(zstep),6.5/magnification*binning,6.5/magnification*binning)
         #Hamamatsu C11440-22CU has pixels of 6.5x6.5 um
 
     def load_data(self,indices=slice(None,None,None),dtype=np.uint16):
