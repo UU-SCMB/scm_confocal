@@ -613,10 +613,18 @@ class visitech_faststack:
             ndarray with the pixel values
         """
         #account for offset errors in data recording
+        offset = offset % (self.nz+self.backsteps)#offset at most one stack
+        
         if offset == 0:
             indices = np.reshape(range(self.nf),(self.nt,self.nz+self.backsteps))
+        
+        elif offset <= self.backsteps and remove_backsteps:
+            #if we remove backsteps and offset is smaller than nbacksteps, we can keep the last stack
+            indices = list(range(offset,self.nf))+[0]*offset
+            indices = np.reshape(indices,(self.nt,self.nz+self.backsteps))
+        
         else:
-            #in case of offset, lose one stack in total (~half at begin and half at end)
+            #in case of larger offset, lose one stack in total (~half at begin and half at end)
             nf = self.nf - (self.nz+self.backsteps)
             nt = self.nt - 1
             indices = np.reshape(range(offset,offset+nf),(nt,self.nz+self.backsteps))
@@ -716,14 +724,21 @@ class visitech_faststack:
             with the pixel values
         """
         #account for offset errors in data recording
+        offset = offset % (self.nz+self.backsteps)#offset at most one stack
+        
         if offset == 0:
             indices = np.reshape(range(self.nf),(self.nt,self.nz+self.backsteps))
+        
+        elif offset <= self.backsteps and remove_backsteps:
+            #if we remove backsteps and offset is smaller than nbacksteps, we can keep the last stack
+            indices = list(range(offset,self.nf))+[0]*offset
+            indices = np.reshape(indices,(self.nt,self.nz+self.backsteps))
+        
         else:
-            #in case of offset, lose one stack in total (~half at begin and half at end)
+            #in case of larger offset, lose one stack in total (~half at begin and half at end)
             nf = self.nf - (self.nz+self.backsteps)
             nt = self.nt - 1
             indices = np.reshape(range(offset,offset+nf),(nt,self.nz+self.backsteps))
-
 
         #remove backsteps from indices
         if remove_backsteps:
