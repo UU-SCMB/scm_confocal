@@ -526,6 +526,7 @@ class util:
         util.pair_correlation_edgecorrection()
         
         """
+        from scipy.spatial import cKDTree
         
         #set default stepsize
         if dr == None:
@@ -554,7 +555,7 @@ class util:
         edges = np.arange(0,rmax+dr,dr)
     
         # initialize tree for fast neighbor search (see scipy documentation)
-        ckdtree = np.spatial.cKDTree(features[['x', 'y', 'z']])
+        ckdtree = cKDTree(features[['x', 'y', 'z']])
         
         # factor to multiply number density with to account for locally higher density
         density_upperbound_guess = 10
