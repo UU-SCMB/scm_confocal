@@ -537,7 +537,7 @@ class visitech_faststack:
         
         #find logical sizes of data
         self.nf = len(self.datafile)
-        self.nz = int((zsize - (zsize % zstep)) / zsize + 1)
+        self.nz = int((zsize - (zsize % zstep)) / zstep + 1)
         self.nt = self.nf//(self.nz + zbacksteps)
         self.backsteps = zbacksteps
 
