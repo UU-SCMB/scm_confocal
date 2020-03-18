@@ -4,7 +4,6 @@ Library for importing and dealing with data from the Utrecht University Soft Con
 ## Info
 - created by:     Maarten Bransen
 - email:          m.bransen@uu.nl
-- last updated:   06-11-2019
 
 ## Installation instructions
 Download the `scm_confocal` folder and place it in your `site-packages` location of your Anaconda installation. If you are unsure where this is located you can find the path of any already installed package, e.g. using numpy:
