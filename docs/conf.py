@@ -29,13 +29,15 @@ author = 'Maarten Bransen'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = extensions = ['sphinx.ext.autodoc', 'sphinx.ext.coverage',
-                           'sphinx.ext.napoleon']
+                           'sphinx.ext.napoleon','sphinx.ext.autosummary',]
 napoleon_google_docstring = False
 napoleon_use_param = False
 napoleon_use_ivar = True
 autodoc_mock_imports = ["numpy","scipy","scipy.spatial","scipy.optimize",
                         "matplotlib","matplotlib.pyplot","PIL.Image", "glob",
                         "pims","pandas","multiprocessing"]
+autodoc_default_flags = ['members']
+autosummary_generate = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
