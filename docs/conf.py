@@ -15,13 +15,6 @@ import sys
 #sys.path.insert(0, os.path.abspath('.'))
 sys.path.insert(0, os.path.abspath('../'))
 
-# -- fool readthedocs into thinking they have packages installed -------------
-import mock
-MOCK_MODULES = ['numpy', 'scipy', 'matplotlib']
-for mod_name in MOCK_MODULES:
-sys.modules[mod_name] = mock.Mock()
-
-
 # -- Project information -----------------------------------------------------
 
 project = 'scm_confocal'
@@ -39,6 +32,7 @@ extensions = extensions = ['sphinx.ext.autodoc', 'sphinx.ext.coverage',
 napoleon_google_docstring = False
 napoleon_use_param = False
 napoleon_use_ivar = True
+autodoc_mock_imports = ["numpy","scipy.spatial","matplotlib.pyplot","matplotlib"]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
