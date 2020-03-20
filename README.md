@@ -1,5 +1,7 @@
 # scm_confocal
-Library for importing and dealing with data from the Utrecht University Soft Condensed Matter groups confocal microscopes, including some general utility functions. **[The documentation can be found here](https://maartenbransen.github.io/scm_confocal/)**
+Library for importing and dealing with data from the Utrecht University Soft Condensed Matter groups confocal microscopes, including some general utility functions.
+
+**[The documentation can be found here](https://maartenbransen.github.io/scm_confocal/)**
 
 ## Info
 - created by:     Maarten Bransen
