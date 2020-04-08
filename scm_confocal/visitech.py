@@ -573,7 +573,8 @@ class visitech_faststack:
 
         return data
 
-    def load_stack(self,dim_range={},dtype=np.uint16,remove_backsteps=True,offset=0):
+    def load_stack(self,dim_range={},dtype=np.uint16,remove_backsteps=True,
+                   offset=0,force_reshape=False):
         """
         Load the data and reshape into 4D stack with the following dimension
         order: ('time','z-axis','y-axis','x-axis')
@@ -606,6 +607,10 @@ class visitech_faststack:
         offset : int
             offset the indices by a constant number of frames in case the first
             im is not the first slice of the first stack
+        force_reshape : bool
+            in case of incorrect number of steps during acquisition, you can
+            use this to ignore the reshape-error occuring upon trying to sort
+            2d images into 4d stack series
             
         Returns
         -------
@@ -615,19 +620,49 @@ class visitech_faststack:
         #account for offset errors in data recording
         offset = offset % (self.nz+self.backsteps)#offset at most one stack
         
-        if offset == 0:
-            indices = np.reshape(range(self.nf),(self.nt,self.nz+self.backsteps))
+        try: 
+            if offset == 0:
+                indices = np.reshape(range(self.nf),(self.nt,self.nz+self.backsteps))
+    
+            elif offset <= self.backsteps and remove_backsteps:
+                #if we remove backsteps and offset is smaller than nbacksteps, we can keep the last stack
+                indices = list(range(offset,self.nf))+[0]*offset
+                indices = np.reshape(indices,(self.nt,self.nz+self.backsteps))
+    
+            else:
+                #in case of larger offset, lose one stack in total (~half at begin and half at end)
+                nf = self.nf - (self.nz+self.backsteps)
+                nt = self.nt - 1
+                indices = np.reshape(range(offset,offset+nf),(nt,self.nz+self.backsteps))
         
-        elif offset <= self.backsteps and remove_backsteps:
-            #if we remove backsteps and offset is smaller than nbacksteps, we can keep the last stack
-            indices = list(range(offset,self.nf))+[0]*offset
-            indices = np.reshape(indices,(self.nt,self.nz+self.backsteps))
+        #in case the number of images does nog correspond to an integer number
+        #of stacks, throw an error or a warning in case of forced loading
+        except ValueError:
+            if force_reshape:
+                print(('[WARNING] scm_confocal.visitech_faststack.load_stack: '+
+                       'cannot reshape {:} images into stack of '+
+                      'shape ({:},{:})').format(self.nf,self.nt,self.nz+self.backsteps))
+                nt = int(self.nf/(self.nz+self.backsteps))
+                nf = nt*(self.nz+self.backsteps)
+                
+                print('retrying with {:} frames and {:} stacks'.format(nf,nt))
+                
+                if offset == 0:
+                    indices = np.reshape(range(nf),(nt,self.nz+self.backsteps))
+            
+                elif offset <= self.backsteps and remove_backsteps:
+                    #if we remove backsteps and offset is smaller than nbacksteps, we can keep the last stack
+                    indices = list(range(offset,nf))+[0]*offset
+                    indices = np.reshape(indices,(nt,self.nz+self.backsteps))
         
-        else:
-            #in case of larger offset, lose one stack in total (~half at begin and half at end)
-            nf = self.nf - (self.nz+self.backsteps)
-            nt = self.nt - 1
-            indices = np.reshape(range(offset,offset+nf),(nt,self.nz+self.backsteps))
+                else:
+                    #in case of larger offset, lose one stack in total (~half at begin and half at end)
+                    nf = nf - (self.nz+self.backsteps)
+                    nt = nt - 1
+                    indices = np.reshape(range(offset,offset+nf),(nt,self.nz+self.backsteps))
+            else:
+                raise ValueError(('cannot reshape {:} images into stack of '+
+                      'shape ({:},{:})').format(self.nf,self.nt,self.nz+self.backsteps))
 
         #remove backsteps from indices
         if remove_backsteps:
@@ -643,7 +678,7 @@ class visitech_faststack:
 
         #warn for inefficient x and y trimming
         if 'x-axis' in dim_range or 'y-axis' in dim_range:
-            print("[WARNING] confocal.visitech_faststack.load_stack: Loading"+
+            print("[WARNING] scm_confocal.visitech_faststack.load_stack: Loading"+
                   " only part of the data along dimensions 'x-axis' and/or "+
                   "'y-axis' not implemented. Data will be loaded fully "+
                   "into memory before discarding values outside of the "+
@@ -679,7 +714,8 @@ class visitech_faststack:
 
         return stack
 
-    def yield_stack(self,dim_range={},dtype=np.uint16,remove_backsteps=True,offset=0):
+    def yield_stack(self,dim_range={},dtype=np.uint16,remove_backsteps=True,
+                    offset=0,force_reshape=False):
         """
         Lazy-load the data and reshape into 4D stack with the following
         dimension order: ('time','z-axis','y-axis','x-axis'). Returns a
@@ -716,6 +752,10 @@ class visitech_faststack:
         offset : int
             offset the indices by a constant number of frames in case the first
             im is not the first slice of the first stack
+        force_reshape : bool
+            in case of incorrect number of steps during acquisition, you can
+            use this to ignore the reshape-error occuring upon trying to sort
+            2d images into 4d stack series
             
         Returns
         -------
@@ -725,20 +765,50 @@ class visitech_faststack:
         """
         #account for offset errors in data recording
         offset = offset % (self.nz+self.backsteps)#offset at most one stack
+
+        try: 
+            if offset == 0:
+                indices = np.reshape(range(self.nf),(self.nt,self.nz+self.backsteps))
+    
+            elif offset <= self.backsteps and remove_backsteps:
+                #if we remove backsteps and offset is smaller than nbacksteps, we can keep the last stack
+                indices = list(range(offset,self.nf))+[0]*offset
+                indices = np.reshape(indices,(self.nt,self.nz+self.backsteps))
+    
+            else:
+                #in case of larger offset, lose one stack in total (~half at begin and half at end)
+                nf = self.nf - (self.nz+self.backsteps)
+                nt = self.nt - 1
+                indices = np.reshape(range(offset,offset+nf),(nt,self.nz+self.backsteps))
         
-        if offset == 0:
-            indices = np.reshape(range(self.nf),(self.nt,self.nz+self.backsteps))
+        #in case the number of images does nog correspond to an integer number
+        #of stacks, throw an error or a warning in case of forced loading
+        except ValueError:
+            if force_reshape:
+                print(('[WARNING] scm_confocal.visitech_faststack.yield_stack: '+
+                       'cannot reshape {:} images into stack of '+
+                      'shape ({:},{:})').format(self.nf,self.nt,self.nz+self.backsteps))
+                nt = int(self.nf/(self.nz+self.backsteps))
+                nf = nt*(self.nz+self.backsteps)
+                
+                print('retrying with {:} frames and {:} stacks'.format(nf,nt))
+                
+                if offset == 0:
+                    indices = np.reshape(range(nf),(nt,self.nz+self.backsteps))
+            
+                elif offset <= self.backsteps and remove_backsteps:
+                    #if we remove backsteps and offset is smaller than nbacksteps, we can keep the last stack
+                    indices = list(range(offset,nf))+[0]*offset
+                    indices = np.reshape(indices,(nt,self.nz+self.backsteps))
         
-        elif offset <= self.backsteps and remove_backsteps:
-            #if we remove backsteps and offset is smaller than nbacksteps, we can keep the last stack
-            indices = list(range(offset,self.nf))+[0]*offset
-            indices = np.reshape(indices,(self.nt,self.nz+self.backsteps))
-        
-        else:
-            #in case of larger offset, lose one stack in total (~half at begin and half at end)
-            nf = self.nf - (self.nz+self.backsteps)
-            nt = self.nt - 1
-            indices = np.reshape(range(offset,offset+nf),(nt,self.nz+self.backsteps))
+                else:
+                    #in case of larger offset, lose one stack in total (~half at begin and half at end)
+                    nf = nf - (self.nz+self.backsteps)
+                    nt = nt - 1
+                    indices = np.reshape(range(offset,offset+nf),(nt,self.nz+self.backsteps))
+            else:
+                raise ValueError(('cannot reshape {:} images into stack of '+
+                      'shape ({:},{:})').format(self.nf,self.nt,self.nz+self.backsteps))
 
         #remove backsteps from indices
         if remove_backsteps:
@@ -747,14 +817,14 @@ class visitech_faststack:
         #check dim_range items for faulty values
         for key in dim_range.keys():
             if type(key) != str or key not in ['time','z-axis','y-axis','x-axis']:
-                print("[WARNING] confocal.visitech_faststack.load_stack: "+
+                print("[WARNING] confocal.visitech_faststack.yield_stack: "+
                           "dimension '"+key+"' not present in data, ignoring "+
                           "this entry.")
                 dim_range.pop(key)
 
         #warn for inefficient x and y trimming
         if 'x-axis' in dim_range or 'y-axis' in dim_range:
-            print("[WARNING] confocal.visitech_faststack.load_stack: Loading"+
+            print("[WARNING] scm_confocal.visitech_faststack.yield_stack: Loading"+
                   " only part of the data along dimensions 'x-axis' and/or "+
                   "'y-axis' not implemented. Data will be loaded fully "+
                   "into memory before discarding values outside of the "+
@@ -778,7 +848,9 @@ class visitech_faststack:
         self._stack_indices = indices
 
         #store stack size as attribute
+        stack_shape = indices.shape + self.datafile[0].shape
         self.stack_shape = indices.shape + self.datafile[0].shape
+        
         if 'y-axis' in dim_range:
             self.stack_shape = self.stack_shape[:2] + (len(range(self.stack_shape[2])[dim_range['y-axis']]),self.stack_shape[3])
         if 'x-axis' in dim_range:
@@ -790,7 +862,7 @@ class visitech_faststack:
         def stack_iter():
             for zstack_indices in indices:
                 zstack = self.load_data(indices=zstack_indices.ravel(),dtype=dtype)
-                zstack = zstack.reshape(self.stack_shape[1:])
+                zstack = zstack.reshape(stack_shape[1:])
     
                 #trim x and y axis
                 if 'y-axis' in dim_range:
