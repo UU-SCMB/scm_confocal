@@ -463,6 +463,116 @@ class util:
         
         return data
     
+    def flatfield_correction_init(images,kernelsize,average=True):
+        """
+        Provides a correction image for inhomogeneous illumination based on low
+        frequency fourier components. Particularly useful for data from the 
+        Visitech recorded at relatively large frame size / low imaging rate.
+
+        Parameters
+        ----------
+        images : (sequence of) numpy array with >= 2 dimensions
+            image(s) to calculate a correction image for. The last two 
+            dimensions are taken as the 2D images.
+        kernelsize : int
+            cutoff size in fourier-space pixels (i.e. cycles per image-size) of 
+            cone-shaped low-pass fourier filter.
+        average : bool, optional
+            whether to average correction images along the first dimension of
+            the supplied data. Requires >2 dimensions in the input data. The 
+            default is True.
+
+        Returns
+        -------
+        numpy array
+            (array of) normalized correction images where the maximum is scaled
+            to 1.
+        
+        See also
+        --------
+        scm_confocal.util.flatfield_correction_apply
+        """
+        
+        from numpy.fft import rfft2,irfft2,fftshift
+        
+        #determine shape of fft
+        ftshape = (np.shape(images)[-2],np.shape(images)[-1]//2+1)
+        
+        #create cone kernel in fft-shaped array of zeros
+        kernel = np.zeros(ftshape)
+        for i in range(-kernelsize-1,kernelsize+1):
+            for j in range(kernelsize+2):
+                if i**2+j**2<kernelsize**2:
+                    kernel[ftshape[0]//2+i,j]=1-(i**2+j**2)/kernelsize**2
+        
+        #shift kernel along y to match np.fft's default positioning
+        kernel = fftshift(kernel,axes=0)
+        
+        #fourier transform, multiply with kernel, then inverse FT
+        corrim = irfft2(rfft2(images)*kernel)
+        
+        #assume first axis is for averaging
+        if average and images.ndim>2:
+            corrim = np.mean(corrim,axis=0)
+        
+        #scale to vals to (0,1] vals and return result
+        return corrim/corrim.max()
+    
+    def flatfield_correction_apply(images,corrim,dtype=None,check_overflow=True):
+        """
+        Apply a correction to all images in a dataset based on a mask / 
+        correction image such as provided by util.flatfield_correction_init.
+        Pixel values are divided by the correction image, accounting for 
+        integer overflow by clipping to the max value of the (integer) dtype.
+        
+        Note that overflow checking is currently implemented using numpy masked
+        arrays, which are extremely slow (up to 10x) when compared to normal
+        numpy arrays. It can be bypassed using check_overflow for a memory and
+        performance improvement.
+
+        Parameters
+        ----------
+        images : (sequence of) numpy.array
+            the images to correct. he last two dimensions are taken as the 2D
+            images, other dimensions are preserved. Must have 2 or more dims.
+        corrim : numpy.array
+            The correction image to apply. Must have 2 or more dimensions, if
+            there are more than 2 it must match `images` according to numpy
+            broadcasting rules.
+        dtype : data type, optional
+            data type used for the output. The default is images.dtype.
+        check_overflow : bool, optional
+            Whether to check and avoid integer overflow. The default is True.
+
+        Returns
+        -------
+        numpy.array
+            the corrected image array
+
+        See also
+        --------
+        scm_confocal.util.flatfield_correction_init
+        """
+        
+        #get data type
+        if dtype==None:
+            dtype = images.dtype
+        
+        #bypass overflow checking for a small memory/performance gain
+        if not check_overflow:
+            (images/corrim).astype(dtype)
+        
+        #try if integer type, if not it must be float so overflow won't occur
+        try:
+            maxval = np.iinfo(dtype).max
+        except ValueError:
+            return (images/corrim).astype(dtype)
+        
+        #clip overflow values at maxval and correct rest as normal
+        mask = images >= maxval*corrim
+        images = (np.ma.array(images,mask=mask)/corrim).filled(maxval)
+        return images.astype(dtype)
+    
     def average_nearest_neighbour_distance(features,pos_cols=['x (um)','y (um)','z (um)']):
         """
         finds average distance of nearest neighbours from pandas array of
