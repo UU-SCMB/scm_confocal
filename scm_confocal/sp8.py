@@ -162,15 +162,8 @@ class sp8_series:
         #determine what the new shape should be from dimensional metadata
         newshape = [int(dim['NumberOfElements']) for dim in reversed(dimensions)]
         
-        #replace dimID with more sensible label
-        def DimIDreplace(idlist):
-            pattern = zip(list('123456'),['x-axis','y-axis','z-axis','time',
-                          'detection wavelength','emission wavelength'])
-            for l,r in pattern:
-                idlist = idlist.replace(l,r)
-            return idlist
-        
-        order = [DimIDreplace(dim['DimID']) for dim in reversed(dimensions)]
+        #create list of dimension labels
+        order = [sp8_series._DimIDreplace(dim['DimID']) for dim in reversed(dimensions)]
         
         #append channel (but before x and y) information for multichannel data
         if len(channels)>1:
@@ -450,3 +443,11 @@ class sp8_series:
         path = os.path.join(os.path.curdir, 'MetaData', '*.xml')
         path = sorted(glob.glob(path))[0]
         return os.path.split(path)[1][:-4]
+    
+    def _DimIDreplace(idlist):
+        """replaces dimID int with more sensible label"""
+        pattern = zip(list('123456'),['x-axis','y-axis','z-axis','time',
+                      'detection wavelength','emission wavelength'])
+        for l,r in pattern:
+            idlist = idlist.replace(l,r)
+        return idlist
