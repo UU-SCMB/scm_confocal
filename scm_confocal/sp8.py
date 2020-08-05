@@ -66,12 +66,12 @@ class sp8_series:
             3d numpy array with dimension order (filenames,y,x).
 
         """
-        import PIL.Image
+        from skimage.io import imread 
         
         if filenames == None:
             filenames = sorted(self.filenames)
         
-        data = np.array([np.array(PIL.Image.open(name)) for name in filenames[first:last]])
+        data = np.array([imread(name) for name in filenames[first:last]])
 
         #check if images are 2D (i.e. greyscale)
         if data.ndim > 3:
