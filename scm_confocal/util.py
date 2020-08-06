@@ -601,78 +601,78 @@ class util:
         r, i = tree.query(pos,k=2)
         return np.mean(r[:,1])
     
-def pair_correlation_3d(features,rmax,dr=None,ndensity=None,boundary=None,
-                        columns=('z','y','x')):
-    """
-    calculates the pair correlation function, also known as the radial
-    distribution function, for a set of 3D coordinates. Note that this does
-    not correct for edge-effects in a finite volume.
-
-    Parameters
-    ----------
-    features : pandas DataFrame
-        contains coordinates in (z,y,x)
-    rmax : float
-        maximum cutoff radius to use
-    dr : float, optional
-        step size for the bins. The default is None which does dr=rmax/20.
-    ndensity : float, optional
-        number density of particles in sample. The default is None which
-        computes the number density from the input data.
-    boundary : TYPE, optional
-        DESCRIPTION. The default is None.
-    columns : tuple of strings (z,y,x), optional
-        headers of columns to use for coordinates. The default is
-        ('z','y','x'). CURRENTLY NOT IMPLEMENTED
-
-    Returns
-    -------
-    edges : list
-        edges of the bins
-    counts : list
-        normalized number of particle pairs for each bin
+    def pair_correlation_3d(features,rmax,dr=None,ndensity=None,boundary=None,
+                            columns=('z','y','x')):
+        """
+        calculates the pair correlation function, also known as the radial
+        distribution function, for a set of 3D coordinates. Note that this does
+        not correct for edge-effects in a finite volume.
     
-    See also
-    --------
-    util.pair_correlation_edgecorrection()
+        Parameters
+        ----------
+        features : pandas DataFrame
+            contains coordinates in (z,y,x)
+        rmax : float
+            maximum cutoff radius to use
+        dr : float, optional
+            step size for the bins. The default is None which does dr=rmax/20.
+        ndensity : float, optional
+            number density of particles in sample. The default is None which
+            computes the number density from the input data.
+        boundary : TYPE, optional
+            DESCRIPTION. The default is None.
+        columns : tuple of strings (z,y,x), optional
+            headers of columns to use for coordinates. The default is
+            ('z','y','x'). CURRENTLY NOT IMPLEMENTED
     
-    """
-    from scipy.spatial import cKDTree
+        Returns
+        -------
+        edges : list
+            edges of the bins
+        counts : list
+            normalized number of particle pairs for each bin
+        
+        See also
+        --------
+        util.pair_correlation_edgecorrection()
+        
+        """
+        from scipy.spatial import cKDTree
+        
+        #set default stepsize
+        if dr == None:
+            dr = rmax/20
+        
+        #set default boundaries to limits of coordinates
+        if type(boundary) == type(None):
+            xmin, xmax = features.x.min(), features.x.max()
+            ymin, ymax = features.y.min(), features.y.max()
+            zmin, zmax = features.z.min(), features.z.max()
+        #otherwise remove particles outside of given limits
+        else:
+            zmin,zmax,ymin,ymax,xmin,xmax = boundary
+            features = features[
+                    (features.x >= xmin) & (features.x <= xmax) &
+                    (features.y >= ymin) & (features.y <= ymax) &
+                    (features.z >= zmin) & (features.z <= zmax)
+                    ]
     
-    #set default stepsize
-    if dr == None:
-        dr = rmax/20
+        #create bin edges and other parameters
+        nparticles = len(features)
+        edges = np.arange(0,rmax+dr,dr)
+        
+        #calculate number density
+        if ndensity == None:
+            ndensity = nparticles / ((xmax-xmin)*(ymax-ymin)*(zmax-zmin))
     
-    #set default boundaries to limits of coordinates
-    if type(boundary) == type(None):
-        xmin, xmax = features.x.min(), features.x.max()
-        ymin, ymax = features.y.min(), features.y.max()
-        zmin, zmax = features.z.min(), features.z.max()
-    #otherwise remove particles outside of given limits
-    else:
-        zmin,zmax,ymin,ymax,xmin,xmax = boundary
-        features = features[
-                (features.x >= xmin) & (features.x <= xmax) &
-                (features.y >= ymin) & (features.y <= ymax) &
-                (features.z >= zmin) & (features.z <= zmax)
-                ]
-
-    #create bin edges and other parameters
-    nparticles = len(features)
-    edges = np.arange(0,rmax+dr,dr)
+        # initialize tree for fast neighbor search (see scipy documentation)
+        ckdtree = cKDTree(features[['x', 'y', 'z']])
     
-    #calculate number density
-    if ndensity == None:
-        ndensity = nparticles / ((xmax-xmin)*(ymax-ymin)*(zmax-zmin))
-
-    # initialize tree for fast neighbor search (see scipy documentation)
-    ckdtree = cKDTree(features[['x', 'y', 'z']])
-
-    counts = ckdtree.count_neighbors(ckdtree,edges,cumulative=False)[1:]
-    counts = [counts[i]/(4/3*np.pi*(edges[i+1]**3-edges[i]**3)) for i in range(len(edges)-1)]
-    counts = [count/nparticles/ndensity for count in counts]
-    
-    return edges,counts
+        counts = ckdtree.count_neighbors(ckdtree,edges,cumulative=False)[1:]
+        counts = [counts[i]/(4/3*np.pi*(edges[i+1]**3-edges[i]**3)) for i in range(len(edges)-1)]
+        counts = [count/nparticles/ndensity for count in counts]
+        
+        return edges,counts
     
     def pair_correlation_edgecorrection(rmax,boundary,dr=None,n=2000,repeat=10,
                                         parallel=False,cores=None):
