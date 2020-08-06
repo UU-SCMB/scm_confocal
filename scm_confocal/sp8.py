@@ -66,12 +66,21 @@ class sp8_series:
             3d numpy array with dimension order (filenames,y,x).
 
         """
-        from skimage.io import imread 
-        
+        #sort filenames
         if filenames == None:
             filenames = sorted(self.filenames)
-        
-        data = np.array([imread(name) for name in filenames[first:last]])
+
+        #this ugly try-except block tries different importers for availability
+        try:
+            from PIL.Image import open as imopen
+            data = np.array([np.array(imopen(name)) for name in filenames[first:last]])
+        except:
+            try:
+                from skimage.io import imread
+                data = np.array([imread(name) for name in filenames[first:last]])
+            except:
+                raise ImportError('could not load data, check if pillow/PIL or '+
+                                  ' scikit-image are installed')
 
         #check if images are 2D (i.e. greyscale)
         if data.ndim > 3:
@@ -79,10 +88,11 @@ class sp8_series:
                   "did you load colour images perhaps? Continueing with average values of higher dimensions")
             data = np.mean(data,axis=tuple(range(3,data.ndim)),dtype=dtype)
 
-
+        #optionally fix dtype of data
         if not data.dtype == dtype:
             data = data/np.amax(data)*np.iinfo(dtype).max
             data = data.astype(dtype)
+        
         self.data = data
         return data
     
