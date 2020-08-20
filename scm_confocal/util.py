@@ -607,50 +607,14 @@ class util:
                             boundary=None,column_headers=['z','y','x'],
                             periodic_boundary=False,handle_edge=True,):
         """
-        calculates the pair correlation function, also known as the radial
-        distribution function, for a set of 3D coordinates. Note that this does
-        not correct for edge-effects in a finite volume.
-    
+        calculates g(r) via a 'conventional' distance histogram method for a 
+        set of 3D coordinate sets. Edge correction is fully analytic and based 
+        on refs [1] and [2].
+
         Parameters
         ----------
         features : pandas DataFrame or numpy.ndarray
             contains coordinates in (z,y,x)
-        rmax : float
-            maximum cutoff radius to use
-        dr : float, optional
-            step size for the bins. The default is None which does dr=rmax/20.
-        ndensity : float, optional
-            number density of particles in sample. The default is None which
-            computes the number density from the input data.
-        boundary : TYPE, optional
-            DESCRIPTION. The default is None.
-        column_headers : tuple of strings (z,y,x), optional
-            headers of columns to use for coordinates if features is a 
-            pandas.DataFrame. The default is ('z','y','x').
-    
-        Returns
-        -------
-        edges : list
-            edges of the bins
-        counts : list
-            normalized number of particle pairs for each bin
-        
-        """
-        
-        """calculates g(r) via a 'conventional' distance histogram method for a 
-        set of 3D coordinate sets. Provided for convenience. Edge correction based
-        on refs [1] and [2].
-    
-        Parameters
-        ----------
-        coordinates : numpy.array or list-like of numpy.array
-            list of sets of coordinates, where each item along the 0th dimension is
-            a n*3 numpy.array of particle coordinates, where each array is an 
-            independent set of coordinates (e.g. one z-stack, a time step from a 
-            video, etc.), with each element of the array of form  `[z,y,x]`. Each 
-            set of coordinates is not required to have the same number of particles
-            but all stacks must share the same  bounding box as given by 
-            `boundary`, and all coordinates must be within this bounding box.
         rmin : float, optional
             lower bound for the pairwise distance, left edge of 0th bin. The 
             default is 0.
@@ -658,31 +622,33 @@ class util:
             upper bound for the pairwise distance, right edge of last bin. The 
             default is 10.
         dr : float, optional
-            bin width for the pairwise distance bins. The default is (rmax-rmin)/20
+            bin width for the pairwise distance bins. The default is 
+            (rmax-rmin)/20.
+        ndensity : float, optional
+            number density of particles in sample. The default is None which
+            computes the number density from the input data.
         boundary : array-like, optional
-            positions of the walls that define the bounding box of the coordinates,
-            given as  `((zmin,zmax),(ymin,ymax),(xmin,xmax))`. The default is the 
-            min and max values in the dataset along each dimension.
-        density : float, optional
-            number density of particles in the box to use for normalizing the 
-            values. The default is the average density based on `coordinates` and
-            `boundary`.
+            positions of the walls that define the bounding box of the 
+            coordinates, given as  `(zmin,zmax,ymin,ymax,xmin,xmax)`. The 
+            default is the min and max values in the dataset along each 
+            dimension.
+        column_headers : list of string, optional
+            column labels which contain the coordinates to use in case features
+            is given as a pandas.DataFrame. The default is ['z','y','x'].
         periodic_boundary : bool, optional
-            whether periodic boundary conditions are used. The default is False.
+            whether periodic boundary conditions are used. The default is 
+            False.
         handle_edge : bool, optional
             whether to correct for edge effects in non-periodic boundary 
             conditions. The default is True.
-        quiet : bool, optional
-            if True, no output is printed to the terminal by this function call. 
-            The default is False.
-    
+
         Returns
         -------
-        rvals : numpy.array
-            bin-edges of the radial distribution function.
-        bincounts : numpy.array
-            values for the bins of the radial distribution function
-        
+        edges : numpy.array
+            edges of the bins in r
+        counts : numpy.array
+            normalized count values in each bin of the g(r)
+
         References
         ----------
         [1] Markus Seserno (2014). How to calculate a three-dimensional g(r) under
@@ -694,13 +660,11 @@ class util:
         Approach. Analytical Chemistry, 90(23), 13909–13914. 
         https://doi.org/10.1021/acs.analchem.8b03157
         """
-    
-        
         from scipy.spatial import cKDTree
         
         #set default stepsize
         if dr == None:
-            dr = rmax/20
+            dr = (rmax-rmin)/20
         
         #create bin edges and other parameters
         nparticles = len(features)
