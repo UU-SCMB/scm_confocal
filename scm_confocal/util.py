@@ -601,7 +601,6 @@ class util:
         r, i = tree.query(pos,k=2)
         return np.mean(r[:,1])
     
-    import potentials_from_particle_insertion
     
     def pair_correlation_3d(features,rmin=0,rmax=10,dr=None,ndensity=None,
                             boundary=None,column_headers=['z','y','x'],
