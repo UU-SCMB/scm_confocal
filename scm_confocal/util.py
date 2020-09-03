@@ -650,8 +650,8 @@ class util:
 
         References
         ----------
-        [1] Markus Seserno (2014). How to calculate a three-dimensional g(r) under
-        periodic boundary conditions.
+        [1] Markus Seserno (2014). How to calculate a three-dimensional g(r) 
+        under periodic boundary conditions.
         https://www.cmu.edu/biolphys/deserno/pdf/gr_periodic.pdf
         
         [2] Kopera, B. A. F., & Retsch, M. (2018). Computing the 3D Radial 
@@ -721,6 +721,7 @@ class util:
         #set up KDTree for fast neighbour finding
         #shift box boundary corner to origin for periodic KDTree
         if periodic_boundary:
+            features -= boundary[:,0]
             tree = cKDTree(features-boundary[:,0],boxsize=boundary[:,1]-boundary[:,0])
         else:
             tree = cKDTree(features)
@@ -764,6 +765,154 @@ class util:
         
         return edges,counts
     
+    def pair_correlation_2d(features,rmin=0,rmax=10,dr=None,ndensity=None,
+                            boundary=None,column_headers=['y','x'],
+                            periodic_boundary=False,handle_edge=True,):
+        """
+        calculates g(r) via a 'conventional' distance histogram method for a 
+        set of 2D coordinate sets. Edge correction is fully analytic.
+
+        Parameters
+        ----------
+        features : pandas DataFrame or numpy.ndarray
+            contains coordinates in (y,x)
+        rmin : float, optional
+            lower bound for the pairwise distance, left edge of 0th bin. The 
+            default is 0.
+        rmax : float, optional
+            upper bound for the pairwise distance, right edge of last bin. The 
+            default is 10.
+        dr : float, optional
+            bin width for the pairwise distance bins. The default is 
+            (rmax-rmin)/20.
+        ndensity : float, optional
+            number density of particles in sample. The default is None which
+            computes the number density from the input data.
+        boundary : array-like, optional
+            positions of the walls that define the bounding box of the 
+            coordinates, given as  `(ymin,ymax,xmin,xmax)`. The 
+            default is the min and max values in the dataset along each 
+            dimension.
+        column_headers : list of string, optional
+            column labels which contain the coordinates to use in case features
+            is given as a pandas.DataFrame. The default is [y','x'].
+        periodic_boundary : bool, optional
+            whether periodic boundary conditions are used. The default is 
+            False.
+        handle_edge : bool, optional
+            whether to correct for edge effects in non-periodic boundary 
+            conditions. The default is True.
+
+        Returns
+        -------
+        edges : numpy.array
+            edges of the bins in r
+        counts : numpy.array
+            normalized count values in each bin of the g(r)
+        """
+        from scipy.spatial import cKDTree
+        
+        #set default stepsize
+        if dr == None:
+            dr = (rmax-rmin)/20
+        
+        #create bin edges and other parameters
+        nparticles = len(features)
+        edges = np.arange(0,rmax+dr,dr)
+        
+        #convert to numpy array
+        if not isinstance(features,np.ndarray):
+            features = features[column_headers].to_numpy()
+        
+        #set default boundaries to limits of coordinates
+        if type(boundary) == type(None):
+            xmin, xmax = features[:,2].min(), features[:,2].max()
+            ymin, ymax = features[:,1].min(), features[:,1].max()
+        
+        #otherwise remove particles outside of given limits
+        else:
+            ymin,ymax,xmin,xmax = boundary
+            features = features[
+                    (features[:,2] >= xmin) & (features[:,2] < xmax) &
+                    (features[:,1] >= ymin) & (features[:,1] < ymax)
+                    ]
+        
+        boundary = np.array([[ymin,ymax],[xmin,xmax]])
+        
+        #calculate number density
+        if ndensity == None:
+            ndensity = nparticles / np.product(boundary[:,1]-boundary[:,0])
+    
+        #check rmax and boundary for edge-handling in periodic boundary conditions
+        if periodic_boundary:
+            if boundary[0,1]-boundary[0,0] == boundary[1,1]-boundary[1,0]:
+                boxlen = boundary[0,1]-boundary[0,0]
+                if rmax > boxlen*np.sqrt(2)/2:
+                    raise ValueError(
+                        'rmax cannot be more than sqrt(2)/2 times the size of a '+
+                        'square bounding box when periodic_boundary=True, use '+
+                        'rmax < {:}'.format((boundary[0,1]-boundary[0,0])*np.sqrt(2)/2)
+                    )
+            elif rmax > min(boundary[:,1]-boundary[:,0]):
+                raise NotImplementedError(
+                    'rmax larger than half the smallest box dimension when '+
+                    'periodic_boundary=True is only implemented for square boundaries'
+                )
+        
+        #check rmax and boundary for edge handling without periodic boundaries
+        else:
+            if rmax > max(boundary[:,1]-boundary[:,0])/2:
+                raise ValueError(
+                    'rmax cannot be larger than half the largest dimension in '+
+                    'boundary, use rmax < {:}'.format(max(boundary[:,1]-boundary[:,0])/2)
+                )
+    
+        #set up KDTree for fast neighbour finding
+        #shift box boundary corner to origin for periodic KDTree
+        if periodic_boundary:
+            features -= boundary[:,0]
+            tree = cKDTree(features,boxsize=boundary[:,1]-boundary[:,0])
+        else:
+            tree = cKDTree(features)
+        
+        #query tree for any neighbours up to rmax
+        dist,indices = tree.query(features,k=nparticles,distance_upper_bound=rmax)
+        
+        #remove pairs with self, padded (infinite) values and anythin below rmin
+        dist = dist[:,1:]
+        mask = np.isfinite(dist) & (dist>=rmin)
+        
+        #when dealing with edges, histogram the distances per reference particle
+        #and apply correction factor for missing area
+        if handle_edge:
+            if periodic_boundary:
+                boundarycorr = _circle_ring_area_frac_periodic(
+                    edges,
+                    min(boundary[:,1]-boundary[:,0])
+                )
+                counts = np.histogram(dist[mask],bins=edges)/boundarycorr
+
+            else:
+                dist = np.ma.masked_array(dist,mask)
+                counts = np.apply_along_axis(
+                    lambda row: np.histogram(row.data[row.mask],bins=edges)[0],
+                    1,
+                    dist
+                    )
+                boundarycorr=_circle_ring_area_fraction(
+                    edges,
+                    boundary-features[:,:,np.newaxis]
+                    )
+                counts = np.sum(counts/boundarycorr,axis=0)
+        
+        #otherwise just histogram as a 1d list of distances
+        else:
+            counts = np.histogram(dist[mask],bins=edges)[0]
+        
+        #normalize and add to overall list
+        counts = counts / (np.pi * (edges[1:]**2 - edges[:-1]**2)) / (ndensity*nparticles)
+        
+        return edges,counts
     
     def saveprompt(question="Save/overwrite? 1=YES, 0=NO. "):
         """
@@ -985,3 +1134,106 @@ def _sphere_shell_vol_frac_periodic(r,boxsize):
     full = 4/3*np.pi*(r[1:]**3 - r[:-1]**3)
     
     return part/full
+
+def _circle_ring_area_fraction(r,boundary):
+    """fully numpy vectorized function which returns the fraction of the area 
+    of circular rings r+dr around particles, for a list of particles and a 
+    list of bin-edges for the radii simultaneously. Uses analytical formulas
+    for the intersection area of a circle and a rectangle.
+    
+    Parameters
+    ----------
+    r : numpy.array
+        list of edges for the bins in r, where the number of shells is len(r)-1
+    boundary : numpy.array of shape n*2*2
+        list of boundary values shifted with respect to the particle 
+        coordinates such that the particles are in the origin, in other words
+        the distances to all 6 boundaries. First dimension contains all 
+        particles, second dimension refers to spatial dimension (y,x) and
+        third dimension is used to split the boundaries in the negative and 
+        positive directions (or min and max of bounding box in each dimension)
+
+    Returns
+    -------
+    numpy.array of shape n*(len(r)-1)
+        array containing the fraction of each circle ring in r around each 
+        particle which lies inside of the boundaries, i.e. A_in/A_tot
+    """
+    
+    #initialize array with row for each particle and column for each r
+    nrow,ncol = len(boundary),len(r)
+    area = np.zeros((nrow,ncol),dtype=float)
+    
+    #mirror all particle-edge distances into positive octant
+    boundary = abs(boundary)
+    
+    #loop over all quarters
+    for hy in (boundary[:,0,0],boundary[:,0,1]):
+        for hx in (boundary[:,1,0],boundary[:,1,1]):
+            
+            #if circle edge entirely out of boxquarter, add boxquarter area
+            boxmask = (hx**2+hy**2)[:,np.newaxis] < r**2
+            area[boxmask] += np.broadcast_to((hx*hy)[:,np.newaxis],(nrow,ncol))[boxmask]
+            
+            #to the rest add a quarter sphere
+            boxmask = ~boxmask
+            area[boxmask] += np.broadcast_to((np.pi/4*r**2)[np.newaxis,:],(nrow,ncol))[boxmask]
+            
+            #remove hemispherical caps
+            for h in (hy,hx):
+                
+                #check where to change values, select those items
+                mask = (h[:,np.newaxis] < r)*boxmask
+                indices = np.where(mask)
+                
+                h = h[indices[0]]
+                rs = r[indices[1]]
+                
+                #subtract cap area
+                area[mask] -= rs*(rs*np.arccos(h/rs) - h*np.sqrt(1-h**2/rs**2))/2
+    
+    #calculate each shell by subtracting the sphere volumes of previous r
+    part_ring = area[:,1:] - area[:,:-1]
+    tot_ring = np.pi * (r[1:]**2 - r[:-1]**2)
+    
+    return part_ring/tot_ring
+
+def _circle_ring_area_frac_periodic(r,boxsize):
+    """returns effective area of each ring defined by the intervals between
+    the radii in r, under periodic boundary conditions in a square box with 
+    edge length boxsize. Effective area means the area to which no shorter
+    path exists through the periodic boundaries than the r under consideration.
+    
+    Parameters
+    ----------
+    r : numpy.array of float
+        list of bin edges defining the shells where each interval between 
+        values in r is treated as shell.
+    boxsize : float
+        edge length of the square box.
+
+    Returns
+    -------
+    numpy.array of float
+        Effective volume for each interval r -> r+dr in r. Values beyond 
+        sqrt(2)/2 boxsize are padded with numpy.nan values.
+
+    """
+    
+    #scale r to boxsize
+    r = r/boxsize
+    
+    #add full circle area to each
+    area = np.pi*r**2
+    
+    #between boxlen/2 and sqrt(2)/2 boxlen subtract 4 circle segments
+    mask = (1/2 < r) & (r <= np.sqrt(2)/2)
+    area[mask] -= 4*r[mask]*(r[mask]*np.arccos(1/(2*r[mask])) - np.sqrt(1-1/(4*r[mask]**2))/2)
+    
+    #beyond sqrt(2)/2 boxlen there is no useful info
+    area[np.sqrt(2)/2 < r] = np.nan
+    
+    part_ring = area[1:] - area[:-1]
+    full_ring = np.pi*(r[1:]**2 - r[:-1]**2)
+    
+    return part_ring/full_ring
