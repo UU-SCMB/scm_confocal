@@ -118,14 +118,16 @@ class visitech_series:
 
         indices = np.reshape(range(self.nf),shape)
 
-        #check dim_range items for faulty values
-        for key in dim_range.keys():
+        #check dim_range items for faulty values and remove None slices
+        for key,val in dim_range.copy().items():
             if type(key) != str or key not in self.dimensions:
                 print("[WARNING] confocal.visitech_faststack.load_stack: "+
                           "dimension '"+key+"' not present in data, ignoring "+
                           "this entry.")
                 dim_range.pop(key)
-
+            elif val==slice(None):
+                dim_range.pop(key)
+    
         #warn for inefficient x and y trimming
         if 'x-axis' in dim_range or 'y-axis' in dim_range:
             print("[WARNING] confocal.visitech_faststack.load_stack: Loading"+
@@ -214,12 +216,14 @@ class visitech_series:
         if remove_backsteps:
             indices = indices[:,:self.nz]
 
-        #check dim_range items for faulty values
-        for key in dim_range.keys():
-            if type(key) != str or key not in ['time','z-axis','y-axis','x-axis']:
+        #check dim_range items for faulty values and remove None slices
+        for key,val in dim_range.copy().items():
+            if type(key) != str or key not in self.dimensions:
                 print("[WARNING] confocal.visitech_faststack.load_stack: "+
                           "dimension '"+key+"' not present in data, ignoring "+
                           "this entry.")
+                dim_range.pop(key)
+            elif val==slice(None):
                 dim_range.pop(key)
 
         #warn for inefficient x and y trimming
@@ -667,13 +671,15 @@ class visitech_faststack:
         #remove backsteps from indices
         if remove_backsteps:
             indices = indices[:,:self.nz]
-
-        #check dim_range items for faulty values
-        for key in dim_range.keys():
+                
+        #check dim_range items for faulty values and remove None slices
+        for key,val in dim_range.copy().items():
             if type(key) != str or key not in ['time','z-axis','y-axis','x-axis']:
                 print("[WARNING] confocal.visitech_faststack.load_stack: "+
                           "dimension '"+key+"' not present in data, ignoring "+
                           "this entry.")
+                dim_range.pop(key)
+            elif val==slice(None):
                 dim_range.pop(key)
 
         #warn for inefficient x and y trimming
@@ -814,12 +820,14 @@ class visitech_faststack:
         if remove_backsteps:
             indices = indices[:,:self.nz]
 
-        #check dim_range items for faulty values
-        for key in dim_range.keys():
+        #check dim_range items for faulty values and remove None slices
+        for key,val in dim_range.copy().items():
             if type(key) != str or key not in ['time','z-axis','y-axis','x-axis']:
-                print("[WARNING] confocal.visitech_faststack.yield_stack: "+
+                print("[WARNING] confocal.visitech_faststack.load_stack: "+
                           "dimension '"+key+"' not present in data, ignoring "+
                           "this entry.")
+                dim_range.pop(key)
+            elif val==slice(None):
                 dim_range.pop(key)
 
         #warn for inefficient x and y trimming
@@ -913,7 +921,7 @@ class visitech_faststack:
             #for (z,y,x)
             elif len(shape) == 3:
                 for i,im in enumerate(data):
-                    filename = filename_prefix + '_z{:03d}.tif'.format(i,j)
+                    filename = filename_prefix + '_z{:03d}.tif'.format(i)
                     Image.fromarray(im).save(filename)  
             else:
                 raise ValueError('data must be 3-dimensional (z,y,x) or 4-dimensional (t,z,y,x)')
