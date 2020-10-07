@@ -72,9 +72,14 @@ class sp8_series:
 
         #this ugly try-except block tries different importers for availability
         try:
+            #check pillow import
             from PIL.Image import open as imopen
             data = np.array([np.array(imopen(name)) for name in filenames[first:last]])
+            data[0]*1
         except:
+            print('[WARNING] scm_confocal.load_data: could not import with PIL'+
+                  ', retrying with scikit-image. Make sure libtiff version >= '+
+                  '4.0.10 is installed')
             try:
                 from skimage.io import imread
                 data = np.array([imread(name) for name in filenames[first:last]])
