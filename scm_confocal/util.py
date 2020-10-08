@@ -149,7 +149,7 @@ class util:
         sigmaN : float
             standard deviation in n
         """
-        import scipy.optimize
+        from scipy.optimize import curve_fit
         
         def f(x,a,b):
             return a*x + b
@@ -168,7 +168,7 @@ class util:
         y = y[~np.isnan(y)]
         
         #fit
-        (n,A), covariance = scipy.optimize.curve_fit(f,np.log(x),np.log(y),sigma=weights)
+        (n,A), covariance = curve_fit(f,np.log(x),np.log(y),sigma=weights)
         sigmaN,sigmaA = np.sqrt(np.diag(covariance))
         A = np.exp(A)
         sigmaA = sigmaA*np.exp(A)
