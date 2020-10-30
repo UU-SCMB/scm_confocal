@@ -826,15 +826,15 @@ class util:
         
         #set default boundaries to limits of coordinates
         if type(boundary) == type(None):
-            xmin, xmax = features[:,2].min(), features[:,2].max()
-            ymin, ymax = features[:,1].min(), features[:,1].max()
+            xmin, xmax = features[:,1].min(), features[:,1].max()
+            ymin, ymax = features[:,0].min(), features[:,0].max()
         
         #otherwise remove particles outside of given limits
         else:
             ymin,ymax,xmin,xmax = boundary
             features = features[
-                    (features[:,2] >= xmin) & (features[:,2] < xmax) &
-                    (features[:,1] >= ymin) & (features[:,1] < ymax)
+                    (features[:,1] >= xmin) & (features[:,1] < xmax) &
+                    (features[:,0] >= ymin) & (features[:,0] < ymax)
                     ]
         
         boundary = np.array([[ymin,ymax],[xmin,xmax]])
