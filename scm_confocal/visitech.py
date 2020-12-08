@@ -529,10 +529,18 @@ class visitech_faststack:
         """
 
         self.filename = filename
-
+        
         #lazy-load data using PIMS
         print('starting PIMS')
-        self.datafile = pims.TiffStack(filename)
+        
+        #in case of a multipage ome.tiff
+        if isinstance(filename,str):
+            self.datafile = pims.TiffStack(filename)
+        elif isinstance(filename,list) or isinstance(filename,np.ndarray):
+            self.datafile = pims.ImageSequence(filename)
+        else:
+            raise ValueError('expected string (for a multipage-tiff) or list-like (for image sequence)')
+        
         print('PIMS initialized')
         
         #use decimal objects for stack and step size for preventing floating point errors
@@ -955,7 +963,7 @@ class visitech_faststack:
             raise ValueError("invalid option for sequence_type: must be 'image_sequence', 'multipage' or 'multipage_sequence'")
     
     def _get_metadata_string(filename,read_from_end=True):
-        """reads out the raw metadata from a file"""
+        """reads out the raw metadata from a .ome.tiff file"""
 
         import io
 
@@ -1005,6 +1013,26 @@ class visitech_faststack:
         #cut off extra characters from end
         return metadata[metadata.find('<?xml'):metadata.find('</OME>')+6]
 
+    def _get_metadata_string_imagelist(filename):
+        """reads out the raw metadata from a list of tiff files"""
+
+        import io
+        
+        metadata = []
+        for file in filename[:5]:
+            filedat = []
+            with io.open(file, 'r', errors='ignore',encoding='utf8') as f:
+                for i,line in enumerate(f):
+                    if i<=4:
+                        continue
+                    elif line.replace('\x00','')[:2] != '  ':
+                        break
+                    filedat.append(line.replace('\x00','')[2:-1])
+                metadata.append(filedat)
+                    
+        
+        return metadata
+
     def get_metadata(self,read_from_end=True):
         """
         loads OME metadata from visitech .ome.tif file and returns xml tree object
@@ -1023,14 +1051,20 @@ class visitech_faststack:
         """
         import xml.etree.ElementTree as et
 
-        metadata = visitech_faststack._get_metadata_string(self.filename)
-
-        #remove specifications
-        metadata = metadata.replace('xmlns="http://www.openmicroscopy.org/Schemas/OME/2013-06"','')
-        metadata = metadata.replace('xmlns="http://www.openmicroscopy.org/Schemas/SA/2013-06"','')
-        metadata = metadata.replace('xmlns="http://www.openmicroscopy.org/Schemas/OME/2015-01"','')
-        metadata = metadata.replace('xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.openmicroscopy.org/Schemas/OME/2015-01 http://www.openmicroscopy.org/Schemas/OME/2015-01/ome.xsd"','')
-
+        #in case of multipage tiff
+        if isinstance(self.filename,str):
+            metadata = visitech_faststack._get_metadata_string(self.filename)
+    
+            #remove specifications
+            metadata = metadata.replace('xmlns="http://www.openmicroscopy.org/Schemas/OME/2013-06"','')
+            metadata = metadata.replace('xmlns="http://www.openmicroscopy.org/Schemas/SA/2013-06"','')
+            metadata = metadata.replace('xmlns="http://www.openmicroscopy.org/Schemas/OME/2015-01"','')
+            metadata = metadata.replace('xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.openmicroscopy.org/Schemas/OME/2015-01 http://www.openmicroscopy.org/Schemas/OME/2015-01/ome.xsd"','')
+        
+        #in case of separate images
+        else:
+            metadata = visitech_faststack._get_metadata_string_imagelist(self.filename)
+        
         self.metadata = et.fromstring(metadata)
         return self.metadata
 
@@ -1050,24 +1084,50 @@ class visitech_faststack:
         times : numpy (nd)array of floats
             list/stack of timestamps for each of the the frames in the data
         """
-        import re
+        
 
-        metadata = visitech_faststack._get_metadata_string(self.filename)
-
-        times = re.findall(r'DeltaT="([0-9]*\.[0-9]*)"',metadata)
-        times = np.array([float(t) for t in times])
-
+        #optionally discard times that were not loaded as part of stack
         if load_stack_indices:
             try:
                 indices = self._stack_indices
             except AttributeError:
                 raise AttributeError('data must be loaded with '+
-                                  'visitech_faststack.load_stack() prior to '+
-                                  'calling visitech_faststack.get_timestamps()'
-                                  +' with load_stack_indices=True')
+                                  '`visitech_faststack.load_stack()` prior to '+
+                                  'calling `visitech_faststack.get_timestamps()`'
+                                  +' with `load_stack_indices=True`')
 
-            times = times[indices.ravel()].reshape(np.shape(indices))
-
+        #in case of multipage tiff
+        if isinstance(self.filename,str):
+            import re
+            metadata = visitech_faststack._get_metadata_string(self.filename)
+            times = re.findall(r'DeltaT="([0-9]*\.[0-9]*)"',metadata)
+            times = np.array([float(t) for t in times])
+            
+            if load_stack_indices:
+                times = times[indices.ravel()].reshape(np.shape(indices))
+        
+        #in case of list of tiff images load only the timestamp
+        else:    
+            if load_stack_indices:
+                filenames = self.filename[indices.ravel()]
+            else:
+                filenames = self.filename
+            
+            import io
+            times = []
+            for file in filenames:
+                with io.open(file, 'r', errors='ignore',encoding='utf8') as f:
+                    for line in f:
+                        line = line.replace('\x00','')
+                        if '"ElapsedTime-ms"' in line.replace('\x00',''):
+                            times.append(line.split(': ')[1][:-2])
+                            break
+        
+            times = np.array([float(t) for t in times])
+            
+            if load_stack_indices:
+                times = times.reshape(np.shape(indices))
+            
         self.times = times
         return times
 
