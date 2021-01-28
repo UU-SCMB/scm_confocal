@@ -126,7 +126,12 @@ class sp8_image(sp8_lif):
       
     def get_metadata(self):
         """parse the .lif xml data for the current image"""
-        return self.liffile.xml_root.find('.//Children').findall('Element')[self.image]
+        try:
+            self.metadata
+        except AttributeError:
+            self.metadata = \
+                self.liffile.xml_root.find('.//Children').findall('Element')[self.image]
+        return self.metadata
         
     def get_channels(self):
         """parse the images xml data for the channels"""
@@ -194,8 +199,34 @@ class sp8_image(sp8_lif):
         
         return dict(dims[index])
     
-    def load_data(self,indices=slice(None,None)):
-        pass
+    def get_dimension_stepsize(self,dim):
+        """returns the step size along a dimension, e.g. time interval, pixel
+        size, etc, as (value, unit) tuple"""
+        dim = self.get_dimension(dim)
+        stepsize = float(dim['Length'])/int(dim['NumberOfElements'])
+        return (stepsize,dim['Unit'])
+    
+    def get_dimension_steps(self,dim):
+        """"returns a list of corresponding physical values for all steps along
+        a given dimension, e.g. a list of time steps or x coordinates"""
+        dim = self.get_dimension(dim)
+        start = float(dim['Origin'])
+        length = float(dim['Length'])
+        steps = int(dim['NumberOfElements'])
+        return np.linspace(start,start+length,steps),dim['Unit']
+        
+    def get_pixelsize(self):
+        """shorthand for `get_dimension_stepsize()` to get the pixel/voxel size
+        in nanometer, alond whatever spatial dimensions are present in the 
+        data. Is given as (z,y,x) where dimensions not present in the data are
+        skipped."""
+        pixelsize = []
+        for d in ['z-axis','y-axis','x-axis']:
+            try:
+                pixelsize.append(self.get_dimension_stepsize(d)[0]*1e9)
+            except ValueError:
+                pass
+        return tuple(pixelsize)
     
     def load_stack(self,dim_range={}):
         """
@@ -311,10 +342,10 @@ class sp8_image(sp8_lif):
         data = np.empty(newshape,dtype=np.uint8)
         
         #loop over indices and load
-        for c in channels:
-            for t in times:
-                for z in zsteps:
-                    data[c,t,z,:,:] = self.lifim.get_frame(z,t,c)
+        for i,c in enumerate(channels):
+            for j,t in enumerate(times):
+                for k,z in enumerate(zsteps):
+                    data[i,j,k,:,:] = self.lifim.get_frame(z,t,c)
         
         #if ranges for x or y are chosen, remove those from the array now,
         #account (top to bottom) for trimming x ánd y, only x, or only y.
