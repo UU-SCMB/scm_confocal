@@ -2,6 +2,341 @@ import glob
 import numpy as np
 import os
 
+class sp8_lif:
+    """
+    Class of functions related to the sp8 microscope, for data saves as .lif 
+    files, the default file format for the Leica LAS-X software. Essentially
+    a wrapper around the `readlif` library.
+    """
+    
+    def __init__(self,filename):
+        """
+        Initialize the class instance
+        """
+        from readlif.reader import LifFile
+        
+        self.filename = filename
+        self.liffile = LifFile(filename)
+    
+    def __getattr__(self,attrName):
+        """
+        Automatically called when getattribute fails. Delegate parent attribs
+        from LifFile
+        """
+        try:
+            return getattr(self.liffile,attrName)
+        except AttributeError:
+            raise AttributeError('sp8_lif object has no attribute %s' % attrName)
+            
+    def print_images(self):
+        """for convenience print basic info of the datasets in the lif file"""
+        for i,im in enumerate(self.image_list):
+            print('{:}: {:}, {:} channels, {:}'.format(i,im['name'],im['channels'],im['dims']))
+    
+    def _image_name_to_int(self,image):
+        """shortcut for converting image name to integer for accessing data"""
+        
+        #check input
+        if not isinstance(image,(str,int)):
+            raise TypeError('`image` must be of type `int` or `str`')
+        
+        #if string, convert to int
+        elif isinstance(image,str):
+            try:
+                image = [im['name'] for im in self.image_list].index(image)
+            except ValueError:
+                raise ValueError('{:} it not in {:}'.format(image,self.filename))
+                
+        return image
+    
+    def _image_int_to_name(self,image):
+        """shortcut for converting image name to integer for accessing data"""
+        
+        #check input
+        if not isinstance(image,(str,int)):
+            raise TypeError('`image` must be of type `int` or `str`')
+        
+        #if string, convert to int
+        elif isinstance(image,int):
+            if image >= self.num_images:
+                raise ValueError(str(image)+' not in list of images')
+            image = self.image_list[image]['name']
+                
+        return image
+    
+    def get_image(self,image):
+        """
+        returns an sp8_image instance containing relevant attributes and 
+        functions for the specific image in the dataset.
+
+        Parameters
+        ----------
+        image : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        None.
+
+        """
+        return sp8_image(self.filename,self._image_name_to_int(image))
+    
+    def get_liffile_image(self,image):
+        """
+        Specify the number or name of an image, and get an sp8_image or 
+    
+        Parameters
+        ----------
+        image : TYPE
+            DESCRIPTION.
+    
+        Returns
+        -------
+        None.
+    
+        """
+        return self.liffile.get_image(self._image_name_to_int(image))
+    
+class sp8_image(sp8_lif):
+    """
+    Subclass of `sp8_lif` for relevant attributes and functions for a specific
+    image in the lif file.
+    """
+    def __init__(self,filename,image):
+        """inherit all functions and attributes from parent sp8_lif class and 
+        add some image specific ones"""
+        super().__init__(filename)
+        self.image = image
+        self.lifim = self.liffile.get_image(self.image)
+    
+    def __getattr__(self,attrName):
+        """
+        Automatically called when getattribute fails. Delegate parent attribs
+        from LifFile
+        """
+        try:
+            return getattr(self.lifim,attrName)
+        except AttributeError:
+            raise AttributeError('sp8_lif object has no attribute %s' % attrName)
+    
+    def get_name(self):
+        """shortcut for getting the name of the dataset / image for e.g. 
+        automatically generating filenames for stored results. """
+        return self.filename.rpartition('.')[0]+'_'+self.name
+      
+    def get_metadata(self):
+        """parse the .lif xml data for the current image"""
+        return self.liffile.xml_root.find('.//Children').findall('Element')[self.image]
+        
+    def get_channels(self):
+        """parse the images xml data for the channels"""
+        try:
+            return self.metadata_channels
+        except AttributeError:    
+            root = self.get_metadata()
+            self.metadata_channels = [dict(dim.attrib) for dim in root.find('.//Channels')]
+        return self.metadata_channels
+    
+    def get_channel(self,chl):   
+        """get info on a specific channel"""
+        #check input
+        if not isinstance(chl,int):
+            raise TypeError('`chl` must be of type `int`')
+        if chl >= self.channels:
+            raise ValueError('channel '+str(chl)+' not present in image')
+        return dict(self.get_channels()[chl])
+    
+    def get_dimensions(self):
+        """parse the images xml data for the dimensions"""
+        try:
+            return self.metadata_dimensions
+        except AttributeError:    
+            root = self.get_metadata()
+            self.metadata_dimensions = [dict(dim.attrib) for dim in root.find('.//Dimensions')]
+        return self.metadata_dimensions
+    
+    def get_dimension(self,dim):
+        """
+        Gets the dimension data for a particular dimension of an image. 
+        Dimension can be given both as integer index (as specified by the Leica
+        MetaData which may not correspond to the indexing order of the data
+        stack) or as string containing the physical meaning, e.g. 'x-axis',
+        'time', 'excitation wavelength', etc.
+
+        Parameters
+        ----------
+        dim : int or str
+            dimension to get metadata of specified as integer or as name.
+
+        Returns
+        -------
+        dimension : dict
+            dictionary containing all metadata for that dimension
+
+        """
+        #convert string labels to corresponding integer labels
+        if isinstance(dim,str):
+            dim = _DimID_to_int(dim)
+        
+        #check inputs
+        if not isinstance(dim,int):
+            raise TypeError('dim must be of type `str` or `int`')
+        elif dim == 0:
+            raise ValueError('use `get_channels()` for channel data')
+        elif dim > 6:
+            raise ValueError('"'+str(dim)+'" is not a valid dimension label')
+            
+        #load dimensions
+        dims = self.get_dimensions()
+        
+        #find correct dimension in the list of dimensions
+        index = [int(d['DimID']) for d in dims].index(dim)
+        
+        return dict(dims[index])
+    
+    def load_data(self,indices=slice(None,None)):
+        pass
+    
+    def load_stack(self,dim_range={}):
+        """
+        Similar to sp8_series.load_data(), but converts the 3D array of images
+        automatically to a np.ndarray of the appropriate dimensionality.
+        
+        Array dimensions are specified as follows:
+        
+            - If the number of detector channels is 2 or higher, the first
+              array axis is the detector channel index (named 'channel').
+              
+            - If the number of channels is 1, the first array axis is the first
+              available dimension (instead of 'channel').
+              
+            - Each subsequent array axis corresponds to a dimension as
+              specified by and in reversed order of the metadata exported by
+              the microscope software, excluding dimensions which are not
+              available. The default order of dimensions in the metadata is:
+              
+                 -  0 = 'channel'
+                 -  1 = 'x-axis'
+                 -  2 = 'y-axis'
+                 -  3 = 'z-axis'
+                 -  4 = 'time'
+                 -  5 = 'detection wavelength'
+                 -  6 = 'excitation wavelength'
+                 
+            - As an example, a 2 channel xyt measurement would result in a 4-d
+              array with axis order ('channel','time','y-axis',
+              'x-axis'), and a single channel xyz scan would be returned as
+              ('z-axis','y-axis','x-axis')
+        
+        For loading only part of the total dataset, the dim_range parameter can
+        be used to specify a range along any of the dimensions. This will be
+        more memory efficient than loading the entire stack and then discarding
+        part of the data. For slicing along the x or y axis this is not
+        possible and whole (xy) images must be loaded prior to discarding
+        data outside the specified x or y axis range.
+
+        Parameters
+        ----------
+        dim_range : dict, optional
+            dict, with keys corresponding to channel/dimension labels as above
+            and slice objects as values. This allows you to only load part of
+            the data along any of the dimensions, such as only loading one
+            channel of multichannel data or a particular z-range. An example
+            use for only taking time steps up to 5 and z-slice 20 to 30 would
+            be:
+            
+                dim_range={'time':slice(None,5), 'z-axis':slice(20,30)}.
+                
+            The default is {}.
+        dtype : (numpy) datatype, optional
+            type to scale data to. The default is np.uint8.
+
+        Returns
+        -------
+        data : numpy.ndarray
+            ndarray with the pixel values
+        dimorder : tuple
+            tuple with lenght data.ndim specifying the ordering of dimensions
+            in the data with labels from the metadata of the microscope.
+        """
+        #determine get the varied dimensions
+        #dimensions = self.get_dimensions()
+        #order = [_DimID_to_str(dim['DimID']) for dim in reversed(dimensions)]
+        #order = ['channel'] + order
+        order = ['channel','time','z-axis','y-axis','x-axis']
+        
+        #store slicing
+        self._stack_dim_range = dim_range
+
+        #give a warning that only whole xy images are loaded
+        if 'x-axis' in dim_range or 'y-axis' in dim_range:
+            print("[WARNING] confocal.sp8_series.load_stack: Loading only"+
+                  " part of the data along dimensions 'x-axis' and/or "+
+                  "'y-axis' not implemented. Data will be loaded fully "+
+                  "into memory before discarding values outside of the "+
+                  "slice range specified for the x-axis and/or y-axis. "+
+                  "Other axes for which a range is specified will still "+
+                  "be treated normally, avoiding unneccesary memory use.")
+        
+        #give warning for nonexistent dimensions
+        if len(dim_range.keys() - set(order)) > 0:
+            for dim in dim_range.keys() - set(order):
+                print("[WARNING] confocal.sp8_series.load_stack: "+
+                      "dimension '"+dim+"' not present in data, ignoring "+
+                      "this entry.")
+                dim_range.pop(dim)
+        
+        #create a tuple with a slice objects for each dimension except x and y
+        for dim in order[:-2]:
+            if not dim in dim_range:
+                dim_range[dim] = slice(None,None)
+        
+        #set x and y sizes
+        try:
+            nx = int(self.get_dimension(1)['NumberOfElements'])
+        except ValueError:
+            nx = 1
+        try:
+            ny = int(self.get_dimension(2)['NumberOfElements'])
+        except ValueError:
+            ny = 1
+        
+        #create list of indices for each dimension and slice them
+        channels = np.array(range(self.channels))[dim_range['channel']]
+        times = np.array(range(self.nt))[dim_range['time']]
+        zsteps = np.array(range(self.nz))[dim_range['z-axis']]
+        
+        #determine shape and init array
+        newshape = (len(channels),len(times),len(zsteps),ny,nx)
+        data = np.empty(newshape,dtype=np.uint8)
+        
+        #loop over indices and load
+        for c in channels:
+            for t in times:
+                for z in zsteps:
+                    data[c,t,z,:,:] = self.lifim.get_frame(z,t,c)
+        
+        #if ranges for x or y are chosen, remove those from the array now,
+        #account (top to bottom) for trimming x ánd y, only x, or only y.
+        if 'x-axis' in dim_range:
+            if 'y-axis' in dim_range:
+                slices = tuple([slice(None)]*len(newshape[:-2]) + [dim_range['y-axis'],dim_range['x-axis']])
+            else:
+                slices = tuple([slice(None)]*len(newshape[:-1]) + [dim_range['x-axis']])
+            data = data[slices]
+        elif 'y-axis' in dim_range:
+            slices = tuple([slice(None)]*len(newshape[:-2]) + [dim_range['y-axis']])
+            data = data[slices]
+        
+        #squeeze out dimensions with only one element
+        for i,s in enumerate(data.shape):
+            if s <= 1:
+                order.pop(i)
+        data = np.squeeze(data)
+
+        return data, tuple(order)
+     
+        
 class sp8_series:
     """
     Class of functions related to the sp8 microscope. The functions assume that
@@ -178,7 +513,7 @@ class sp8_series:
         newshape = [int(dim['NumberOfElements']) for dim in reversed(dimensions)]
         
         #create list of dimension labels
-        order = [sp8_series._DimIDreplace(dim['DimID']) for dim in reversed(dimensions)]
+        order = [_DimID_to_str(dim['DimID']) for dim in reversed(dimensions)]
         
         #append channel (but before x and y) information for multichannel data
         if len(channels)>1:
@@ -336,24 +671,16 @@ class sp8_series:
 
         """
         #convert string labels to corresponding integer labels
-        if dim == 'channel' or dim == 0:
+        if isinstance(dim,str):
+            dim = _DimID_to_int(dim)
+        
+        #check inputs
+        if not isinstance(dim,int) or dim == 0:
             raise ValueError('use sp8_series.get_metadata_channels() for '+
                                       'channel data')
-        elif dim == 'x-axis':
-            dim = 1
-        elif dim == 'y-axis':
-            dim = 2
-        elif dim == 'z-axis':
-            dim = 3
-        elif dim == 'time':
-            dim = 4
-        elif dim == 'detection wavelength':
-            dim = 5
-        elif dim == 'excitation wavelength':
-            dim = 6
-        elif type(dim) != int or dim>6 or dim<0:
+        elif dim > 6:
             raise ValueError('"'+str(dim)+'" is not a valid dimension label')
-        
+            
         #fetch or load dimensions
         try:
             dimensions = self.metadata_dimensions
@@ -459,10 +786,30 @@ class sp8_series:
         path = sorted(glob.glob(path))[0]
         return os.path.split(path)[1][:-4]
     
-    def _DimIDreplace(idlist):
-        """replaces dimID int with more sensible label"""
-        pattern = zip(list('123456'),['x-axis','y-axis','z-axis','time',
-                      'detection wavelength','emission wavelength'])
-        for l,r in pattern:
-            idlist = idlist.replace(l,r)
-        return idlist
+def _DimID_to_str(dim):
+    """replaces a dimID integer with more sensible string labels"""
+    #names and labels
+    names = ['channel','x-axis','y-axis','z-axis','time',
+             'detection wavelength','emission wavelength']
+    labels = list(range(7))
+    
+    #check input
+    if isinstance(dim,str):
+        dim = int(dim)
+    if dim not in labels:
+        raise ValueError(str(dim)+' is not a valid dimension label')
+    
+    return names[labels.index(dim)]
+
+def _DimID_to_int(dim):
+    """replaces a dimID string with corresponding integer"""
+    #names and labels
+    names = ['channel','x-axis','y-axis','z-axis','time',
+             'detection wavelength','emission wavelength']
+    labels = list(range(7))
+    
+    #check input
+    if dim not in names:
+        raise ValueError(str(dim)+' is not a valid dimension label')
+    
+    return labels[names.index(dim)]
