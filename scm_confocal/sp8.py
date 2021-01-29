@@ -179,9 +179,9 @@ class sp8_image(sp8_lif):
     def __init__(self,filename,image):
         """inherit all functions and attributes from parent sp8_lif class and 
         add some image specific ones"""
-        super().__init__(filename)
+        super().__init__(filename,quiet=True)
         self.image = image
-        self.lifim = self.liffile.get_image(self.image)
+        self.lifimage = self.liffile.get_image(self.image)
     
     def __getattr__(self,attrName):
         """
@@ -189,7 +189,7 @@ class sp8_image(sp8_lif):
         from LifFile
         """
         try:
-            return getattr(self.lifim,attrName)
+            return getattr(self.lifimage,attrName)
         except AttributeError:
             raise AttributeError('sp8_lif object has no attribute %s' % attrName)
     
@@ -296,8 +296,8 @@ class sp8_image(sp8_lif):
             raise TypeError('dim must be of type `str` or `int`')
         elif dim == 0:
             raise ValueError('use `get_channels()` for channel data')
-        elif dim > 6:
-            raise ValueError('"'+str(dim)+'" is not a valid dimension label')
+        elif dim in (6,7,8) or dim>10:
+            raise ValueError('"'+str(dim)+'" is not a known dimension')
             
         #load dimensions
         dims = self.get_dimensions()
@@ -330,7 +330,10 @@ class sp8_image(sp8_lif):
 
         """
         dim = self.get_dimension(dim)
-        stepsize = float(dim['Length'])/int(dim['NumberOfElements'])
+        if int(dim['NumberOfElements'])==1:
+            stepsize = float(dim['Length'])/int(dim['NumberOfElements'])
+        else:
+            stepsize = float(dim['Length'])/(int(dim['NumberOfElements'])-1)
         return (stepsize,dim['Unit'])
     
     def get_dimension_steps(self,dim):
@@ -500,7 +503,7 @@ class sp8_image(sp8_lif):
         for i,c in enumerate(channels):
             for j,t in enumerate(times):
                 for k,z in enumerate(zsteps):
-                    data[i,j,k,:,:] = self.lifim.get_frame(z,t,c)
+                    data[i,j,k,:,:] = self.lifimage.get_frame(z,t,c)
         
         #if ranges for x or y are chosen, remove those from the array now,
         #account (top to bottom) for trimming x ánd y, only x, or only y.
@@ -646,7 +649,7 @@ class sp8_series:
                  -  3 = 'z-axis'
                  -  4 = 'time'
                  -  5 = 'detection wavelength'
-                 -  6 = 'excitation wavelength'
+                 -  9 = 'excitation wavelength'
                  
             - As an example, a 2 channel xyt measurement would result in a 4-d
               array with axis order ('channel','time','y-axis',
@@ -976,8 +979,8 @@ def _DimID_to_str(dim):
     """replaces a dimID integer with more sensible string labels"""
     #names and labels
     names = ['channel','x-axis','y-axis','z-axis','time',
-             'detection wavelength','emission wavelength']
-    labels = list(range(7))
+             'detection wavelength','excitation wavelength','mosaic']
+    labels = [0,1,2,3,4,5,9,10]
     
     #check input
     if isinstance(dim,str):
@@ -991,8 +994,8 @@ def _DimID_to_int(dim):
     """replaces a dimID string with corresponding integer"""
     #names and labels
     names = ['channel','x-axis','y-axis','z-axis','time',
-             'detection wavelength','emission wavelength']
-    labels = list(range(7))
+             'detection wavelength','excitation wavelength','mosaic']
+    labels = [0,1,2,3,4,5,9,10]
     
     #check input
     if dim not in names:
