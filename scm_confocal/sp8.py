@@ -6,17 +6,63 @@ class sp8_lif:
     """
     Class of functions related to the sp8 microscope, for data saves as .lif 
     files, the default file format for the Leica LAS-X software. Essentially
-    a wrapper around the `readlif` library.
-    """
+    a wrapper around the `readlif` library, which provides access to the data 
+    and metadata directly in Python.
     
-    def __init__(self,filename):
+    The underlying `readlif.LifFile` instance can be accessed directly using 
+    the `sp8_lif.liffile` attribute, and any of it attributes are accessible 
+    through `sp8_lif` directly.
+    
+    Parameters
+    ----------
+    filename : str
+        Filename of the `.lif` file. Extension may be (but is not required to 
+        be) included.
+    quiet : bool, optional
+        can be used to suppress printing the contents of the file. The default
+        is False.
+
+    Returns
+    -------
+    `sp8_lif` class instance
+    
+    Attributes
+    ----------
+    liffile : `readlif.LifFile` instance
+        The underlying class instance of the readlif library.
+    filename : str
+        filename of the loaded .lif file with file extention included, even if
+        it was not given when initializing the class.
+    
+    See also
+    --------
+    `sp8_image()`
+        subclass for specific images in the dataset
+    readlif
+        the library used for acessing the files, which can be found at 
+        https://github.com/nimne/readlif
+    """
+    def __init__(self,filename,quiet=False):
         """
-        Initialize the class instance
+        Initialize the class instance and the underlying LifFile instance
         """
         from readlif.reader import LifFile
         
-        self.filename = filename
-        self.liffile = LifFile(filename)
+        #try reading, if fails try again with extension appended
+        try:
+            self.liffile = LifFile(filename)
+            self.filename = filename
+        except FileNotFoundError:
+            try:
+                self.liffile = LifFile(filename+'.lif')
+                self.filename = filename+'.lif'
+            except FileNotFoundError:
+                raise FileNotFoundError("No such file or directory: '"+str(filename)+"'")
+        
+        #for convenience print contents of file
+        if not quiet:
+            self.print_images()
+
     
     def __getattr__(self,attrName):
         """
@@ -29,9 +75,51 @@ class sp8_lif:
             raise AttributeError('sp8_lif object has no attribute %s' % attrName)
             
     def print_images(self):
-        """for convenience print basic info of the datasets in the lif file"""
+        """
+        for convenience print basic info of the datasets in the lif file
+        
+        the format is <image index>: <number of channels>, <dimensions>
+        """
         for i,im in enumerate(self.image_list):
             print('{:}: {:}, {:} channels, {:}'.format(i,im['name'],im['channels'],im['dims']))
+    
+    def get_image(self,image=0):
+        """
+        returns an sp8_image instance containing relevant attributes and 
+        functions for the specific image in the dataset, which provides the 
+        "bread and butter" of data access.
+
+        Parameters
+        ----------
+        image : int or str, optional
+            The image (or image series) to obtain. May be given as index number
+            (int) or as the name of the series (string). The default is the 
+            first image in the file.
+
+        Returns
+        -------
+        `sp8_image` class instance
+
+        """
+        return sp8_image(self.filename,self._image_name_to_int(image))
+    
+    def get_liffile_image(self,image=0):
+        """
+        returns the `readlif.LifImage` instance for a particular image in the
+        dataset.
+
+        Parameters
+        ----------
+        image : int or str, optional
+            The image (or image series) to obtain. May be given as index number
+            (int) or as the name of the series (string). The default is the 
+            first image in the file.
+
+        Returns
+        -------
+        `readlif.LifImage` class instance
+        """
+        return self.liffile.get_image(self._image_name_to_int(image))
     
     def _image_name_to_int(self,image):
         """shortcut for converting image name to integer for accessing data"""
@@ -64,43 +152,29 @@ class sp8_lif:
                 
         return image
     
-    def get_image(self,image):
-        """
-        returns an sp8_image instance containing relevant attributes and 
-        functions for the specific image in the dataset.
-
-        Parameters
-        ----------
-        image : TYPE
-            DESCRIPTION.
-
-        Returns
-        -------
-        None.
-
-        """
-        return sp8_image(self.filename,self._image_name_to_int(image))
-    
-    def get_liffile_image(self,image):
-        """
-        Specify the number or name of an image, and get an sp8_image or 
-    
-        Parameters
-        ----------
-        image : TYPE
-            DESCRIPTION.
-    
-        Returns
-        -------
-        None.
-    
-        """
-        return self.liffile.get_image(self._image_name_to_int(image))
-    
 class sp8_image(sp8_lif):
     """
     Subclass of `sp8_lif` for relevant attributes and functions for a specific
-    image in the lif file.
+    image in the .lif file. Should not be called directly, but rather be 
+    obtained through `sp8_lif.get_image()`
+    
+    Parameters
+    ----------
+    filename : str
+        file name of the parent .lif file
+    image : int
+        index number of the image in the parent .lif file
+    
+    Attributes
+    ----------
+    image : int
+        index number of the image in the parent .lif file
+    lifimage : `readlif.LifImage` class instance
+        The underlying class instance of the readlif library.
+    
+    Additionally, attributes and functions of the parent `sp8_lif` instance are
+    inherited and directly accessible, as well as all attributes of the 
+    `readlif.LifImage` instance.
     """
     def __init__(self,filename,image):
         """inherit all functions and attributes from parent sp8_lif class and 
@@ -120,12 +194,22 @@ class sp8_image(sp8_lif):
             raise AttributeError('sp8_lif object has no attribute %s' % attrName)
     
     def get_name(self):
-        """shortcut for getting the name of the dataset / image for e.g. 
-        automatically generating filenames for stored results. """
+        """
+        shortcut for getting the name of the dataset / image for e.g. 
+        automatically generating filenames for stored results.
+        
+        The format is: <lif file name (without file extension)>_<image name>
+        """
         return self.filename.rpartition('.')[0]+'_'+self.name
       
     def get_metadata(self):
-        """parse the .lif xml data for the current image"""
+        """
+        parse the .lif xml data for the current image
+        
+        Returns
+        -------
+        `xml.etree.ElementTree` instance for the current image
+        """
         try:
             self.metadata
         except AttributeError:
@@ -134,7 +218,13 @@ class sp8_image(sp8_lif):
         return self.metadata
         
     def get_channels(self):
-        """parse the images xml data for the channels"""
+        """
+        parse the images xml data for the channels.
+        
+        Returns
+        -------
+        list of dictionaries
+        """
         try:
             return self.metadata_channels
         except AttributeError:    
@@ -143,7 +233,19 @@ class sp8_image(sp8_lif):
         return self.metadata_channels
     
     def get_channel(self,chl):   
-        """get info on a specific channel"""
+        """
+        get info from the metadata on a specific channel
+
+        Parameters
+        ----------
+        chl : int
+            index number of the channel.
+
+        Returns
+        -------
+        channel: dict
+            dictionary containing all metadata for that channel
+        """
         #check input
         if not isinstance(chl,int):
             raise TypeError('`chl` must be of type `int`')
@@ -152,7 +254,13 @@ class sp8_image(sp8_lif):
         return dict(self.get_channels()[chl])
     
     def get_dimensions(self):
-        """parse the images xml data for the dimensions"""
+        """
+        parse the images xml data for the dimensions.
+        
+        Returns
+        -------
+        list of dictionaries
+        """
         try:
             return self.metadata_dimensions
         except AttributeError:    
@@ -200,15 +308,54 @@ class sp8_image(sp8_lif):
         return dict(dims[index])
     
     def get_dimension_stepsize(self,dim):
-        """returns the step size along a dimension, e.g. time interval, pixel
-        size, etc, as (value, unit) tuple"""
+        """
+        returns the step size along a dimension, e.g. time interval, pixel
+        size, etc, as (value, unit) tuple. Dimension can be given both as 
+        integer index (as specified by the Leica MetaData, which may not 
+        correspond to the indexing order of the data stack), or as string 
+        containing the physical meaning, e.g. 'x-axis', 'time', 'excitation 
+        wavelength', etc.
+
+        Parameters
+        ----------
+        dim : int or str
+            dimension to get metadata of specified as integer or as name.
+
+        Returns
+        -------
+        stepsize : float
+            physical size of one step (e.g. pixel, time interval, ...).
+        unit: str
+            physical unit of the data.
+
+        """
         dim = self.get_dimension(dim)
         stepsize = float(dim['Length'])/int(dim['NumberOfElements'])
         return (stepsize,dim['Unit'])
     
     def get_dimension_steps(self,dim):
-        """"returns a list of corresponding physical values for all steps along
-        a given dimension, e.g. a list of time steps or x coordinates"""
+        """
+        returns a list of corresponding physical values for all steps along
+        a given dimension, e.g. a list of time steps or x coordinates.
+        Dimension can be given both as integer index (as specified by the Leica
+        MetaData, which may not correspond to the indexing order of the data 
+        stack), or as string containing the physical meaning, e.g. 'x-axis', 
+        'time', 'excitation wavelength', etc.
+
+        Parameters
+        ----------
+        dim : int or str
+            dimension to get metadata of specified as integer or as name.
+
+        Returns
+        -------
+        steps: list of float
+            physical values of the steps along the chosen dimension, (e.g. 
+            a list of pixel x-coordinates, list of time stamps, ...).
+        unit: str
+            physical unit of the data.
+
+        """
         dim = self.get_dimension(dim)
         start = float(dim['Origin'])
         length = float(dim['Length'])
@@ -216,10 +363,18 @@ class sp8_image(sp8_lif):
         return np.linspace(start,start+length,steps),dim['Unit']
         
     def get_pixelsize(self):
-        """shorthand for `get_dimension_stepsize()` to get the pixel/voxel size
-        in nanometer, alond whatever spatial dimensions are present in the 
-        data. Is given as (z,y,x) where dimensions not present in the data are
-        skipped."""
+        """
+        shorthand for `get_dimension_stepsize()` to get the pixel/voxel size
+        converted to nanometer, along whatever spatial dimensions are present 
+        in the data. Is given as (z,y,x) where dimensions not present in the 
+        data are skipped.
+        
+        Returns
+        -------
+        pixelsize : tuple of float
+            physical size in nm of the pixels/voxels along (z,y,x)
+        """
+        
         pixelsize = []
         for d in ['z-axis','y-axis','x-axis']:
             try:
