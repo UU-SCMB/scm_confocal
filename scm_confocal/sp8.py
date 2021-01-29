@@ -518,12 +518,13 @@ class sp8_image(sp8_lif):
             data = data[slices]
         
         #squeeze out dimensions with only one element
+        dim_order = []
         for i,s in enumerate(data.shape):
-            if s <= 1:
-                order.pop(i)
+            if s > 1:
+                dim_order.append(order[i])
         data = np.squeeze(data)
 
-        return data, tuple(order)
+        return data, tuple(dim_order)
      
         
 class sp8_series:
