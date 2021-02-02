@@ -3,17 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
-<meta name="generator" content="pdoc 0.9.1" />
+<meta name="generator" content="pdoc 0.7.2" />
 <title>scm_confocal.visitech API documentation</title>
 <meta name="description" content="" />
-<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
-<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
-<link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
-<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
-<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<link href='https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.0/normalize.min.css' rel='stylesheet'>
+<link href='https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/8.0.0/sanitize.min.css' rel='stylesheet'>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css" rel="stylesheet">
+<style>.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{font-weight:bold}#index h4 + ul{margin-bottom:.6em}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
 <style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
-<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js" integrity="sha256-Uv3H6lx7dJmRfRvH8TH6kJD1TSK1aFcwgx+mdg3epi8=" crossorigin></script>
-<script>window.addEventListener('DOMContentLoaded', () => hljs.initHighlighting())</script>
 </head>
 <body>
 <main>
@@ -37,7 +35,7 @@
 <span>(</span><span>filename, zsize, zstep, zbacksteps, zstart=0, magnification=63, binning=1)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>functions for fast stacks taken with the custom MicroManager Visitech
+<section class="desc"><p>functions for fast stacks taken with the custom MicroManager Visitech
 driver, saved to multipage .ome.tiff files containing entire stack</p>
 <p>initialize class (lazy-loads data)</p>
 <h2 id="parameters">Parameters</h2>
@@ -57,14 +55,14 @@ driver, saved to multipage .ome.tiff files containing entire stack</p>
 <dt><strong><code>binning</code></strong> :&ensp;<code>int</code></dt>
 <dd>binning factor performed at the detector level, e.g. in
 MicroManager software, in XY</dd>
-</dl></div>
+</dl></section>
 <h3>Methods</h3>
 <dl>
 <dt id="scm_confocal.visitech.visitech_faststack.get_metadata"><code class="name flex">
 <span>def <span class="ident">get_metadata</span></span>(<span>self, read_from_end=True)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>loads OME metadata from visitech .ome.tif file and returns xml tree object</p>
+<section class="desc"><p>loads OME metadata from visitech .ome.tif file and returns xml tree object</p>
 <h2 id="parameters">Parameters</h2>
 <dl>
 <dt><strong><code>read_from_end</code></strong> :&ensp;<code>bool</code>, optional</dt>
@@ -76,19 +74,19 @@ The default is True.</dd>
 <dt><code>xml.etree.ElementTree</code></dt>
 <dd>formatted XML metadata. Can be indexed with
 xml_root.find('<element name>')</dd>
-</dl></div>
+</dl></section>
 </dd>
 <dt id="scm_confocal.visitech.visitech_faststack.get_pixelsize"><code class="name flex">
 <span>def <span class="ident">get_pixelsize</span></span>(<span>self)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>shortcut to get (z,y,x) pixelsize with unit</p></div>
+<section class="desc"><p>shortcut to get (z,y,x) pixelsize with unit</p></section>
 </dd>
 <dt id="scm_confocal.visitech.visitech_faststack.get_timestamps"><code class="name flex">
 <span>def <span class="ident">get_timestamps</span></span>(<span>self, load_stack_indices=False)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>loads OME metadata from visitech .ome.tif file and returns timestamps</p>
+<section class="desc"><p>loads OME metadata from visitech .ome.tif file and returns timestamps</p>
 <h2 id="parameters">Parameters</h2>
 <dl>
 <dt><strong><code>load_stack_indices</code></strong> :&ensp;<code>boolean</code></dt>
@@ -98,32 +96,32 @@ dimension order / stack shape</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
-<dt><strong><code>times</code></strong> :&ensp;<code>numpy (nd)array</code> of <code>floats</code></dt>
+<dt><strong><code>times</code></strong> :&ensp;<code>numpy</code> (<code>nd</code>)<code>array</code> of <code>floats</code></dt>
 <dd>list/stack of timestamps for each of the the frames in the data</dd>
-</dl></div>
+</dl></section>
 </dd>
 <dt id="scm_confocal.visitech.visitech_faststack.load_data"><code class="name flex">
 <span>def <span class="ident">load_data</span></span>(<span>self, indices=slice(None, None, None), dtype=numpy.uint16)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>load images from datafile into 3D numpy array</p>
+<section class="desc"><p>load images from datafile into 3D numpy array</p>
 <h2 id="parameters">Parameters</h2>
 <dl>
-<dt><strong><code>indices</code></strong> :&ensp;<code>slice object</code> or <code>list</code> of <code>ints</code>, optional</dt>
+<dt><strong><code>indices</code></strong> :&ensp;<code>slice</code> <code>object</code> or <code>list</code> of <code>ints</code>, optional</dt>
 <dd>which images from tiffstack to load. The default is
 slice(None,None,None).</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
-<dt><code>numpy.ndarray containing image data in dim order (im,y,x)</code></dt>
+<dt><code>numpy.ndarray</code> <code>containing</code> <code>image</code> <code>data</code> <code>in</code> <code>dim</code> <code>order</code> (<code>im</code>,<code>y</code>,<code>x</code>)</dt>
 <dd>&nbsp;</dd>
-</dl></div>
+</dl></section>
 </dd>
 <dt id="scm_confocal.visitech.visitech_faststack.load_stack"><code class="name flex">
 <span>def <span class="ident">load_stack</span></span>(<span>self, dim_range={}, dtype=numpy.uint16, remove_backsteps=True, offset=0, force_reshape=False)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Load the data and reshape into 4D stack with the following dimension
+<section class="desc"><p>Load the data and reshape into 4D stack with the following dimension
 order: ('time','z-axis','y-axis','x-axis')</p>
 <p>For loading only part of the total dataset, the dim_range parameter can
 be used to specify a range along any of the dimensions. This will be
@@ -145,7 +143,7 @@ be:</p>
 </code></pre>
 <p>The default is {} which corresponds to the full file.</p>
 </dd>
-<dt><strong><code>dtype</code></strong> :&ensp;<code>(numpy) datatype</code>, optional</dt>
+<dt><strong><code>dtype</code></strong> :&ensp;(<code>numpy</code>) <code>datatype</code>, optional</dt>
 <dd>type to scale data to. The default is np.uint16.</dd>
 <dt><strong><code>remove_backsteps</code></strong> :&ensp;<code>bool</code></dt>
 <dd>whether to discard the frames which were recorded on the backsteps
@@ -162,21 +160,21 @@ use this to ignore the reshape-error occuring upon trying to sort
 <dl>
 <dt><strong><code>data</code></strong> :&ensp;<code>numpy.ndarray</code></dt>
 <dd>ndarray with the pixel values</dd>
-</dl></div>
+</dl></section>
 </dd>
 <dt id="scm_confocal.visitech.visitech_faststack.save_stack"><code class="name flex">
 <span>def <span class="ident">save_stack</span></span>(<span>self, data, filename_prefix='visitech_faststack', sequence_type='multipage')</span>
 </code></dt>
 <dd>
-<div class="desc"><p>save stacks to tiff files</p>
+<section class="desc"><p>save stacks to tiff files</p>
 <h2 id="parameters">Parameters</h2>
 <dl>
-<dt><strong><code>data</code></strong> :&ensp;<code>numpy ndarray with 3</code> or <code>4 dimensions</code></dt>
+<dt><strong><code>data</code></strong> :&ensp;<code>numpy</code> <code>ndarray</code> <code>with</code> <code>3</code> or <code>4</code> <code>dimensions</code></dt>
 <dd>image series pixel values with dimension order (z,y,x) or (t,z,y,x)</dd>
 <dt><strong><code>filename_prefix</code></strong> :&ensp;<code>string</code>, optional</dt>
 <dd>prefix to use for filename. The time/z-axis index is appended if
 relevant. The default is 'visitech_faststack'.</dd>
-<dt><strong><code>sequence_type</code></strong> :&ensp;<code>{'multipage','image_sequence','multipage_sequence'}</code>, optional</dt>
+<dt><strong><code>sequence_type</code></strong> :&ensp;{<code>'multipage'</code>,<code>'image_sequence'</code>,<code>'multipage_sequence'</code>}, optional</dt>
 <dd>
 <p>The way to store the data. The following options are available:</p>
 <pre><code>- 'image_sequence' : stores as a series of 2D images with time and or frame number appended
@@ -187,13 +185,13 @@ relevant. The default is 'visitech_faststack'.</dd>
 </dd>
 </dl>
 <h2 id="returns">Returns</h2>
-<p>None, but writes file(s) to working directory.</p></div>
+<p>None, but writes file(s) to working directory.</p></section>
 </dd>
 <dt id="scm_confocal.visitech.visitech_faststack.yield_stack"><code class="name flex">
 <span>def <span class="ident">yield_stack</span></span>(<span>self, dim_range={}, dtype=numpy.uint16, remove_backsteps=True, offset=0, force_reshape=False)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Lazy-load the data and reshape into 4D stack with the following
+<section class="desc"><p>Lazy-load the data and reshape into 4D stack with the following
 dimension order: ('time','z-axis','y-axis','x-axis'). Returns a
 generator which yields a z-stack for each call, which is loaded upon
 calling it.</p>
@@ -219,7 +217,7 @@ be:</p>
 </code></pre>
 <p>The default is {} which corresponds to the full file.</p>
 </dd>
-<dt><strong><code>dtype</code></strong> :&ensp;<code>(numpy) datatype</code>, optional</dt>
+<dt><strong><code>dtype</code></strong> :&ensp;(<code>numpy</code>) <code>datatype</code>, optional</dt>
 <dd>type to scale data to. The default is np.uint16.</dd>
 <dt><strong><code>remove_backsteps</code></strong> :&ensp;<code>bool</code></dt>
 <dd>whether to discard the frames which were recorded on the backsteps
@@ -234,10 +232,10 @@ use this to ignore the reshape-error occuring upon trying to sort
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
-<dt><strong><code>zstack</code></strong> :&ensp;<code>iterable/generator yielding numpy.ndarray</code></dt>
+<dt><strong><code>zstack</code></strong> :&ensp;<code>iterable</code>/<code>generator</code> <code>yielding</code> <code>numpy.ndarray</code></dt>
 <dd>list of time steps, with for each time step a z-stack as np.ndarray
 with the pixel values</dd>
-</dl></div>
+</dl></section>
 </dd>
 </dl>
 </dd>
@@ -246,7 +244,7 @@ with the pixel values</dd>
 <span>(</span><span>filename, magnification=63, binning=1)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>functions for image series taken with the multi-D acquisition menu in
+<section class="desc"><p>functions for image series taken with the multi-D acquisition menu in
 MicroManager with the Visitech saved to multipage .ome.tiff files. For the
 custom fast stack sequence use visitech_faststack.</p>
 <p>initialize class (lazy-loads data)</p>
@@ -259,25 +257,25 @@ custom fast stack sequence use visitech_faststack.</p>
 <dt><strong><code>binning</code></strong> :&ensp;<code>int</code></dt>
 <dd>binning factor performed at the detector level, e.g. in
 MicroManager software, in XY</dd>
-</dl></div>
+</dl></section>
 <h3>Methods</h3>
 <dl>
 <dt id="scm_confocal.visitech.visitech_series.get_dimension_steps"><code class="name flex">
 <span>def <span class="ident">get_dimension_steps</span></span>(<span>self, dim, use_stack_indices=False)</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<section class="desc"></section>
 </dd>
 <dt id="scm_confocal.visitech.visitech_series.get_image_metadata"><code class="name flex">
 <span>def <span class="ident">get_image_metadata</span></span>(<span>self, indices=slice(None, None, None))</span>
 </code></dt>
 <dd>
-<div class="desc"><p>loads the part of the metadata containing information about the time,
+<section class="desc"><p>loads the part of the metadata containing information about the time,
 position etc. for each frame of the series and returns a dataframe
 indexes by image frame</p>
 <h2 id="parameters">Parameters</h2>
 <dl>
-<dt><strong><code>indices</code></strong> :&ensp;<code>slice object</code>, optional</dt>
+<dt><strong><code>indices</code></strong> :&ensp;<code>slice</code> <code>object</code>, optional</dt>
 <dd>which image frames to load the metadata for. The default is all
 frames.</dd>
 </dl>
@@ -285,13 +283,13 @@ frames.</dd>
 <dl>
 <dt><strong><code>imagedata</code></strong> :&ensp;<code>pandas.DataFrame</code></dt>
 <dd>the metadata for the images, indexed by frame number.</dd>
-</dl></div>
+</dl></section>
 </dd>
 <dt id="scm_confocal.visitech.visitech_series.get_metadata"><code class="name flex">
 <span>def <span class="ident">get_metadata</span></span>(<span>self, read_from_end=True)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>loads OME metadata from visitech .ome.tif file and returns xml tree object</p>
+<section class="desc"><p>loads OME metadata from visitech .ome.tif file and returns xml tree object</p>
 <h2 id="parameters">Parameters</h2>
 <dl>
 <dt><strong><code>read_from_end</code></strong> :&ensp;<code>bool</code>, optional</dt>
@@ -303,13 +301,13 @@ The default is True.</dd>
 <dt><code>xml.etree.ElementTree</code></dt>
 <dd>formatted XML metadata. Can be indexed with
 xml_root.find('<element name>')</dd>
-</dl></div>
+</dl></section>
 </dd>
 <dt id="scm_confocal.visitech.visitech_series.get_metadata_dimensions"><code class="name flex">
 <span>def <span class="ident">get_metadata_dimensions</span></span>(<span>self)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>finds the stack's dimensionality and logical shape based on the
+<section class="desc"><p>finds the stack's dimensionality and logical shape based on the
 embedded metadata</p>
 <h2 id="returns">Returns</h2>
 <dl>
@@ -317,38 +315,38 @@ embedded metadata</p>
 <dd>logical sizes of the stack</dd>
 <dt><strong><code>dimorder</code></strong> :&ensp;<code>tuple</code> of <code>strings</code></dt>
 <dd>order of the dimensions corresponding to the shape</dd>
-</dl></div>
+</dl></section>
 </dd>
 <dt id="scm_confocal.visitech.visitech_series.get_pixelsize"><code class="name flex">
 <span>def <span class="ident">get_pixelsize</span></span>(<span>self)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>shortcut to get <code>(z,y,x)</code> pixelsize with unit</p></div>
+<section class="desc"><p>shortcut to get <code>(z,y,x)</code> pixelsize with unit</p></section>
 </dd>
 <dt id="scm_confocal.visitech.visitech_series.load_data"><code class="name flex">
 <span>def <span class="ident">load_data</span></span>(<span>self, indices=slice(None, None, None), dtype=numpy.uint16)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>load images from datafile into 3D numpy array</p>
+<section class="desc"><p>load images from datafile into 3D numpy array</p>
 <h2 id="parameters">Parameters</h2>
 <dl>
-<dt><strong><code>indices</code></strong> :&ensp;<code>slice object</code> or <code>list</code> of <code>ints</code>, optional</dt>
+<dt><strong><code>indices</code></strong> :&ensp;<code>slice</code> <code>object</code> or <code>list</code> of <code>ints</code>, optional</dt>
 <dd>which images from tiffstack to load. The default is
 slice(None,None,None).</dd>
-<dt><strong><code>dtype</code></strong> :&ensp;<code>np int datatype</code></dt>
+<dt><strong><code>dtype</code></strong> :&ensp;<code>np</code> <code>int</code> <code>datatype</code></dt>
 <dd>data type / bit depth to rescale data to.</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
-<dt><code>numpy.ndarray containing image data in dim order (im,y,x)</code></dt>
+<dt><code>numpy.ndarray</code> <code>containing</code> <code>image</code> <code>data</code> <code>in</code> <code>dim</code> <code>order</code> (<code>im</code>,<code>y</code>,<code>x</code>)</dt>
 <dd>&nbsp;</dd>
-</dl></div>
+</dl></section>
 </dd>
 <dt id="scm_confocal.visitech.visitech_series.load_stack"><code class="name flex">
 <span>def <span class="ident">load_stack</span></span>(<span>self, dim_range={}, dtype=numpy.uint16)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Load the data and reshape into 4D stack with the following dimension
+<section class="desc"><p>Load the data and reshape into 4D stack with the following dimension
 order: ('channel','time','z-axis','y-axis','x-axis') where dimensions
 with len 1 are omitted.</p>
 <p>For loading only part of the total dataset, the dim_range parameter can
@@ -368,7 +366,7 @@ time steps up to 5 and z-slice 20 to 30 would
 be:
 dim_range={'time':slice(None,5), 'z-axis':slice(20,30)}.
 The default is {} which corresponds to the full file.</dd>
-<dt><strong><code>dtype</code></strong> :&ensp;<code>(numpy) datatype</code>, optional</dt>
+<dt><strong><code>dtype</code></strong> :&ensp;(<code>numpy</code>) <code>datatype</code>, optional</dt>
 <dd>type to scale data to. The default is np.uint16.</dd>
 <dt><strong><code>remove_backsteps</code></strong> :&ensp;<code>bool</code></dt>
 <dd>whether to discard the frames which were recorded on the backsteps
@@ -378,13 +376,13 @@ downwards</dd>
 <dl>
 <dt><strong><code>data</code></strong> :&ensp;<code>numpy.ndarray</code></dt>
 <dd>ndarray with the pixel values</dd>
-</dl></div>
+</dl></section>
 </dd>
 <dt id="scm_confocal.visitech.visitech_series.yield_stack"><code class="name flex">
 <span>def <span class="ident">yield_stack</span></span>(<span>self, dim_range={}, dtype=numpy.uint16, remove_backsteps=True)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Lazy-load the data and reshape into 4D stack with the following
+<section class="desc"><p>Lazy-load the data and reshape into 4D stack with the following
 dimension order: ('time','z-axis','y-axis','x-axis'). Returns a
 generator which yields a z-stack for each call, which is loaded upon
 calling it.</p>
@@ -410,7 +408,7 @@ be:</p>
 </code></pre>
 <p>The default is {} which corresponds to the full file.</p>
 </dd>
-<dt><strong><code>dtype</code></strong> :&ensp;<code>(numpy) datatype</code>, optional</dt>
+<dt><strong><code>dtype</code></strong> :&ensp;(<code>numpy</code>) <code>datatype</code>, optional</dt>
 <dd>type to scale data to. The default is np.uint16.</dd>
 <dt><strong><code>remove_backsteps</code></strong> :&ensp;<code>bool</code></dt>
 <dd>whether to discard the frames which were recorded on the backsteps
@@ -418,10 +416,10 @@ downwards</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
-<dt><strong><code>zstack</code></strong> :&ensp;<code>iterable/generator yielding numpy.ndarray</code></dt>
+<dt><strong><code>zstack</code></strong> :&ensp;<code>iterable</code>/<code>generator</code> <code>yielding</code> <code>numpy.ndarray</code></dt>
 <dd>list of time steps, with for each time step a z-stack as np.ndarray
 with the pixel values</dd>
-</dl></div>
+</dl></section>
 </dd>
 </dl>
 </dd>
@@ -472,7 +470,9 @@ with the pixel values</dd>
 </nav>
 </main>
 <footer id="footer">
-<p>Generated by <a href="https://pdoc3.github.io/pdoc"><cite>pdoc</cite> 0.9.1</a>.</p>
+<p>Generated by <a href="https://pdoc3.github.io/pdoc"><cite>pdoc</cite> 0.7.2</a>.</p>
 </footer>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+<script>hljs.initHighlightingOnLoad()</script>
 </body>
 </html>
