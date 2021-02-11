@@ -26,18 +26,22 @@ class visitech_series:
 
         self.filename = filename
 
-        #lazy-load data using PIMS
-        print('initializing visitech_series')
-        self.datafile = pims.TiffStack(filename)
-
-        #find logical sizes of data
-        self.nf = len(self.datafile)
-
         #find physical sizes of data
         self.magnification = magnification
         self.binning = binning
         self._pixelsizeXY = 6.5/magnification*binning
         #Hamamatsu C11440-22CU has pixels of 6.5x6.5 um
+
+    def _init_pims(self):
+        """only initialize PIMS object when necessary, since it may take a long
+        time for large series / slow harddrives even to just index the data"""
+        
+        #lazy-load data using PIMS
+        print('initializing visitech_series')
+        self.datafile = pims.TiffStack(self.filename)
+
+        #find logical sizes of data
+        self.nf = len(self.datafile)
 
     def load_data(self,indices=slice(None,None,None),dtype=np.uint16):
         """
@@ -55,6 +59,12 @@ class visitech_series:
         -------
         numpy.ndarray containing image data in dim order (im,y,x)
         """
+        #try if PIMS is initialized, if not do so
+        try:
+            self.nf
+        except AttributeError:
+            self._init_pims()
+        
         if type(indices) == slice:
             indices = range(self.nf)[indices]
 
@@ -103,6 +113,12 @@ class visitech_series:
         data : numpy.ndarray
             ndarray with the pixel values
         """
+        #try if PIMS is initialized, if not do so
+        try:
+            self.nf
+        except AttributeError:
+            self._init_pims()
+        
         #load the stack shape from metadata or reuse previous result
         try:
             self.shape
@@ -210,6 +226,12 @@ class visitech_series:
             list of time steps, with for each time step a z-stack as np.ndarray
             with the pixel values
         """
+        #try if PIMS is initialized, if not do so
+        try:
+            self.nf
+        except AttributeError:
+            self._init_pims()
+        
         indices = np.reshape(range(self.nf),(self.nt,self.nz+self.backsteps))
 
         #remove backsteps from indices
