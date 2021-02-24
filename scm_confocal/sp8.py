@@ -37,8 +37,9 @@ class sp8_lif:
     See also
     --------
     sp8_image : a subclass for specific images in the dataset.
-    [readlif](https://github.com/nimne/readlif):
-        the library used for acessing the files.
+    readlif:
+        the library used for acessing the files, which can be found 
+        [here](https://github.com/nimne/readlif)
         
     """
     def __init__(self,filename,quiet=False):
@@ -391,21 +392,32 @@ class sp8_image(sp8_lif):
         automatically to a np.ndarray of the appropriate dimensionality.
         
         Array dimensions are specified as follows:
+            
         - If the number of detector channels is 2 or higher, the first
           array axis is the detector channel index (named 'channel').
+          
         - If the number of channels is 1, the first array axis is the first
           available dimension (instead of 'channel').
+          
         - Each subsequent array axis corresponds to a dimension as
           specified by and in reversed order of the metadata exported by
           the microscope software, excluding dimensions which are not
           available. The default order of dimensions in the metadata is:
-            -  0 = 'channel'
-            -  1 = 'x-axis'
-            -  2 = 'y-axis'
-            -  3 = 'z-axis'
-            -  4 = 'time'
-            -  5 = 'detection wavelength'
-            -  6 = 'excitation wavelength'
+              
+            0. 'channel'
+            
+            1. 'x-axis'
+            
+            2. 'y-axis'
+            
+            3. 'z-axis'
+            
+            4. 'time'
+            
+            5. 'detection wavelength'
+            
+            9. 'excitation wavelength'
+            
         - As an example, a 2 channel xyt measurement would result in a 4-d
           array with axis order ('channel','time','y-axis',
           'x-axis'), and a single channel xyz scan would be returned as
