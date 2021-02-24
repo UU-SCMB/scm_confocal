@@ -7,8 +7,16 @@ from .util import util
 #make available when using 'from scm_confocal import *'
 __all__ = [
     'sp8_lif',
+    'sp8_image'
     'sp8_series',
     'visitech_series',
     'visitech_faststack',
     'util'
 ]
+
+#add submodules to pdoc ignore list
+__pdoc__ = {
+    'sp8' : False,
+    'visitech' : False,
+    'util' : False,
+}

@@ -404,7 +404,7 @@ class sp8_image(sp8_lif):
           the microscope software, excluding dimensions which are not
           available. The default order of dimensions in the metadata is:
               
-            0. `'channel'`
+            0. `'channel'` (excluded for single channel data)
             
             1. `'x-axis'`
             
@@ -650,13 +650,19 @@ class sp8_series:
           the microscope software, excluding dimensions which are not
           available. The default order of dimensions in the metadata is:
           
-             - (0 = 'channel')
-             -  1 = 'x-axis'
-             -  2 = 'y-axis'
-             -  3 = 'z-axis'
-             -  4 = 'time'
-             -  5 = 'detection wavelength'
-             -  9 = 'excitation wavelength'
+            0. `'channel'` (excluded for single channel data)
+            
+            1. `'x-axis'`
+            
+            2. `'y-axis'`
+            
+            3. `'z-axis'`
+            
+            4. `'time'`
+            
+            5. `'detection wavelength'`
+            
+            9. `'excitation wavelength'`
              
         - As an example, a 2 channel xyt measurement would result in a 4-d
           array with axis order ('channel','time','y-axis',
