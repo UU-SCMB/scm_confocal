@@ -28,7 +28,7 @@ class sp8_lif:
     
     Attributes
     ----------
-    liffile : `readlif.LifFile` instance
+    liffile : readlif.LifFile instance
         The underlying class instance of the readlif library.
     filename : str
         filename of the loaded .lif file with file extention included, even if
