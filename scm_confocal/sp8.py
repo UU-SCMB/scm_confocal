@@ -36,8 +36,8 @@ class sp8_lif:
     
     See also
     --------
-    * `sp8_image()`, a subclass for specific images in the dataset.
-    * [`readlif`](https://github.com/nimne/readlif), the library used for 
+    * sp8_image(), a subclass for specific images in the dataset.
+    * [readlif](https://github.com/nimne/readlif), the library used for 
     acessing the files.
         
     """
