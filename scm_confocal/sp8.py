@@ -78,7 +78,7 @@ class sp8_lif:
         """
         for convenience print basic info of the datasets in the lif file
         
-        the format is <image index>: <number of channels>, <dimensions>
+        the format is `<image index>: <number of channels>, <dimensions>`
         """
         for i,im in enumerate(self.image_list):
             print('{:}: {:}, {:} channels, {:}'.format(i,im['name'],im['channels'],im['dims']))
@@ -169,7 +169,7 @@ class sp8_image(sp8_lif):
     ----------
     image : int
         index number of the image in the parent .lif file
-    lifimage : `readlif.LifImage` class instance
+    lifimage : readlif.LifImage class instance
         The underlying class instance of the readlif library.
     
     Additionally, attributes and functions of the parent `sp8_lif` instance are
@@ -404,19 +404,19 @@ class sp8_image(sp8_lif):
           the microscope software, excluding dimensions which are not
           available. The default order of dimensions in the metadata is:
               
-            0. 'channel'
+            0. `'channel'`
             
-            1. 'x-axis'
+            1. `'x-axis'`
             
-            2. 'y-axis'
+            2. `'y-axis'`
             
-            3. 'z-axis'
+            3. `'z-axis'`
             
-            4. 'time'
+            4. `'time'`
             
-            5. 'detection wavelength'
+            5. `'detection wavelength'`
             
-            9. 'excitation wavelength'
+            9. `'excitation wavelength'`
             
         - As an example, a 2 channel xyt measurement would result in a 4-d
           array with axis order ('channel','time','y-axis',
@@ -639,29 +639,29 @@ class sp8_series:
         
         Array dimensions are specified as follows:
         
-            - If the number of detector channels is 2 or higher, the first
-              array axis is the detector channel index (named 'channel').
-              
-            - If the number of channels is 1, the first array axis is the first
-              available dimension (instead of 'channel').
-              
-            - Each subsequent array axis corresponds to a dimension as
-              specified by and in reversed order of the metadata exported by
-              the microscope software, excluding dimensions which are not
-              available. The default order of dimensions in the metadata is:
-              
-                 - (0 = 'channel')
-                 -  1 = 'x-axis'
-                 -  2 = 'y-axis'
-                 -  3 = 'z-axis'
-                 -  4 = 'time'
-                 -  5 = 'detection wavelength'
-                 -  9 = 'excitation wavelength'
-                 
-            - As an example, a 2 channel xyt measurement would result in a 4-d
-              array with axis order ('channel','time','y-axis',
-              'x-axis'), and a single channel xyz scan would be returned as
-              ('z-axis','y-axis','x-axis')
+        - If the number of detector channels is 2 or higher, the first
+          array axis is the detector channel index (named 'channel').
+          
+        - If the number of channels is 1, the first array axis is the first
+          available dimension (instead of 'channel').
+          
+        - Each subsequent array axis corresponds to a dimension as
+          specified by and in reversed order of the metadata exported by
+          the microscope software, excluding dimensions which are not
+          available. The default order of dimensions in the metadata is:
+          
+             - (0 = 'channel')
+             -  1 = 'x-axis'
+             -  2 = 'y-axis'
+             -  3 = 'z-axis'
+             -  4 = 'time'
+             -  5 = 'detection wavelength'
+             -  9 = 'excitation wavelength'
+             
+        - As an example, a 2 channel xyt measurement would result in a 4-d
+          array with axis order ('channel','time','y-axis',
+          'x-axis'), and a single channel xyz scan would be returned as
+          ('z-axis','y-axis','x-axis')
         
         For loading only part of the total dataset, the dim_range parameter can
         be used to specify a range along any of the dimensions. This will be
