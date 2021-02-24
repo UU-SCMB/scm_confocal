@@ -1,7 +1,5 @@
 name: Python package
-
 on: [push]
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -26,6 +24,6 @@ jobs:
       uses: crazy-max/ghaction-github-pages@v2.2.0
       with:
         target_branch: gh-pages
-        build_dir: ./
+        build_dir: html/scm_confocal
       env:
         GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
