@@ -198,7 +198,7 @@ class sp8_image(sp8_lif):
         shortcut for getting the name of the dataset / image for e.g. 
         automatically generating filenames for stored results.
         
-        The format is: <lif file name (without file extension)>_<image name>
+        The format is: `<lif file name (without file extension)>_<image name>`
         """
         return self.filename.rpartition('.')[0]+'_'+self.name
       
