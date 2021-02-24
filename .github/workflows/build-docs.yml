@@ -25,7 +25,7 @@ jobs:
       if: success()
       uses: crazy-max/ghaction-github-pages@v2.2.0
       with:
-        target_branch: master
-        build_dir: docs/
+        target_branch: gh-pages
+        build_dir: ./
       env:
         GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
