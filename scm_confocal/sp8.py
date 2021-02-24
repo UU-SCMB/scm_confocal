@@ -37,10 +37,10 @@ class sp8_lif:
     See also
     --------
     sp8_image() : 
-        subclass for specific images in the dataset
+        subclass for specific images in the dataset.
     readlif : 
         the library used for acessing the files, which can be found at 
-        https://github.com/nimne/readlif
+        https://github.com/nimne/readlif.
     """
     def __init__(self,filename,quiet=False):
         """
