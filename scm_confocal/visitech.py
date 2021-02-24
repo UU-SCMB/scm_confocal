@@ -483,6 +483,10 @@ class visitech_series:
         return (self.pixelsize,'µm')
 
     def get_dimension_steps(self,dim,use_stack_indices=False):
+        """
+        return a list of physical values along a certain dimension, e.g.
+        the x-coordinates or timesteps.
+        """
         try:
             self.dimensions
         except AttributeError:
