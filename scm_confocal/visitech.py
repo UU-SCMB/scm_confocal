@@ -5,7 +5,7 @@ from decimal import Decimal
 
 class visitech_series:
     """
-    functions for image series taken with the multi-D acquisition menu in 
+    Functions for image series taken with the multi-D acquisition menu in 
     MicroManager with the Visitech saved to multipage .ome.tiff files. For the
     custom fast stack sequence use visitech_faststack.
     """
