@@ -2,7 +2,7 @@ __version__ = '2.0.0'
 
 from .sp8 import sp8_lif,sp8_image,sp8_series
 from .visitech import visitech_series,visitech_faststack
-from .util import util
+from .utility import util
 
 #make available when using 'from scm_confocal import *'
 __all__ = [
@@ -18,5 +18,5 @@ __all__ = [
 __pdoc__ = {
     'sp8' : False,
     'visitech' : False,
-    'util' : False,
+    'utility' : False,
 }
