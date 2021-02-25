@@ -12,7 +12,7 @@ This package can be installed directly from GitHub using pip:
 ```
 pip install git+https://github.com/MaartenBransen/scm_confocal
 ```
-# Anaconda
+### Anaconda
 When using the Anaconda distribution, it is safer to run the conda version of pip as follows:
 ```
 conda install pip
