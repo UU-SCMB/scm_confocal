@@ -1243,57 +1243,72 @@ def _circle_ring_area_frac_periodic(r,boxsize):
     return part_ring/full_ring
 
 def _export_with_scalebar(exportim,pixelsize,unit,filename,barsize,crop,scale,
-                          loc,resolution,box,invert,convert,cmap,cmap_range):
+                          loc,resolution,convert,barcolor,cmap,cmap_range,box,
+                          boxcolor,boxopacity):
     """
     see top level export_with_scalebar functions for docs
     """
     #imports
     import matplotlib.pyplot as plt
     from matplotlib import cm
+    from matplotlib.colors import Normalize
     from PIL import ImageFont, ImageDraw, Image
     import cv2
     
-    #get default colormap properties
-    if type(cmap) == type(None):
-        cmap = 'gray'
+    #default colormap scaling
     if type(cmap_range) == type(None):
         cmap_range = (np.amin(exportim),np.amax(exportim))
     
-    #show original figure
+    #draw original figure before changing exportim
     fig,ax = plt.subplots(1,1)
     ax.imshow(exportim,cmap=cmap,vmin=cmap_range[0],vmax=cmap_range[1])
     plt.title('original image')
     plt.axis('off')
     plt.tight_layout()
     
+    #check if alternative form of cropping is used
+    if type(crop) != type(None) and len(crop) == 4:
+        altcrop = True
+    else:
+        altcrop = False
+    
     #print current axes limits for easy cropping
     def _on_lim_change(call):
         [txt.set_visible(False) for txt in ax.texts]
         xmin,xmax = ax.get_xlim()
         ymax,ymin = ax.get_ylim()
-        if len(crop) == 4:
-            croptext = 'current crop: (({:}, {:}), ({:}, {:}))'
-            croptext = croptext.format(int(xmin),int(ymin),int(xmax+1),int(ymax+1))
-        else:
+        if altcrop:
             croptext = 'current crop: ({:}, {:}, {:}, {:})'
             croptext = croptext.format(int(xmin),int(ymin),int(xmax-xmin+1),int(ymax-ymin+1))
+        else:
+            croptext = 'current crop: (({:}, {:}), ({:}, {:}))'
+            croptext = croptext.format(int(xmin),int(ymin),int(xmax+1),int(ymax+1))
         ax.text(0.01,0.01,croptext,fontsize=12,ha='left',va='bottom',
                 transform=ax.transAxes,color='red')
     
     #attach callback to limit change
     ax.callbacks.connect("xlim_changed", _on_lim_change)
     ax.callbacks.connect("ylim_changed", _on_lim_change)
+    plt.show(block=False)
     
-    #convert unit
-    if type(convert) != type(None) and convert != unit:
+    #set default unit to µm
+    if type(convert) == type(None):
+        convert = 'µm'
+    #always use mu for micrometer
+    elif convert == 'um':
+        convert = 'µm'
+    
+    #convert unit if needed
+    if convert != unit:
         
-        #always use mu for micrometer
-        if convert == 'um':
-            convert = 'µm'
+        #check input against list of possible units
+        units = ['pm','nm','µm','mm','m']
+        if not unit in units:
+            raise ValueError('"'+str(unit)+'" is not a valid unit')
         
         #factor 10**3 for every step from list, use indices to calculate
-        units = ['pm','nm','µm','mm','m']
         pixelsize = pixelsize*10**(3*(units.index(unit)-units.index(convert)))
+        unit = convert
     
     #(optionally) crop
     if type(crop) != type(None):
@@ -1328,14 +1343,10 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,barsize,crop,scale,
         ny = int(exportim.shape[0]/exportim.shape[1]*nx)
         barsize_px = barsize_px/exportim.shape[1]*resolution
         exportim = cv2.resize(exportim, (int(nx),int(ny)), interpolation=cv2.INTER_AREA)
-    
-    #rescale to 8 bit interval
-    exportim[exportim<cmap_range[0]] = cmap_range[0]
-    exportim[exportim>cmap_range[1]] = cmap_range[1]
-    exportim  = 255*(exportim - cmap_range[0]) / (cmap_range[1] - cmap_range[0])
-    
-    #apply colormap
-    exportim = cm.get_cmap(cmap,bytes=True)(exportim)
+     
+    #normalize to (0,1), apply colormap, rescale to 8 bit integer
+    norm = Normalize(vmin=cmap_range[0],vmax=cmap_range[1])
+    exportim = (cm.get_cmap(cmap)(norm(exportim))*255).astype(np.uint8)
     
     #adjust general scaling for all sizes relative to 1024 pixels
     scale = scale*resolution/1024
@@ -1345,7 +1356,7 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,barsize,crop,scale,
     boxpad = scale*10
     barpad = scale*10
     textpad = scale*2
-    boxalpha = 0.6
+    #boxalpha = 0.6
     font = 'arialbd.ttf'
     fontsize = 32*scale
     
@@ -1397,18 +1408,17 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,barsize,crop,scale,
     
     #put semitransparent box
     if box:
-        #get rectangle from im and create box
+        #get rectangle from im
         w,h = 2*barpad+max([barsize_px,textsize[0]]),boxheight
         subim = exportim[int(y):int(y+h), int(x):int(x+w)]
-        white_box = np.ones(subim.shape, dtype=np.uint8) * 255
         
-        #add or subtract box from im, and put back in im
-        if invert:
-            exportim[int(y):int(y+h), int(x):int(x+w)] = \
-                cv2.addWeighted(subim, 1-boxalpha, white_box, boxalpha, 1.0)
-        else:
-            exportim[int(y):int(y+h), int(x):int(x+w)] = \
-                cv2.addWeighted(subim, 1-boxalpha, -white_box, boxalpha, 1.0)
+        #add alpha channel 255 and create box
+        boxcolor = boxcolor + (255,)
+        boxarray = np.ones(subim.shape,dtype=np.uint8)*np.array(boxcolor,dtype=np.uint8)
+        
+        #add box to im with opacity as weight, and put back in im
+        exportim[int(y):int(y+h), int(x):int(x+w)] = \
+            cv2.addWeighted(subim, 1-boxopacity/255, boxarray, boxopacity/255, 0)
 
     #calculate positions for bar and text (horizontally centered in box)
     barx = (2*x + 2*barpad + max([barsize_px,textsize[0]]))/2 - barsize_px/2
@@ -1416,18 +1426,12 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,barsize,crop,scale,
     textx = (2*x + 2*barpad + max([barsize_px,textsize[0]]))/2 - textsize[0]/2
     texty = y + textpad
     
-    #color for bar and text
-    if invert:
-        color = 0
-    else:
-        color = 255
-    
     #draw scalebar
     exportim = cv2.rectangle(
         exportim,
         (int(barx),int(bary)),
         (int(barx+barsize_px),int(bary+barheight)),
-        color,
+        barcolor+(255,),
         -1
     )
     
@@ -1437,17 +1441,18 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,barsize,crop,scale,
     draw.text(
         (textx,texty),
         text,
-        fill=color,
+        fill=barcolor,
         font=font
     )
     exportim = np.array(exportim)
     
     #show result
     plt.figure()
-    plt.imshow(exportim,cmap='gray',vmin=0,vmax=255)
+    plt.imshow(exportim)
     plt.title('exported image')
     plt.axis('off')
     plt.tight_layout()
+    plt.show(block=False)
     
     #save image
     cv2.imwrite(filename,exportim)
