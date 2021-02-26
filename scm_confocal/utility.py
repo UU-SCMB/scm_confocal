@@ -971,6 +971,10 @@ def _per_particle_function(p,features,dims):
     p_dt_dr = np.empty((0,2))
     pdata = features.loc[p]
     
+    #don't calculate for particles with only one time point (given as 1d series)
+    if len(pdata.shape) <2:
+        return p_dt_dr
+    
     #loop over each time interval in particle data and append
     for j in range(len(pdata)):
         for i in range(j):
