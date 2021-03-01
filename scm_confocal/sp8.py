@@ -964,6 +964,13 @@ class sp8_series:
         dimensions = [dict(dim.attrib) for dim in metadata.find('.//Dimensions')]
         
         self.metadata_dimensions = dimensions
+        
+        #now that we have dimensions, add shape to attributes
+        self.shape = (
+            len(self.filenames),
+            int(dimensions[1]['NumberOfElements']),
+            int(dimensions[0]['NumberOfElements'])
+        )
         return dimensions
     
     def get_metadata_dimension(self,dim):
