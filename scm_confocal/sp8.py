@@ -1199,14 +1199,14 @@ class sp8_series:
             filename = self.get_series_name()+'_scalebar.png'
         
         #check we're not overwriting the original file
-        if filename==self.filename:
+        if filename in self.filenames:
             raise ValueError('overwriting original file not recommended, '+
                              'use a different filename for exporting.')
         
         #get dimensionality of the image and use it to calculate which frame 
         #to get
         to_load = self.filenames[frame*len(self.get_metadata_channels())+channel]
-        exportim = self.load_data(to_load)
+        exportim = self.load_data(filenames=[to_load])[0]
         
         #call main export_with_scalebar function with correct pixelsize etc
         from .utility import _export_with_scalebar
