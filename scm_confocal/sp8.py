@@ -541,14 +541,18 @@ class sp8_image(sp8_lif):
         saves an exported image of the TEM image with a scalebar in one of the 
         four corners, where barsize is the scalebar size in data units (e.g. 
         nm) and scale the overall size of the scalebar and text with respect to
-        the width of the image.
+        the width of the image. Additionally, a colormap is applied to the data
+        for better visualisation.
 
         Parameters
         ----------
         frame : int, optional
             index of the frame to export. The default is 0.
-        channel : int, optional
-            the channel to pull the image data from. The default is 0.
+        channel : int or list of int, optional
+            the channel to pull the image data from. For displaying multiple 
+            channels in a single image, a list of channel indices can be given,
+            as well as a list of colormaps for each channel through the `cmap` 
+            parameter. The default is `0`.
         filename : string or `None`, optional
             Filename + extension to use for the export file. The default is the
             filename sans extension of the original TEM file, with 
@@ -556,8 +560,9 @@ class sp8_image(sp8_lif):
         barsize : float or `None`, optional
             size (in data units matching the original scale bar, e.g. nm) of 
             the scale bar to use. The default `None`, wich takes the desired 
-            length for the current scale and round this to the nearest option
-            from a list of "nice" values.
+            length for the current scale (ca. 15% of the width of the image for
+            `scale=1`) and round this to the nearest option from a list of 
+            "nice" values.
         crop : tuple or `None`, optional 
             range describing a area of the original image (before rescaling the
             resolution) to crop out for the export image. Can have two forms:
@@ -575,7 +580,9 @@ class sp8_image(sp8_lif):
             width of the image. Scale is chosen such, that at `scale=1` the
             font size of the scale bar text is approximately 10 pt when 
             the image is printed at half the width of the text in a typical A4
-            paper document (e.g. two images side-by-side). The default is 1.
+            paper document (e.g. two images side-by-side). Note that this is 
+            with respect to the **output** image, so after optional cropping 
+            and/or up/down sampling has been applied. The default is 1.
         loc : int, one of [`0`,`1`,`2`,`3`], optional
             Location of the scalebar on the image, where `0`, `1`, `2` and `3` 
             refer to the top left, top right, bottom left and bottom right 
@@ -584,11 +591,35 @@ class sp8_image(sp8_lif):
             the resolution along the x-axis (i.e. image width in pixels) to use
             for the exported image. The default is `None`, which uses the size 
             of the original image (after optional cropping using `crop`).
-        cmap : int
-            named Matplotlib colormap used to color the data. see the 
+        cmap : str or callable or list of str or list of callable, optional
+            name of a named Matplotlib colormap used to color the data. see the 
             [Matplotlib documentation](https://matplotlib.org/stable/tutorials/
             colors/colormaps.html) for more information. The default is 
             `'inferno'`.
+            
+            In addition to the colormaps listed there, the following maps for 
+            linearly incrementing pure RGB channels are available, useful for 
+            e.g. displaying multichannel data with complementary colors (no 
+            overlap between between colormaps possible):
+            ```
+            ['pure_reds', 'pure_greens', 'pure_blues', 'pure_yellows', 
+             'pure_cyans', 'pure_purples','pure_greys']
+            ```
+            where for example `'pure_reds'` scales between RGB values `(0,0,0)`
+            and  `(255,0,0)`, and `'pure_cyans'` between `(0,0,0)` and 
+            `(0,255,255)`.
+            
+            Alternatively, a fully custom colormap may be used by entering a 
+            [ListedColormap](https://matplotlib.org/stable/api/_as_gen/matplotl
+            ib.colors.ListedColormap.html#matplotlib.colors.ListedColormap) or 
+            [LinearSegmentedColormap](https://matplotlib.org/stable/api/_as_gen
+            /matplotlib.colors.LinearSegmentedColormap.html#matplotlib.colors.L
+            inearSegmentedColormap) object from the Matplotlib.colors module. 
+            For more information on creating colormaps, see the Matplotlib 
+            documentation linked above.
+            
+            For multichannel data, a list of colormaps *must* be provided, with
+            a separate colormap for each channel.
         cmap_range : tuple of form (min,max), optional
             sets the scaling of the colormap. The minimum and maximum 
             values to map the colormap to, values outside of this range will
@@ -615,6 +646,7 @@ class sp8_image(sp8_lif):
             value between 0 and 255 for the opacity/alpha of the box, useful
             for creating a semitransparent box. The default is 255.
         """      
+        
         #check if pixelsize already calculated, otherwise call get_pixelsize
         pixelsize, unit = self.get_dimension_stepsize('x-axis')
         
@@ -627,20 +659,38 @@ class sp8_image(sp8_lif):
             raise ValueError('overwriting original file not recommended, '+
                              'use a different filename for exporting.')
         
-        #get dimensionality of the image and use it to calculate which frame 
-        #to get
+        #check if multichannel or not
+        if type(channel)==int:
+            multichannel = False
+        else:
+            multichannel = True
+        
+        #get dimensionality of the image to calculate which frame to get
         dims = self.lifimage.dims
-        exportim = np.array(self.lifimage.get_frame(
-            z=frame%dims.z,
-            t=frame//dims.z,
-            c=channel
-        ))
+        
+        #get image (single channel) or list of images (multichannel)
+        if multichannel:
+            exportim = [
+                np.array(self.lifimage.get_frame(
+                    z=frame%dims.z,
+                    t=frame//dims.z,
+                    c=ch
+                    ))
+                for ch in channel
+            ]
+        else:
+            exportim = np.array(self.lifimage.get_frame(
+                z=frame%dims.z,
+                t=frame//dims.z,
+                c=channel
+            ))
         
         #call main export_with_scalebar function with correct pixelsize etc
         from .utility import _export_with_scalebar
         _export_with_scalebar(exportim, pixelsize, unit, filename, barsize, 
                               crop, scale, loc, resolution, convert, barcolor,
-                              cmap, cmap_range, box, boxcolor, boxopacity)
+                              cmap, cmap_range, box, boxcolor, boxopacity, 
+                              multichannel)
 
 class sp8_series:
     """
@@ -656,7 +706,8 @@ class sp8_series:
     filenames : list of str
         the filenames loaded associated with the series
     data : numpy array
-        the image data as loaded on the most recent call of sp8_series.load_data()
+        the image data as loaded on the most recent call of 
+        sp8_series.load_data()
     metadata : xml.Elementtree root
         the recording parameters associated with the image series
     """
@@ -1117,14 +1168,18 @@ class sp8_series:
         saves an exported image of the TEM image with a scalebar in one of the 
         four corners, where barsize is the scalebar size in data units (e.g. 
         nm) and scale the overall size of the scalebar and text with respect to
-        the width of the image.
+        the width of the image. Additionally, a colormap is applied to the data
+        for better visualisation.
 
         Parameters
         ----------
         frame : int, optional
             index of the frame to export. The default is 0.
-        channel : int, optional
-            the channel to pull the image data from. The default is 0.
+        channel : int or list of int, optional
+            the channel to pull the image data from. For displaying multiple 
+            channels in a single image, a list of channel indices can be given,
+            as well as a list of colormaps for each channel through the `cmap` 
+            parameter. The default is `0`.
         filename : string or `None`, optional
             Filename + extension to use for the export file. The default is the
             filename sans extension of the original TEM file, with 
@@ -1132,8 +1187,9 @@ class sp8_series:
         barsize : float or `None`, optional
             size (in data units matching the original scale bar, e.g. nm) of 
             the scale bar to use. The default `None`, wich takes the desired 
-            length for the current scale and round this to the nearest option
-            from a list of "nice" values.
+            length for the current scale (ca. 15% of the width of the image for
+            `scale=1`) and round this to the nearest option from a list of 
+            "nice" values.
         crop : tuple or `None`, optional 
             range describing a area of the original image (before rescaling the
             resolution) to crop out for the export image. Can have two forms:
@@ -1151,7 +1207,9 @@ class sp8_series:
             width of the image. Scale is chosen such, that at `scale=1` the
             font size of the scale bar text is approximately 10 pt when 
             the image is printed at half the width of the text in a typical A4
-            paper document (e.g. two images side-by-side). The default is 1.
+            paper document (e.g. two images side-by-side). Note that this is 
+            with respect to the **output** image, so after optional cropping 
+            and/or up/down sampling has been applied. The default is 1.
         loc : int, one of [`0`,`1`,`2`,`3`], optional
             Location of the scalebar on the image, where `0`, `1`, `2` and `3` 
             refer to the top left, top right, bottom left and bottom right 
@@ -1160,11 +1218,35 @@ class sp8_series:
             the resolution along the x-axis (i.e. image width in pixels) to use
             for the exported image. The default is `None`, which uses the size 
             of the original image (after optional cropping using `crop`).
-        cmap : int
-            named Matplotlib colormap used to color the data. see the 
+        cmap : str or callable or list of str or list of callable, optional
+            name of a named Matplotlib colormap used to color the data. see the 
             [Matplotlib documentation](https://matplotlib.org/stable/tutorials/
             colors/colormaps.html) for more information. The default is 
             `'inferno'`.
+            
+            In addition to the colormaps listed there, the following maps for 
+            linearly incrementing pure RGB channels are available, useful for 
+            e.g. displaying multichannel data with complementary colors (no 
+            overlap between between colormaps possible):
+            ```
+            ['pure_reds', 'pure_greens', 'pure_blues', 'pure_yellows', 
+             'pure_cyans', 'pure_purples','pure_greys']
+            ```
+            where for example `'pure_reds'` scales between RGB values `(0,0,0)`
+            and  `(255,0,0)`, and `'pure_cyans'` between `(0,0,0)` and 
+            `(0,255,255)`.
+            
+            Alternatively, a fully custom colormap may be used by entering a 
+            [ListedColormap](https://matplotlib.org/stable/api/_as_gen/matplotl
+            ib.colors.ListedColormap.html#matplotlib.colors.ListedColormap) or 
+            [LinearSegmentedColormap](https://matplotlib.org/stable/api/_as_gen
+            /matplotlib.colors.LinearSegmentedColormap.html#matplotlib.colors.L
+            inearSegmentedColormap) object from the Matplotlib.colors module. 
+            For more information on creating colormaps, see the Matplotlib 
+            documentation linked above.
+            
+            For multichannel data, a list of colormaps *must* be provided, with
+            a separate colormap for each channel.
         cmap_range : tuple of form (min,max), optional
             sets the scaling of the colormap. The minimum and maximum 
             values to map the colormap to, values outside of this range will
@@ -1190,7 +1272,7 @@ class sp8_series:
         boxopacity : int
             value between 0 and 255 for the opacity/alpha of the box, useful
             for creating a semitransparent box. The default is 255.
-        """      
+        """       
         #check if pixelsize already calculated, otherwise call get_pixelsize
         pixelsize, unit = self.get_dimension_stepsize('x-axis')
         
@@ -1203,16 +1285,32 @@ class sp8_series:
             raise ValueError('overwriting original file not recommended, '+
                              'use a different filename for exporting.')
         
+        #check if multichannel or not
+        if type(channel)==int:
+            multichannel = False
+        else:
+            multichannel = True
+        
         #get dimensionality of the image and use it to calculate which frame 
         #to get
-        to_load = self.filenames[frame*len(self.get_metadata_channels())+channel]
-        exportim = self.load_data(filenames=[to_load])[0]
+        #get image (single channel) or list of images (multichannel)
+        if multichannel:
+            to_load = [self.filenames[
+                frame*len(self.get_metadata_channels())+ch] \
+                    for ch in channel]
+            exportim = self.load_data(filenames=to_load)
+        else:
+            to_load = self.filenames[
+                frame*len(self.get_metadata_channels())+channel
+            ]
+            exportim = self.load_data(filenames=[to_load])[0]
         
         #call main export_with_scalebar function with correct pixelsize etc
         from .utility import _export_with_scalebar
         _export_with_scalebar(exportim, pixelsize, unit, filename, barsize, 
                               crop, scale, loc, resolution, convert, barcolor,
-                              cmap, cmap_range, box, boxcolor, boxopacity)
+                              cmap, cmap_range, box, boxcolor, boxopacity,
+                              multichannel)
     
 def _DimID_to_str(dim):
     """replaces a dimID integer with more sensible string labels"""
