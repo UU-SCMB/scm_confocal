@@ -593,8 +593,8 @@ class sp8_image(sp8_lif):
             of the original image (after optional cropping using `crop`).
         cmap : str or callable or list of str or list of callable, optional
             name of a named Matplotlib colormap used to color the data. see the 
-            [Matplotlib documentation](https://matplotlib.org/stable/tutorials/
-            colors/colormaps.html) for more information. The default is 
+            `Matplotlib documentation <https://matplotlib.org/stable/tutorials/
+            colors/colormaps.html>` for more information. The default is 
             `'inferno'`.
             
             In addition to the colormaps listed there, the following maps for 
@@ -610,11 +610,11 @@ class sp8_image(sp8_lif):
             `(0,255,255)`.
             
             Alternatively, a fully custom colormap may be used by entering a 
-            [ListedColormap](https://matplotlib.org/stable/api/_as_gen/matplotl
-            ib.colors.ListedColormap.html#matplotlib.colors.ListedColormap) or 
-            [LinearSegmentedColormap](https://matplotlib.org/stable/api/_as_gen
+            `ListedColormap <https://matplotlib.org/stable/api/_as_gen/matplotl
+            ib.colors.ListedColormap.html#matplotlib.colors.ListedColormap>` or 
+            `LinearSegmentedColormap <https://matplotlib.org/stable/api/_as_gen
             /matplotlib.colors.LinearSegmentedColormap.html#matplotlib.colors.L
-            inearSegmentedColormap) object from the Matplotlib.colors module. 
+            inearSegmentedColormap>` object from the Matplotlib.colors module. 
             For more information on creating colormaps, see the Matplotlib 
             documentation linked above.
             
@@ -1208,7 +1208,7 @@ class sp8_series:
             font size of the scale bar text is approximately 10 pt when 
             the image is printed at half the width of the text in a typical A4
             paper document (e.g. two images side-by-side). Note that this is 
-            with respect to the **output** image, so after optional cropping 
+            with respect to the *output* image, so after optional cropping 
             and/or up/down sampling has been applied. The default is 1.
         loc : int, one of [`0`,`1`,`2`,`3`], optional
             Location of the scalebar on the image, where `0`, `1`, `2` and `3` 
@@ -1220,8 +1220,8 @@ class sp8_series:
             of the original image (after optional cropping using `crop`).
         cmap : str or callable or list of str or list of callable, optional
             name of a named Matplotlib colormap used to color the data. see the 
-            [Matplotlib documentation](https://matplotlib.org/stable/tutorials/
-            colors/colormaps.html) for more information. The default is 
+            `Matplotlib documentation <https://matplotlib.org/stable/tutorials/
+            colors/colormaps.html>` for more information. The default is 
             `'inferno'`.
             
             In addition to the colormaps listed there, the following maps for 
@@ -1237,16 +1237,16 @@ class sp8_series:
             `(0,255,255)`.
             
             Alternatively, a fully custom colormap may be used by entering a 
-            [ListedColormap](https://matplotlib.org/stable/api/_as_gen/matplotl
-            ib.colors.ListedColormap.html#matplotlib.colors.ListedColormap) or 
-            [LinearSegmentedColormap](https://matplotlib.org/stable/api/_as_gen
+            `ListedColormap <https://matplotlib.org/stable/api/_as_gen/matplotl
+            ib.colors.ListedColormap.html#matplotlib.colors.ListedColormap>` or 
+            `LinearSegmentedColormap <https://matplotlib.org/stable/api/_as_gen
             /matplotlib.colors.LinearSegmentedColormap.html#matplotlib.colors.L
-            inearSegmentedColormap) object from the Matplotlib.colors module. 
+            inearSegmentedColormap>` object from the Matplotlib.colors module. 
             For more information on creating colormaps, see the Matplotlib 
             documentation linked above.
             
-            For multichannel data, a list of colormaps *must* be provided, with
-            a separate colormap for each channel.
+            For multichannel data, a list of colormaps **must** be provided, 
+            with a separate colormap for each channel.
         cmap_range : tuple of form (min,max), optional
             sets the scaling of the colormap. The minimum and maximum 
             values to map the colormap to, values outside of this range will
