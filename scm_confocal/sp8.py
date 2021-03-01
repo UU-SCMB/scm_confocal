@@ -709,6 +709,10 @@ class sp8_series:
         #sort filenames
         if filenames == None:
             filenames = sorted(self.filenames)
+        else:
+            for file in filenames:
+                if not os.path.exists(file):
+                    raise FileNotFoundError('could not find the file "'+file+'"')
 
         #this ugly try-except block tries different importers for availability
         try:
