@@ -12,6 +12,7 @@ setup(
         "numpy>=1.19.2",
         "scipy>=1.6.0",
         "pillow>=6.2.1",
-        "pims>=0.5"
+        "pims>=0.5",
+        "readlif>=0.5.1",
     ],
 )
