@@ -1242,9 +1242,60 @@ def _circle_ring_area_frac_periodic(r,boxsize):
     
     return part_ring/full_ring
 
+def _get_pure_cmap(name):
+    """"returns a matplotlib-usable colormap for some custom colormaps that
+    scale linearly along one or more RGB color channels while keeping the 
+    others constant at 0"""
+    from matplotlib.colors import LinearSegmentedColormap
+    
+    #create options for colordict to either increment or constant the color
+    incr = [[0.0, 0.0, 0.0],[1.0, 1.0, 1.0]]
+    cons = [[0.0, 0.0, 0.0],[1.0, 0.0, 0.0]]
+    
+    #check for each possible name, assign which colors to increment
+    if name == 'pure_reds':
+        cmap = LinearSegmentedColormap(
+            'pure_reds',
+            {'red':incr, 'green':cons, 'blue':cons}
+        )
+    elif name == 'pure_greens':
+        cmap = LinearSegmentedColormap(
+            'pure_greens',
+            {'red':cons, 'green':incr, 'blue':cons}
+        )
+    elif name == 'pure_blues':
+        cmap = LinearSegmentedColormap(
+            'pure_blues',
+            {'red':cons, 'green':cons, 'blue':incr}
+        )
+    elif name == 'pure_yellows':
+        cmap = LinearSegmentedColormap(
+            'pure_yellows',
+            {'red':incr, 'green':incr, 'blue':cons}
+        )
+    elif name == 'pure_cyans':
+        cmap = LinearSegmentedColormap(
+            'pure_cyans',
+            {'red':cons, 'green':incr, 'blue':incr}
+        )
+    elif name == 'pure_purples':
+        cmap = LinearSegmentedColormap(
+            'pure_purples',
+            {'red':incr, 'green':cons, 'blue':incr}
+        )
+    elif name == 'pure_greys':
+        cmap = LinearSegmentedColormap(
+            'pure_blues',
+            {'red':incr, 'green':incr, 'blue':incr}
+        )
+    else:
+        raise ValueError(name+' is not a valid name')
+    
+    return cmap
+
 def _export_with_scalebar(exportim,pixelsize,unit,filename,barsize,crop,scale,
                           loc,resolution,convert,barcolor,cmap,cmap_range,box,
-                          boxcolor,boxopacity):
+                          boxcolor,boxopacity,multichannel):
     """
     see top level export_with_scalebar functions for docs
     """
@@ -1255,13 +1306,49 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,barsize,crop,scale,
     from PIL import ImageFont, ImageDraw, Image
     import cv2
     
-    #default colormap scaling
+    #get imshape, for multichannel check shapes are all the same
+    if multichannel:
+        shape = exportim[0].shape
+        if any([im.shape!=shape for im in exportim[1:]]):
+            raise ValueError('shapes of channels do not match')
+    else:
+        shape = exportim.shape
+    
+    #default colormap scaling, for multichannel check length
     if type(cmap_range) == type(None):
-        cmap_range = (np.amin(exportim),np.amax(exportim))
+        if multichannel:
+            cmap_range = [(np.amin(im),np.amax(im)) for im in exportim]
+        else:
+            cmap_range = (np.amin(exportim),np.amax(exportim))
+    
+    #check if cmap and cmap_range match number of channels, get custom maps
+    if multichannel:
+        if not isinstance(cmap,list) or len(cmap) != len(exportim):
+            raise ValueError('lenth of `cmap` does not match number of '+
+                             'channels')
+        if len(cmap_range) != len(exportim) or len(cmap_range[0]) != 2:
+            raise ValueError('lenth of `cmap_range` does not match number of '+
+                             'channels')
+        #get custom maps if necessary
+        for i,mp in enumerate(cmap):
+            if mp in ['pure_reds', 'pure_greens', 'pure_blues', 'pure_yellows', 
+                          'pure_cyans', 'pure_purples','pure_greys']:
+                cmap[i] = _get_pure_cmap(mp)
+    else:
+        if isinstance(cmap,list):
+            raise ValueError('cmap cannot be list for a single channel image')
+        #get custom maps if necessary
+        if cmap in ['pure_reds', 'pure_greens', 'pure_blues', 'pure_yellows', 
+                          'pure_cyans', 'pure_purples','pure_greys']:
+            cmap = _get_pure_cmap(cmap)
     
     #draw original figure before changing exportim
     fig,ax = plt.subplots(1,1)
-    ax.imshow(exportim,cmap=cmap,vmin=cmap_range[0],vmax=cmap_range[1])
+    if multichannel:
+        for i,(im,mp,rng) in enumerate(zip(exportim,cmap,cmap_range)):
+            ax.imshow(im,cmap=mp,vmin=rng[0],vmax=rng[1],alpha=1/(i+1))
+    else:
+        ax.imshow(exportim,cmap=cmap,vmin=cmap_range[0],vmax=cmap_range[1])
     plt.title('original image')
     plt.axis('off')
     plt.tight_layout()
@@ -1279,10 +1366,20 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,barsize,crop,scale,
         ymax,ymin = ax.get_ylim()
         if altcrop:
             croptext = 'current crop: ({:}, {:}, {:}, {:})'
-            croptext = croptext.format(int(xmin),int(ymin),int(xmax-xmin+1),int(ymax-ymin+1))
+            croptext = croptext.format(
+                int(xmin),
+                int(ymin),
+                int(xmax-xmin+1),
+                int(ymax-ymin+1)
+            )
         else:
             croptext = 'current crop: (({:}, {:}), ({:}, {:}))'
-            croptext = croptext.format(int(xmin),int(ymin),int(xmax+1),int(ymax+1))
+            croptext = croptext.format(
+                int(xmin),
+                int(ymin),
+                int(xmax+1),
+                int(ymax+1)
+            )
         ax.text(0.01,0.01,croptext,fontsize=12,ha='left',va='bottom',
                 transform=ax.transAxes,color='red')
     
@@ -1317,15 +1414,21 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,barsize,crop,scale,
         if len(crop) == 4:
             crop = ((crop[0],crop[1]),(crop[0]+crop[2],crop[1]+crop[3]))
         
-        #crop
-        exportim = exportim[crop[0][1]:crop[1][1],crop[0][0]:crop[1][0]]
+        #crop and update shape
+        if multichannel:
+            exportim = [im[crop[0][1]:crop[1][1],crop[0][0]:crop[1][0]] \
+                        for im in exportim]
+            shape = exportim[0].shape
+        else:
+            exportim = exportim[crop[0][1]:crop[1][1],crop[0][0]:crop[1][0]]
+            shape = exportim.shape
         print('cropped to {:} × {:} pixels, {:.4g} × {:.4g} '.format(
-            *exportim.shape,exportim.shape[0]*pixelsize,exportim.shape[1]*pixelsize)+unit)
+            *shape,shape[0]*pixelsize,shape[1]*pixelsize)+unit)
     
     #set default scalebar to original scalebar or calculate len
     if type(barsize) == type(None):
         #take 15% of image width and round to nearest in list of 'nice' vals
-        barsize = scale*0.15*exportim.shape[1]*pixelsize
+        barsize = scale*0.15*shape[1]*pixelsize
         lst = [0.1,0.2,0.3,0.4,0.5,1,2,2.5,3,4,5,10,20,25,30,
                40,50,100,200,250,300,400,500,1000,2000,2500,
                3000,4000,5000,6000,8000,10000]
@@ -1336,17 +1439,36 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,barsize,crop,scale,
     
     #set default resolution or scale image and correct barsize_px
     if type(resolution) == type(None):
-        ny,nx = exportim.shape
+        ny,nx = shape
         resolution = nx
     else:
         nx = resolution
-        ny = int(exportim.shape[0]/exportim.shape[1]*nx)
-        barsize_px = barsize_px/exportim.shape[1]*resolution
-        exportim = cv2.resize(exportim, (int(nx),int(ny)), interpolation=cv2.INTER_AREA)
+        ny = int(shape[0]/shape[1]*nx)
+        barsize_px = barsize_px/shape[1]*resolution
+        if multichannel:
+            exportim = [cv2.resize(im, (int(nx),int(ny)),
+                                   interpolation=cv2.INTER_AREA) for im in exportim]
+        else:
+            exportim = cv2.resize(exportim, (int(nx),int(ny)), 
+                                  interpolation=cv2.INTER_AREA)
      
     #normalize to (0,1), apply colormap, rescale to 8 bit integer
-    norm = Normalize(vmin=cmap_range[0],vmax=cmap_range[1])
-    exportim = (cm.get_cmap(cmap)(norm(exportim))*255).astype(np.uint8)
+    if multichannel:
+        colored = []
+        for im,mp,rng in zip(exportim,cmap,cmap_range):
+            norm = Normalize(vmin=rng[0],vmax=rng[1])
+            colored.append((cm.get_cmap(mp)(norm(im))*255).astype(np.uint8))
+            
+        #combine to single unsigned 16 bit array to avoid integer overflows
+        exportim = np.zeros(colored[0].shape,dtype=np.uint16)
+        for im in colored:
+            exportim += im
+        exportim[exportim>255] = 255
+        exportim = exportim.astype(np.uint8)
+
+    else:
+        norm = Normalize(vmin=cmap_range[0],vmax=cmap_range[1])
+        exportim = (cm.get_cmap(cmap)(norm(exportim))*255).astype(np.uint8)
     
     #adjust general scaling for all sizes relative to 1024 pixels
     scale = scale*resolution/1024
