@@ -1248,7 +1248,7 @@ def _get_pure_cmap(name):
     others constant at 0"""
     from matplotlib.colors import LinearSegmentedColormap
     
-    #create options for colordict to either increment or constant the color
+    #create options for colordict to either increment or keep color constant 0
     incr = [[0.0, 0.0, 0.0],[1.0, 1.0, 1.0]]
     cons = [[0.0, 0.0, 0.0],[1.0, 0.0, 0.0]]
     
@@ -1580,3 +1580,4 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,barsize,crop,scale,
     
     #convert to BGRA, save image
     cv2.imwrite(filename,cv2.cvtColor(exportim, cv2.COLOR_RGBA2BGRA))
+    print('Image saved as "'+filename+'"')
