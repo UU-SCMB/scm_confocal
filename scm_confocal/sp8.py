@@ -1208,7 +1208,7 @@ class sp8_series:
             font size of the scale bar text is approximately 10 pt when 
             the image is printed at half the width of the text in a typical A4
             paper document (e.g. two images side-by-side). Note that this is 
-            with respect to the **output** image, so after optional cropping 
+            with respect to the *output* image, so after optional cropping 
             and/or up/down sampling has been applied. The default is 1.
         loc : int, one of [`0`,`1`,`2`,`3`], optional
             Location of the scalebar on the image, where `0`, `1`, `2` and `3` 
@@ -1245,8 +1245,8 @@ class sp8_series:
             For more information on creating colormaps, see the Matplotlib 
             documentation linked above.
             
-            For multichannel data, a list of colormaps *must* be provided, with
-            a separate colormap for each channel.
+            For multichannel data, a list of colormaps **must** be provided, 
+            with a separate colormap for each channel.
         cmap_range : tuple of form (min,max), optional
             sets the scaling of the colormap. The minimum and maximum 
             values to map the colormap to, values outside of this range will
