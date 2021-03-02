@@ -593,9 +593,9 @@ class sp8_image(sp8_lif):
             of the original image (after optional cropping using `crop`).
         cmap : str or callable or list of str or list of callable, optional
             name of a named Matplotlib colormap used to color the data. see the 
-            [Matplotlib documentation](https://matplotlib.org/stable/tutorials/
-            colors/colormaps.html) for more information. The default is 
-            `'inferno'`.
+            [Matplotlib documentation](
+                https://matplotlib.org/stable/tutorials/colors/colormaps.html)
+            for more information. The default is `'inferno'`.
             
             In addition to the colormaps listed there, the following maps for 
             linearly incrementing pure RGB channels are available, useful for 
@@ -610,13 +610,10 @@ class sp8_image(sp8_lif):
             `(0,255,255)`.
             
             Alternatively, a fully custom colormap may be used by entering a 
-            [ListedColormap](https://matplotlib.org/stable/api/_as_gen/matplotl
-            ib.colors.ListedColormap.html#matplotlib.colors.ListedColormap) or 
-            [LinearSegmentedColormap](https://matplotlib.org/stable/api/_as_gen
-            /matplotlib.colors.LinearSegmentedColormap.html#matplotlib.colors.L
-            inearSegmentedColormap) object from the Matplotlib.colors module. 
-            For more information on creating colormaps, see the Matplotlib 
-            documentation linked above.
+            [ListedColormap](https://matplotlib.org/stable/api/_as_gen/matplotlib.colors.ListedColormap.html#matplotlib.colors.ListedColormap)
+            or [LinearSegmentedColormap](https://matplotlib.org/stable/api/_as_gen/matplotlib.colors.LinearSegmentedColormap.html#matplotlib.colors.LinearSegmentedColormap)
+            object from the Matplotlib.colors module. For more information on 
+            creating colormaps, see the Matplotlib documentation linked above.
             
             For multichannel data, a list of colormaps *must* be provided, with
             a separate colormap for each channel.
@@ -1220,9 +1217,9 @@ class sp8_series:
             of the original image (after optional cropping using `crop`).
         cmap : str or callable or list of str or list of callable, optional
             name of a named Matplotlib colormap used to color the data. see the 
-            [Matplotlib documentation](https://matplotlib.org/stable/tutorials/
-            colors/colormaps.html) for more information. The default is 
-            `'inferno'`.
+            [Matplotlib documentation](
+                https://matplotlib.org/stable/tutorials/colors/colormaps.html)
+            for more information. The default is `'inferno'`.
             
             In addition to the colormaps listed there, the following maps for 
             linearly incrementing pure RGB channels are available, useful for 
@@ -1237,13 +1234,10 @@ class sp8_series:
             `(0,255,255)`.
             
             Alternatively, a fully custom colormap may be used by entering a 
-            [ListedColormap](https://matplotlib.org/stable/api/_as_gen/matplotl
-            ib.colors.ListedColormap.html#matplotlib.colors.ListedColormap) or 
-            [LinearSegmentedColormap](https://matplotlib.org/stable/api/_as_gen
-            /matplotlib.colors.LinearSegmentedColormap.html#matplotlib.colors.L
-            inearSegmentedColormap) object from the Matplotlib.colors module. 
-            For more information on creating colormaps, see the Matplotlib 
-            documentation linked above.
+            [ListedColormap](https://matplotlib.org/stable/api/_as_gen/matplotlib.colors.ListedColormap.html#matplotlib.colors.ListedColormap)
+            or [LinearSegmentedColormap](https://matplotlib.org/stable/api/_as_gen/matplotlib.colors.LinearSegmentedColormap.html#matplotlib.colors.LinearSegmentedColormap)
+            object from the Matplotlib.colors module. For more information on 
+            creating colormaps, see the Matplotlib documentation linked above.
             
             For multichannel data, a list of colormaps **must** be provided, 
             with a separate colormap for each channel.
