@@ -593,8 +593,8 @@ class sp8_image(sp8_lif):
             of the original image (after optional cropping using `crop`).
         cmap : str or callable or list of str or list of callable, optional
             name of a named Matplotlib colormap used to color the data. see the 
-            [Matplotlib documentation](https://matplotlib.org/stable/tutorials/
-            colors/colormaps.html) for more information. The default is 
+            .. _Matplotlib documentation: https://matplotlib.org/stable/tutorials/
+            colors/colormaps.html for more information. The default is 
             `'inferno'`.
             
             In addition to the colormaps listed there, the following maps for 
