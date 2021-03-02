@@ -1576,5 +1576,5 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,barsize,crop,scale,
     plt.tight_layout()
     plt.show(block=False)
     
-    #save image
-    cv2.imwrite(filename,exportim)
+    #convert to BGRA, save image
+    cv2.imwrite(filename,cv2.cvtColor(exportim, cv2.COLOR_RGBA2BGRA))
