@@ -1429,9 +1429,11 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,barsize,crop,scale,
     if type(barsize) == type(None):
         #take 15% of image width and round to nearest in list of 'nice' vals
         barsize = scale*0.15*shape[1]*pixelsize
-        lst = [0.1,0.2,0.3,0.4,0.5,1,2,2.5,3,4,5,10,20,25,30,
-               40,50,100,200,250,300,400,500,1000,2000,2500,
-               3000,4000,5000,6000,8000,10000]
+        lst = [
+            0.01, 0.02, 0.025, 0.03, 0.04, 0.05, 0.1, 0.2, 0.25, 0.3, 0.4, 0.5,
+            1, 2, 2.5, 3, 4, 5, 10, 20, 25, 30, 40, 50, 100, 200, 250, 300,
+            400, 500, 1000, 2000, 2500, 3000, 4000, 5000, 6000, 8000, 10000
+        ]
         barsize = lst[min(range(len(lst)), key=lambda i: abs(lst[i]-barsize))]
     
     #determine len of scalebar on im
