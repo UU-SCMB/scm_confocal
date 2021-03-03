@@ -13,6 +13,7 @@ setup(
         "scipy>=1.6.0",
         "pillow>=6.2.1",
         "pims>=0.5",
+        "opencv-python>=3.0.0",
         "readlif>=0.5.1",
     ],
 )
