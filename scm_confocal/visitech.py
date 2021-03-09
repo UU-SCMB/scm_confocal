@@ -305,16 +305,17 @@ class visitech_series:
         #open file  with bytes
         with open(self.filename,'rb') as file:
             
-            #find position of IDF list, which is a 32 bit unsigned integer in
-            #byte position 4 in the file.see TIFF specification
-            #http://www.exif.org/TIFF6.pdf
+            #find position of Image File Directory (IDF), given as a 32 bit 
+            #unsigned integer in byte position 4 in the file. See TIFF 
+            #specification: http://www.exif.org/TIFF6.pdf
             file.seek(4)
             IDF_pos = struct.unpack('I',file.read(4))[0]
             
-            #first two bytes are number of IDF's, then each IDF is 12 bytes long,
-            #as per micromanager standard, we need the 5th IDF for OME metadata
+            #first two bytes are number of entries in IDF, then each entry is 
+            #12 bytes long. Per micromanager standard, we need the 5th entry 
+            #for OME metadata
             #https://micro-manager.org/wiki/Micro-Manager_Image_File_Stacks
-            #byte 4-7 give item lenght, byte 8-11 give byte offset of item as
+            #bytes 4-7 give item length, bytes 8-11 give byte offset of item as
             #per TIFF standard
             file.seek(IDF_pos+2+5*12+4)
             OME_len = struct.unpack('I',file.read(4))[0]
@@ -970,16 +971,17 @@ class visitech_faststack:
         #open file  with bytes
         with open(self.filename,'rb') as file:
             
-            #find position of IDF list, which is a 32 bit unsigned integer in
-            #byte position 4 in the file.see TIFF specification
-            #http://www.exif.org/TIFF6.pdf
+            #find position of Image File Directory (IDF), given as a 32 bit 
+            #unsigned integer in byte position 4 in the file. See TIFF 
+            #specification: http://www.exif.org/TIFF6.pdf
             file.seek(4)
             IDF_pos = struct.unpack('I',file.read(4))[0]
             
-            #first two bytes are number of IDF's, then each IDF is 12 bytes long,
-            #as per micromanager standard, we need the 5th IDF for OME metadata
+            #first two bytes are number of entries in IDF, then each entry is 
+            #12 bytes long. Per micromanager standard, we need the 5th entry 
+            #for OME metadata
             #https://micro-manager.org/wiki/Micro-Manager_Image_File_Stacks
-            #byte 4-7 give item lenght, byte 8-11 give byte offset of item as
+            #bytes 4-7 give item length, bytes 8-11 give byte offset of item as
             #per TIFF standard
             file.seek(IDF_pos+2+5*12+4)
             OME_len = struct.unpack('I',file.read(4))[0]
