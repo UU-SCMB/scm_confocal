@@ -8,6 +8,7 @@ Library for importing and dealing with data from the Utrecht University Soft Con
 - email:          m.bransen@uu.nl
 
 ## Installation
+### PIP
 This package can be installed directly from GitHub using pip:
 ```
 pip install git+https://github.com/MaartenBransen/scm_confocal
@@ -18,6 +19,11 @@ When using the Anaconda distribution, it is safer to run the conda version of pi
 conda install pip
 conda install git
 pip install git+https://github.com/MaartenBransen/scm_confocal
+```
+### Updating
+To update to the most recent version, use `pip install` with the `--upgrade` flag set:
+```
+pip install --upgrade git+https://github.com/MaartenBransen/scm_confocal
 ```
 
 ## Usage

@@ -298,66 +298,42 @@ class visitech_series:
 
         return stack_iter()
 
-    def _get_metadata_string(filename,read_from_end=True):
+    def _get_metadata_string(self):
         """reads out the raw metadata from a file"""
+        import struct
+        
+        #open file  with bytes
+        with open(self.filename,'rb') as file:
+            
+            #find position of Image File Directory (IDF), given as a 32 bit 
+            #unsigned integer in byte position 4 in the file. See TIFF 
+            #specification: http://www.exif.org/TIFF6.pdf
+            file.seek(4)
+            IDF_pos = struct.unpack('I',file.read(4))[0]
+            
+            #first two bytes are number of entries in IDF, then each entry is 
+            #12 bytes long. Per micromanager standard, we need the 5th entry 
+            #for OME metadata
+            #https://micro-manager.org/wiki/Micro-Manager_Image_File_Stacks
+            #bytes 4-7 give item length, bytes 8-11 give byte offset of item as
+            #per TIFF standard
+            file.seek(IDF_pos+2+5*12+4)
+            OME_len = struct.unpack('I',file.read(4))[0]
+            OME_offset = struct.unpack('I',file.read(4))[0]
+            
+            #go to offset and read in the desired number of bytes
+            file.seek(OME_offset)
+            metadata = file.read(OME_len)
 
-        import io
-
-        if read_from_end:
-            #open file
-            with io.open(filename, 'r', errors='ignore',encoding='utf8') as file:
-
-                #set number of characters to move at a time
-                blocksize=2**12
-                overlap = 6
-
-                #set starting position
-                block = ''
-                file.seek(0,os.SEEK_END)
-                here = file.tell()-overlap
-                end = here + overlap
-                file.seek(here, os.SEEK_SET)
-
-                #move back until OME start tag is found, store end tag position
-                while 0 < here and '<?xml' not in block:
-                    delta = min(blocksize, here)
-                    here -= delta
-                    file.seek(here, os.SEEK_SET)
-                    block = file.read(delta+overlap)
-                    if '</OME' in block:
-                        end = here+delta+overlap
-
-                #read until end
-                file.seek(here, os.SEEK_SET)
-                metadata = file.read(end-here)
-
-        #process from start of the file
-        else:
-            metadata = ''
-            read=False
-            with io.open(filename, 'r', errors='ignore',encoding='utf8') as file:
-                #read file line by line to avoid loading too much into memory
-                for line in file:
-                    #start reading on start of OME tiff header, break at end tag
-                    if '<OME' in line:
-                        read = True
-                    if read:
-                        metadata += line
-                        if '</OME' in line:
-                            break
-
+        #decode bytes to string
+        metadata = metadata.decode('utf-8')
+        
         #cut off extra characters from end
         return metadata[metadata.find('<?xml'):metadata.find('</OME>')+6]
 
-    def get_metadata(self,read_from_end=True):
+    def get_metadata(self):
         """
         loads OME metadata from visitech .ome.tif file and returns xml tree object
-        
-        Parameters
-        ----------
-        read_from_end : bool, optional
-            Whether to look for the metadata from the end of the file.
-            The default is True.
             
         Returns
         -------
@@ -367,7 +343,7 @@ class visitech_series:
         """
         import xml.etree.ElementTree as et
 
-        metadata = visitech_faststack._get_metadata_string(self.filename,read_from_end=read_from_end)
+        metadata = self._get_metadata_string()
 
         #remove specifications
         metadata = metadata.replace('xmlns="http://www.openmicroscopy.org/Schemas/OME/2013-06"','')
@@ -988,64 +964,46 @@ class visitech_faststack:
         else:
             raise ValueError("invalid option for sequence_type: must be 'image_sequence', 'multipage' or 'multipage_sequence'")
     
-    def _get_metadata_string(filename,read_from_end=True):
-        """reads out the raw metadata from a .ome.tiff file"""
+    def _get_metadata_string(self):
+        """reads out the raw metadata from a file"""
+        import struct
+        
+        #open file  with bytes
+        with open(self.filename,'rb') as file:
+            
+            #find position of Image File Directory (IDF), given as a 32 bit 
+            #unsigned integer in byte position 4 in the file. See TIFF 
+            #specification: http://www.exif.org/TIFF6.pdf
+            file.seek(4)
+            IDF_pos = struct.unpack('I',file.read(4))[0]
+            
+            #first two bytes are number of entries in IDF, then each entry is 
+            #12 bytes long. Per micromanager standard, we need the 5th entry 
+            #for OME metadata
+            #https://micro-manager.org/wiki/Micro-Manager_Image_File_Stacks
+            #bytes 4-7 give item length, bytes 8-11 give byte offset of item as
+            #per TIFF standard
+            file.seek(IDF_pos+2+5*12+4)
+            OME_len = struct.unpack('I',file.read(4))[0]
+            OME_offset = struct.unpack('I',file.read(4))[0]
+            
+            #go to offset and read in the desired number of bytes
+            file.seek(OME_offset)
+            metadata = file.read(OME_len)
 
-        import io
-
-        if read_from_end:
-            #open file
-            with io.open(filename, 'r', errors='ignore',encoding='utf8') as file:
-
-                #set number of characters to move at a time
-                blocksize=2**12
-                overlap = 6
-
-                #set starting position
-                block = ''
-                file.seek(0,os.SEEK_END)
-                here = file.tell()-overlap
-                end = here + overlap
-                file.seek(here, os.SEEK_SET)
-
-                #move back until OME start tag is found, store end tag position
-                while 0 < here and '<?xml' not in block:
-                    delta = min(blocksize, here)
-                    here -= delta
-                    file.seek(here, os.SEEK_SET)
-                    block = file.read(delta+overlap)
-                    if '</OME' in block:
-                        end = here+delta+overlap
-
-                #read until end
-                file.seek(here, os.SEEK_SET)
-                metadata = file.read(end-here)
-
-        #process from start of the file
-        else:
-            metadata = ''
-            read=False
-            with io.open(filename, 'r', errors='ignore',encoding='utf8') as file:
-                #read file line by line to avoid loading too much into memory
-                for line in file:
-                    #start reading on start of OME tiff header, break at end tag
-                    if '<OME' in line:
-                        read = True
-                    if read:
-                        metadata += line
-                        if '</OME' in line:
-                            break
-
+        #decode bytes to string
+        metadata = metadata.decode('utf-8')
+        
         #cut off extra characters from end
         return metadata[metadata.find('<?xml'):metadata.find('</OME>')+6]
 
-    def _get_metadata_string_imagelist(filename):
+    def _get_metadata_string_imagelist(self):
         """reads out the raw metadata from a list of tiff files"""
 
         import io
         
         metadata = []
-        for file in filename[:5]:
+        for file in self.filename[:5]:
             filedat = []
             with io.open(file, 'r', errors='ignore',encoding='utf8') as f:
                 for i,line in enumerate(f):
@@ -1059,15 +1017,9 @@ class visitech_faststack:
         
         return metadata
 
-    def get_metadata(self,read_from_end=True):
+    def get_metadata(self):
         """
         loads OME metadata from visitech .ome.tif file and returns xml tree object
-        
-        Parameters
-        ----------
-        read_from_end : bool, optional
-            Whether to look for the metadata from the end of the file.
-            The default is True.
             
         Returns
         -------
@@ -1077,19 +1029,13 @@ class visitech_faststack:
         """
         import xml.etree.ElementTree as et
 
-        #in case of multipage tiff
-        if isinstance(self.filename,str):
-            metadata = visitech_faststack._get_metadata_string(self.filename)
-    
-            #remove specifications
-            metadata = metadata.replace('xmlns="http://www.openmicroscopy.org/Schemas/OME/2013-06"','')
-            metadata = metadata.replace('xmlns="http://www.openmicroscopy.org/Schemas/SA/2013-06"','')
-            metadata = metadata.replace('xmlns="http://www.openmicroscopy.org/Schemas/OME/2015-01"','')
-            metadata = metadata.replace('xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.openmicroscopy.org/Schemas/OME/2015-01 http://www.openmicroscopy.org/Schemas/OME/2015-01/ome.xsd"','')
-        
-        #in case of separate images
-        else:
-            metadata = visitech_faststack._get_metadata_string_imagelist(self.filename)
+        metadata = self._get_metadata_string()
+
+        #remove specifications
+        metadata = metadata.replace('xmlns="http://www.openmicroscopy.org/Schemas/OME/2013-06"','')
+        metadata = metadata.replace('xmlns="http://www.openmicroscopy.org/Schemas/SA/2013-06"','')
+        metadata = metadata.replace('xmlns="http://www.openmicroscopy.org/Schemas/OME/2015-01"','')
+        metadata = metadata.replace('xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.openmicroscopy.org/Schemas/OME/2015-01 http://www.openmicroscopy.org/Schemas/OME/2015-01/ome.xsd"','')
         
         self.metadata = et.fromstring(metadata)
         return self.metadata
