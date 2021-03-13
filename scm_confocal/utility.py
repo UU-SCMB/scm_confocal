@@ -248,6 +248,8 @@ class util:
                 sortedindices = np.argsort(-counts)[:nparticles]
                 particles = vals[sortedindices]
         
+        n = len(particles)
+        
         #check min and max step interval
         if itmin <= 1:
             itmin = False
@@ -257,12 +259,14 @@ class util:
             if not isinstance(itmax,int):
                 raise TypeError('`itmax` must be None or integer')
         
+        import time
+        t = time.time()
+        
         #when using parallel processing
         if parallel:
             
             import multiprocessing as mp
             from itertools import repeat
-            import time
             
             if cores == None:
                 cores = mp.cpu_count()
@@ -281,7 +285,6 @@ class util:
             )
             
             chunksize = pf._chunksize
-            n = len(particles)
             
             while not pf.ready():
                 i = max([0,int((n - pf._number_left*chunksize)/n*100)])
@@ -293,7 +296,7 @@ class util:
             pool.join()
             dt_dr = np.concatenate(pf.get(), axis=0)
             pool.terminate()
-            print('\rprocessing MSD using {:d} cores, {:d}% done'.format(cores,100))
+            print('\rprocessing MSD using {:d} cores, {:d}% done, took {:d} s.'.format(cores,100,int(time.time()-t)))
             
         
         #normal single core process
@@ -303,7 +306,8 @@ class util:
             
             #iterate over all particles and all time intervals for that particle and 
             # append [[dr,dt]] to dt_dr each time
-            for p in particles:
+            for k,p in enumerate(particles):
+                print('\rprocessing MSD {:d}% done'.format(int(100*k/n)),end='',flush=True)
                 pdata = features.loc[p]
                 for j in range(len(pdata)):
                     for i in range(j):
@@ -316,6 +320,8 @@ class util:
                                     ]],
                                     axis = 0
                                     )
+            
+            print('\rprocessing MSD {:d}% done, took {:d} s.'.format(100,int(time.time()-t)))
             
         #check bins
         if tmin == None:
