@@ -123,7 +123,7 @@ class util:
         
         return images
     
-    def fit_powerlaw(x,y,weights=None):
+    def fit_powerlaw(x,y,weights=None,**kwargs):
         """
         Linear regression in log space of the MSD to get diffusion constant, which
         is a powerlaw in linear space of the form A*x**n
@@ -137,6 +137,8 @@ class util:
         weights : list or numpy.array, optional
             list of weights to use for each (x,y) coordinate. The default is 
             None.
+        **kwargs :
+            arguments passed to scipy.optimize.curve_fit
         
         Returns
         -------
@@ -168,7 +170,7 @@ class util:
         y = y[~np.isnan(y)]
         
         #fit
-        (n,A), covariance = curve_fit(f,np.log(x),np.log(y),sigma=weights)
+        (n,A), covariance = curve_fit(f,np.log(x),np.log(y),sigma=weights,**kwargs)
         sigmaN,sigmaA = np.sqrt(np.diag(covariance))
         A = np.exp(A)
         sigmaA = sigmaA*np.exp(A)
@@ -177,7 +179,8 @@ class util:
     
     def mean_square_displacement(features, pos_cols = ['x','y','z'], t_col='t (s)',
                              nparticles=None, pickrandom=False, nbins=20,
-                             tmin=None, tmax=None, parallel=False, cores=None):
+                             tmin=None, tmax=None, itmin=1, itmax=None,
+                             parallel=False, cores=None):
         """
         calculate the mean square displacement vs time for linked particles
         
@@ -202,6 +205,10 @@ class util:
             left edge of first bin. The default is min(t_col).
         tmax : float, optional
            right edge of last bin, The default is max(t_col).
+        itmin : int, optional
+            minimum (integer) step size in timesteps. The default is 1.
+        itmax : int, optional
+            maximum (integer) step size in timesteps. The default is no limit.
         parallel : bool, optional
             whether to use the parallelized implementation. Requires rest of 
             the code to be protected in a if __name__ == '__main__' block. The
@@ -241,25 +248,52 @@ class util:
                 sortedindices = np.argsort(-counts)[:nparticles]
                 particles = vals[sortedindices]
         
+        #check min and max step interval
+        if itmin <= 1:
+            itmin = False
+        if itmax == None:
+            itmax = False
+        else:
+            if not isinstance(itmax,int):
+                raise TypeError('`itmax` must be None or integer')
+        
         #when using parallel processing
         if parallel:
             
             import multiprocessing as mp
             from itertools import repeat
+            import time
             
             if cores == None:
                 cores = mp.cpu_count()
-            print('processing MSD using {} cores'.format(cores))
             
             #set up multiprocessing pool and run
             pool = mp.Pool(cores)
-            pf = pool.starmap_async(_per_particle_function,zip(particles,repeat(features),repeat(dims)))
+            pf = pool.starmap_async(
+                _per_particle_function,
+                zip(
+                    particles,
+                    repeat(features),
+                    repeat(dims),
+                    repeat(itmin),
+                    repeat(itmax)
+                )
+            )
+            
+            chunksize = pf._chunksize
+            n = len(particles)
+            
+            while not pf.ready():
+                i = max([0,int((n - pf._number_left*chunksize)/n*100)])
+                print('\rprocessing MSD using {:d} cores, {:d}% done'.format(cores,i),end='',flush=True)
+                time.sleep(0.1)  
             
             #get results and terminate
             pool.close()
             pool.join()
             dt_dr = np.concatenate(pf.get(), axis=0)
             pool.terminate()
+            print('\rprocessing MSD using {:d} cores, {:d}% done'.format(cores,100))
             
         
         #normal single core process
@@ -273,14 +307,15 @@ class util:
                 pdata = features.loc[p]
                 for j in range(len(pdata)):
                     for i in range(j):
-                        dt_dr = np.append(
-                                dt_dr,
-                                [[
-                                        pdata.iat[j,0] - pdata.iat[i,0],
-                                        sum([(pdata.iat[j,d] - pdata.iat[i,d])**2 for d in range(1,dims+1)])
-                                ]],
-                                axis = 0
-                                )
+                        if (not itmin or j-i>=itmin) and (not itmax or j-i < itmax):
+                            dt_dr = np.append(
+                                    dt_dr,
+                                    [[
+                                            pdata.iat[j,0] - pdata.iat[i,0],
+                                            sum([(pdata.iat[j,d] - pdata.iat[i,d])**2 for d in range(1,dims+1)])
+                                    ]],
+                                    axis = 0
+                                    )
             
         #check bins
         if tmin == None:
@@ -299,7 +334,9 @@ class util:
         
         #count each bin and weigh counts by corresponding r, then normalize by unweighted counts
         bincounts = np.bincount(binpos, minlength=nbins)
-        binmeans =  np.bincount(binpos, weights=dt_dr[:,1], minlength=nbins) / bincounts
+        binmeans =  np.bincount(binpos, weights=dt_dr[:,1], minlength=nbins)
+        binmeans[bincounts==0] = np.nan
+        binmeans[bincounts>0] /= bincounts[bincounts>0]
         
         return binedges,bincounts[:-1],binmeans[:-1]
     
@@ -965,7 +1002,7 @@ class util:
         print("input parameters saved in",filename)
         
 #define helper function to map over particle list for util.mean_square_displacement
-def _per_particle_function(p,features,dims):
+def _per_particle_function(p,features,dims,itmin,itmax):
     
     #init empty list and particle data
     p_dt_dr = np.empty((0,2))
@@ -978,14 +1015,15 @@ def _per_particle_function(p,features,dims):
     #loop over each time interval in particle data and append
     for j in range(len(pdata)):
         for i in range(j):
-            p_dt_dr = np.append(
-                    p_dt_dr,
-                    [[
-                            pdata.iat[j,0] - pdata.iat[i,0],
-                            sum([(pdata.iat[j,d] - pdata.iat[i,d])**2 for d in range(1,dims+1)])
-                    ]],
-                    axis = 0
-                    )
+            if (not itmin or j-i>=itmin) and (not itmax or j-i < itmax):
+                p_dt_dr = np.append(
+                        p_dt_dr,
+                        [[
+                                pdata.iat[j,0] - pdata.iat[i,0],
+                                sum([(pdata.iat[j,d] - pdata.iat[i,d])**2 for d in range(1,dims+1)])
+                        ]],
+                        axis = 0
+                        )
     return p_dt_dr
 
 #edge correction func for pair_correlation_3d
