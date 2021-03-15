@@ -535,10 +535,10 @@ class util:
         --------
         scm_confocal.util.flatfield_correction_apply
         """
-        
         from numpy.fft import rfft2,irfft2,fftshift
         
         #determine shape of fft
+        images = np.array(images)
         ftshape = (np.shape(images)[-2],np.shape(images)[-1]//2+1)
         
         #create cone kernel in fft-shaped array of zeros
@@ -1292,48 +1292,57 @@ def _get_pure_cmap(name):
     others constant at 0"""
     from matplotlib.colors import LinearSegmentedColormap
     
-    #create options for colordict to either increment or keep color constant 0
-    incr = [[0.0, 0.0, 0.0],[1.0, 1.0, 1.0]]
+    if name[-2:] == '_r':
+        reverse = '_r'
+        name = name[:-2]
+    else:
+        reverse = ''
+    
+    #create options for colordict to either increment, decrement, or constant 0
+    if reverse:
+        incr = [[0.0, 1.0, 1.0],[1.0, 0.0, 0.0]]
+    else:
+        incr = [[0.0, 0.0, 0.0],[1.0, 1.0, 1.0]]
     cons = [[0.0, 0.0, 0.0],[1.0, 0.0, 0.0]]
     
     #check for each possible name, assign which colors to increment
     if name == 'pure_reds':
         cmap = LinearSegmentedColormap(
-            'pure_reds',
+            'pure_reds'+reverse,
             {'red':incr, 'green':cons, 'blue':cons}
         )
     elif name == 'pure_greens':
         cmap = LinearSegmentedColormap(
-            'pure_greens',
+            'pure_greens'+reverse,
             {'red':cons, 'green':incr, 'blue':cons}
         )
     elif name == 'pure_blues':
         cmap = LinearSegmentedColormap(
-            'pure_blues',
+            'pure_blues'+reverse,
             {'red':cons, 'green':cons, 'blue':incr}
         )
     elif name == 'pure_yellows':
         cmap = LinearSegmentedColormap(
-            'pure_yellows',
+            'pure_yellows'+reverse,
             {'red':incr, 'green':incr, 'blue':cons}
         )
-    elif name == 'pure_cyans':
+    elif name == 'pure_cyans'+reverse:
         cmap = LinearSegmentedColormap(
-            'pure_cyans',
+            'pure_cyans'+reverse,
             {'red':cons, 'green':incr, 'blue':incr}
         )
     elif name == 'pure_purples':
         cmap = LinearSegmentedColormap(
-            'pure_purples',
+            'pure_purples'+reverse,
             {'red':incr, 'green':cons, 'blue':incr}
         )
     elif name == 'pure_greys':
         cmap = LinearSegmentedColormap(
-            'pure_blues',
+            'pure_blues'+reverse,
             {'red':incr, 'green':incr, 'blue':incr}
         )
     else:
-        raise ValueError(name+' is not a valid name')
+        raise ValueError(name+reverse+' is not a valid colormap name')
     
     return cmap
 
@@ -1365,6 +1374,11 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,barsize,crop,scale,
         else:
             cmap_range = (np.amin(exportim),np.amax(exportim))
     
+    #list of possible custom maps
+    pure_maps = ['pure_reds', 'pure_greens', 'pure_blues', 'pure_yellows', 
+                                  'pure_cyans', 'pure_purples','pure_greys']
+    pure_maps += [m+'_r' for m in pure_maps]
+    
     #check if cmap and cmap_range match number of channels, get custom maps
     if multichannel:
         if not isinstance(cmap,list) or len(cmap) != len(exportim):
@@ -1375,15 +1389,13 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,barsize,crop,scale,
                              'channels')
         #get custom maps if necessary
         for i,mp in enumerate(cmap):
-            if mp in ['pure_reds', 'pure_greens', 'pure_blues', 'pure_yellows', 
-                          'pure_cyans', 'pure_purples','pure_greys']:
+            if mp in pure_maps:
                 cmap[i] = _get_pure_cmap(mp)
     else:
         if isinstance(cmap,list):
             raise ValueError('cmap cannot be list for a single channel image')
         #get custom maps if necessary
-        if cmap in ['pure_reds', 'pure_greens', 'pure_blues', 'pure_yellows', 
-                          'pure_cyans', 'pure_purples','pure_greys']:
+        if cmap in pure_maps:
             cmap = _get_pure_cmap(cmap)
     
     #draw original figure before changing exportim
