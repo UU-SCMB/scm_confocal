@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import glob
 import numpy as np
 import os
@@ -57,31 +58,40 @@ class sp8_lif:
                 self.liffile = LifFile(filename+'.lif')
                 self.filename = filename+'.lif'
             except FileNotFoundError:
-                raise FileNotFoundError("No such file or directory: '"+str(filename)+"'")
-        
+                raise FileNotFoundError(
+                    f"No such file or directory: '{filename}'"
+                )
         #for convenience print contents of file
         if not quiet:
-            self.print_images()
+            print(self)
 
-    
     def __getattr__(self,attrName):
-        """
-        Automatically called when getattribute fails. Delegate parent attribs
-        from LifFile
-        """
-        try:
+        """Automatically called when getattribute fails. Delegate parent 
+        attribs from LifFile"""
+        if hasattr(self.liffile,attrName):
             return getattr(self.liffile,attrName)
-        except AttributeError:
-            raise AttributeError('sp8_lif object has no attribute %s' % attrName)
-            
-    def print_images(self):
-        """
-        for convenience print basic info of the datasets in the lif file
-        
-        the format is `<image index>: <number of channels>, <dimensions>`
-        """
+        else:
+            raise AttributeError(self,'has no attribute',attrName)
+    
+    def __len__(self):
+        """"define len(self) as number of datasets/images"""
+        return len(self.image_list)
+    
+    def __getitem__(self,i):
+        """allows using indexing as a shorthand for `get_image()`"""
+        return self.get_image(i)
+    
+    def __repr__(self):
+        """returns string representing the object in the interpreter"""
+        return f"scm_confocal.sp8_lif('{self.filename}')"
+    
+    def __str__(self):
+        """for convenience print basic info of the datasets in the lif file
+        the format is `<image index>: <number of channels>, <dimensions>`"""
+        s = f"<scm_confocal.sp8_lif('{self.filename}')>\n"
         for i,im in enumerate(self.image_list):
-            print('{:}: {:}, {:} channels, {:}'.format(i,im['name'],im['channels'],im['dims']))
+            s+=f"{i}: {im['name']}, {im['channels']} channels, {im['dims']}\n"
+        return s[:-1]#strips last newline
     
     def get_image(self,image=0):
         """
@@ -123,7 +133,6 @@ class sp8_lif:
     
     def _image_name_to_int(self,image):
         """shortcut for converting image name to integer for accessing data"""
-        
         #check input
         if not isinstance(image,(str,int)):
             raise TypeError('`image` must be of type `int` or `str`')
@@ -133,7 +142,7 @@ class sp8_lif:
             try:
                 image = [im['name'] for im in self.image_list].index(image)
             except ValueError:
-                raise ValueError('{:} it not in {:}'.format(image,self.filename))
+                raise ValueError(f'{image} it not in {self.filename}')
                 
         return image
     
@@ -184,15 +193,25 @@ class sp8_image(sp8_lif):
         self.lifimage = self.liffile.get_image(self.image)
     
     def __getattr__(self,attrName):
-        """
-        Automatically called when getattribute fails. Delegate parent attribs
-        from LifFile
-        """
-        try:
+        """Automatically called when getattribute fails. Delegate parent 
+        attribs from LifFile"""
+        if hasattr(self.lifimage,attrName):
             return getattr(self.lifimage,attrName)
-        except AttributeError:
-            raise AttributeError('sp8_lif object has no attribute %s' % attrName)
+        else:
+            raise AttributeError(self,'has no attribute',attrName)
     
+    def __repr__(self):
+        """returns string representing the object in the interpreter"""
+        return f"scm_confocal.sp8_image('{self.filename}',{self.image})"
+    
+    def __str__(self):
+        """for convenience print basic info about the image"""
+        return f"<scm_confocal.sp8_image('{self.filename}',{self.image})>\n" +\
+            f'file:\t\t{self.filename}\n' +\
+            f'image:\t\t{self.name}\n' +\
+            f'channels:\t{self.channels}\n' +\
+            f'shape:\t\t{self.dims}'
+
     def get_name(self):
         """
         shortcut for getting the name of the dataset / image for e.g. 
@@ -214,7 +233,8 @@ class sp8_image(sp8_lif):
             self.metadata
         except AttributeError:
             self.metadata = \
-                self.liffile.xml_root.find('.//Children').findall('Element')[self.image]
+                self.liffile.xml_root.find('.//Children'
+                                           ).findall('Element')[self.image]
         return self.metadata
         
     def get_channels(self):
@@ -229,7 +249,8 @@ class sp8_image(sp8_lif):
             return self.metadata_channels
         except AttributeError:    
             root = self.get_metadata()
-            self.metadata_channels = [dict(dim.attrib) for dim in root.find('.//Channels')]
+            self.metadata_channels = [dict(dim.attrib) \
+                                      for dim in root.find('.//Channels')]
         return self.metadata_channels
     
     def get_channel(self,chl):   
@@ -265,7 +286,8 @@ class sp8_image(sp8_lif):
             return self.metadata_dimensions
         except AttributeError:    
             root = self.get_metadata()
-            self.metadata_dimensions = [dict(dim.attrib) for dim in root.find('.//Dimensions')]
+            self.metadata_dimensions = [dict(dim.attrib) \
+                                        for dim in root.find('.//Dimensions')]
         return self.metadata_dimensions
     
     def get_dimension(self,dim):
@@ -515,12 +537,15 @@ class sp8_image(sp8_lif):
         #account (top to bottom) for trimming x ánd y, only x, or only y.
         if 'x-axis' in dim_range:
             if 'y-axis' in dim_range:
-                slices = tuple([slice(None)]*len(newshape[:-2]) + [dim_range['y-axis'],dim_range['x-axis']])
+                slices = tuple([slice(None)]*len(newshape[:-2]) + 
+                               [dim_range['y-axis'],dim_range['x-axis']])
             else:
-                slices = tuple([slice(None)]*len(newshape[:-1]) + [dim_range['x-axis']])
+                slices = tuple([slice(None)]*len(newshape[:-1]) + 
+                               [dim_range['x-axis']])
             data = data[slices]
         elif 'y-axis' in dim_range:
-            slices = tuple([slice(None)]*len(newshape[:-2]) + [dim_range['y-axis']])
+            slices = tuple([slice(None)]*len(newshape[:-2]) + 
+                           [dim_range['y-axis']])
             data = data[slices]
         
         #squeeze out dimensions with only one element
@@ -718,17 +743,21 @@ class sp8_series:
         fmt : str, optional
             format to use for finding the files. Uses the notation of the glob
             library. The default is '*.tif'.
-
-
-        Returns
-        -------
-        None.
-
         """
 
         self.filenames = glob.glob(fmt)
         if len(self.filenames) < 1:
             raise ValueError('No images found in current directory')
+        
+    def __repr__(self):
+        """represents class instance in interpreter"""
+        return f"scm_confocal.sp8_series('{self.get_series_name()}')"
+    
+    def __str__(self):
+        """for convenience print basic series info"""
+        return "<scm_confocal.sp8_series()>\n" +\
+            f'name:\t{self.get_series_name()}\n' +\
+            f'files:\t{len(self.filenames)}'
         
     def load_data(self, filenames=None, first=None, last=None, dtype=np.uint8):
         """
@@ -760,29 +789,36 @@ class sp8_series:
         else:
             for file in filenames:
                 if not os.path.exists(file):
-                    raise FileNotFoundError('could not find the file "'+file+'"')
+                    raise FileNotFoundError(
+                        f'could not find the file "{file}"')
 
         #this ugly try-except block tries different importers for availability
         try:
             #check pillow import
             from PIL.Image import open as imopen
-            data = np.array([np.array(imopen(name)) for name in filenames[first:last]])
+            data = np.array(
+                [np.array(imopen(name)) for name in filenames[first:last]]
+            )
             data[0]*1
         except:
-            print('[WARNING] scm_confocal.load_data: could not import with PIL'+
-                  ', retrying with scikit-image. Make sure libtiff version >= '+
-                  '4.0.10 is installed')
+            print('[WARNING] scm_confocal.load_data: could not import with '+
+                  'PIL, retrying with scikit-image. Make sure libtiff version'+
+                  ' >= 4.0.10 is installed')
             try:
                 from skimage.io import imread
-                data = np.array([imread(name) for name in filenames[first:last]])
+                data = np.array(
+                    [imread(name) for name in filenames[first:last]]
+                )
             except:
-                raise ImportError('could not load data, check if pillow/PIL or '+
-                                  ' scikit-image are installed')
+                raise ImportError('could not load data, check if pillow/PIL '+
+                                  'or scikit-image are installed')
 
         #check if images are 2D (i.e. greyscale)
         if data.ndim > 3:
-            print("[WARNING] sp8_series.load_data(): images do not have the correct dimensionality, "+
-                  "did you load colour images perhaps? Continueing with average values of higher dimensions")
+            print("[WARNING] sp8_series.load_data(): images do not have the "+
+                  "correct dimensionality, did you load colour images "+
+                  "perhaps? Continueing with average values of higher "+
+                  "dimensions")
             data = np.mean(data,axis=tuple(range(3,data.ndim)),dtype=dtype)
 
         #optionally fix dtype of data
@@ -873,7 +909,8 @@ class sp8_series:
             dimensions = sp8_series.get_metadata_dimensions(self)
         
         #determine what the new shape should be from dimensional metadata
-        newshape = [int(dim['NumberOfElements']) for dim in reversed(dimensions)]
+        newshape = [int(dim['NumberOfElements']) \
+                    for dim in reversed(dimensions)]
         
         #create list of dimension labels
         order = [_DimID_to_str(dim['DimID']) for dim in reversed(dimensions)]
@@ -917,7 +954,8 @@ class sp8_series:
                 slices.append(dim_range[dim])
             slices = tuple(slices)
             
-            #reshape the filenames and apply slicing, then ravel back to flat list
+            #reshape the filenames and apply slicing, then ravel back to flat
+            #list
             filenames = np.reshape(filenames,newshape[:-2])[slices]
         
         else:
@@ -941,12 +979,15 @@ class sp8_series:
         #account (top to bottom) for trimming x ánd y, only x, or only y.
         if 'x-axis' in dim_range:
             if 'y-axis' in dim_range:
-                slices = tuple([slice(None)]*len(newshape[:-2]) + [dim_range['y-axis'],dim_range['x-axis']])
+                slices = tuple([slice(None)]*len(newshape[:-2]) + 
+                               [dim_range['y-axis'],dim_range['x-axis']])
             else:
-                slices = tuple([slice(None)]*len(newshape[:-1]) + [dim_range['x-axis']])
+                slices = tuple([slice(None)]*len(newshape[:-1]) + 
+                               [dim_range['x-axis']])
             data = data[slices]
         elif 'y-axis' in dim_range:
-            slices = tuple([slice(None)]*len(newshape[:-2]) + [dim_range['y-axis']])
+            slices = tuple([slice(None)]*len(newshape[:-2]) + 
+                           [dim_range['y-axis']])
             data = data[slices]
         
         return data, tuple(order)
@@ -964,7 +1005,9 @@ class sp8_series:
         """
         import xml.etree.ElementTree as et
         
-        metadata_path = sorted(glob.glob(os.path.join(os.path.curdir, 'MetaData', '*.xml')))[0]
+        metadata_path = sorted(
+            glob.glob(os.path.join(os.path.curdir, 'MetaData', '*.xml'))
+        )[0]
         metadata = et.parse(metadata_path)
         metadata = metadata.getroot()
         
@@ -1009,7 +1052,8 @@ class sp8_series:
         except AttributeError:
             metadata = sp8_series.load_metadata(self)
         
-        dimensions = [dict(dim.attrib) for dim in metadata.find('.//Dimensions')]
+        dimensions = [dict(dim.attrib) \
+                      for dim in metadata.find('.//Dimensions')]
         
         self.metadata_dimensions = dimensions
         
