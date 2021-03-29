@@ -1,7 +1,9 @@
 import numpy as np
 import pims
+from slicerator import Slicerator
 import os
 from decimal import Decimal
+from warnings import 
 
 class visitech_series:
     """
@@ -520,7 +522,6 @@ class visitech_series:
             return (np.arange(0,self.shape[-1]*self._pixelsizeXY,
                               self._pixelsizeXY),'µm')
 
-
 class visitech_faststack:
     """
     functions for fast stacks taken with the custom MicroManager Visitech 
@@ -559,6 +560,7 @@ class visitech_faststack:
         #in case of a multipage ome.tiff
         if isinstance(filename,str):
             self.datafile = pims.TiffStack(filename)
+        #in case of list of single images
         elif isinstance(filename,list) or isinstance(filename,np.ndarray):
             self.datafile = pims.ImageSequence(filename)
         else:
@@ -591,12 +593,16 @@ class visitech_faststack:
             6.5/magnification*binning
         )
         #Hamamatsu C11440-22CU has pixels of 6.5x6.5 um
-
+        
+    def __len__(self):
+        """returns length of series, in number of z-stacks"""
+        return self.nz
+        
     def __repr__(self):
         """"represents class instance in the interpreter"""
         return "<scm_confocal.visitech_series('{}',{},{},{})>".format(
             self.filename,self.zsize,self.zstep,self.backsteps)
-
+    
     def load_data(self,indices=slice(None,None,None),dtype=np.uint16):
         """
         load images from datafile into 3D numpy array
