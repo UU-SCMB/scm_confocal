@@ -3,7 +3,7 @@ import pims
 from slicerator import Slicerator
 import os
 from decimal import Decimal
-from warnings import 
+import warnings
 
 class visitech_series:
     """
