@@ -486,7 +486,8 @@ class sp8_image(sp8_lif):
         elif len(dims)==3:
             dimsdict = {int(dims[2]['DimID']):i}
         #for higher dims, we need to separate i into the components along each
-        #dimension beyond the first 2, by floor division and modulo
+        #dimension beyond the first 2, by floor dividing out lower dims and
+        #and modulo-ing the current dim with its length
         else:
             dimsdict = dict()
             div = 1
