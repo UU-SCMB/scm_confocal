@@ -478,43 +478,16 @@ class sp8_image(sp8_lif):
         
         #get dims
         dims = self.get_dimensions()
-        
-        #if the first two dimensions are x and y, use normal get_frame
-        if dims[0]['DimID']=='1' and dims[1]['DimID']=='2' \
-            and not any([int(d['DimID'])>4 for d in dims]):
-            
-            #in case of 2D data (single image)
-            if len(dims) == 2:
-                z,t = 0,0
-            
-            #if lenth is only along time or z-axis
-            elif len(dims) == 3:
-                if dims[2]['DimID']=='3':
-                    z = i
-                    t = 0
-                else:
-                    z = 0
-                    t = i
-            # if both t and z present and z first
-            else:
-                z = i % int(dims[2]['NumberOfElements'])
-                t = i // int(dims[2]['NumberOfElements'])
-            
-            #return image with correct t&z and channel(s)
-            if isinstance(channel,int):
-                return np.array(self.lifimage.get_frame(z=z,t=t,c=channel))
-            else:
-                return tuple([np.array(self.lifimage.get_frame(z=z,t=t,c=c)) \
-                              for c in channel])
-        
-        #if not simple xy(zt), use slower but more flexible get_plane
-        elif len(dims)==2:
+
+        #for just a single image, we just load it
+        if len(dims)==2:
             dimsdict = None
+        #for 3D data the i-th frame is just the i-th im along the third dim
         elif len(dims)==3:
             dimsdict = {int(dims[2]['DimID']):i}
+        #for higher dims, we need to separate i into the components along each
+        #dimension beyond the first 2, by floor division and modulo
         else:
-            #calculate the right dimension step number for each dimension 
-            #beyond the first two by modulo and floor devision
             dimsdict = dict()
             div = 1
             for d in dims[:]:
