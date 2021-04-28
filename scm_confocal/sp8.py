@@ -421,8 +421,47 @@ class sp8_image(sp8_lif):
         steps = int(dim['NumberOfElements'])
         return np.linspace(start,start+length,steps),dim['Unit']
     
-    def get_frame(self,i=0,channel=None):
-        """returns specified image frame"""
+    def get_pixelsize(self):
+        """
+        shorthand for `get_dimension_stepsize()` to get the pixel/voxel size
+        converted to micrometer, along whatever spatial dimensions are present 
+        in the data. Is given as (z,y,x) where dimensions not present in the 
+        data are skipped.
+        
+        Returns
+        -------
+        pixelsize : tuple of float
+            physical size in µm of the pixels/voxels along (z,y,x)
+        """
+        
+        pixelsize = []
+        for d in ['z-axis','y-axis','x-axis']:
+            try:
+                pixelsize.append(self.get_dimension_stepsize(d)[0]*1e6)
+            except ValueError:
+                pass
+        return tuple(pixelsize)
+    
+    def load_frame(self,i=0,channel=None):
+        """
+        returns specified image frame where a frame is considered a 2D image in
+        the plane of the two fastes axes in the recording order (typically xy).
+                
+        Parameters
+        ----------
+        i : int, optional
+            the index number of the requested image. The default is 0.
+        channel : int or list of int, optional
+            which channel(s) to return. For multiple channels, a tuple with an 
+            numpy.ndarray for each image is returned, for a single channel a 
+            single numpy.ndarray is returned. The default is to return all 
+            channels.
+        
+        Returns
+        -------
+        frame : numpy.ndarray or tuple of numpy.ndarray
+            the raw image data values for the requested frame / channel(s)
+        """
         
         #check image index
         if i>=len(self):
@@ -434,6 +473,8 @@ class sp8_image(sp8_lif):
                 channel = range(self.channels)
             else:
                 channel = 0
+        elif not self._is_multichannel and channel != 0:
+            raise IndexError('requested channel not in data')
         
         #get dims
         dims = self.get_dimensions()
@@ -465,29 +506,29 @@ class sp8_image(sp8_lif):
             else:
                 return tuple([np.array(self.lifimage.get_frame(z=z,t=t,c=c)) \
                               for c in channel])
+        
+        #if not simple xy(zt), use slower but more flexible get_plane
+        elif len(dims)==2:
+            dimsdict = None
+        elif len(dims)==3:
+            dimsdict = {int(dims[2]['DimID']):i}
         else:
-            raise NotImplementedError()
-    
-    def get_pixelsize(self):
-        """
-        shorthand for `get_dimension_stepsize()` to get the pixel/voxel size
-        converted to micrometer, along whatever spatial dimensions are present 
-        in the data. Is given as (z,y,x) where dimensions not present in the 
-        data are skipped.
+            #calculate the right dimension step number for each dimension 
+            #beyond the first two by modulo and floor devision
+            dimsdict = dict()
+            div = 1
+            for d in dims[:]:
+                mod = int(d['NumberOfElements'])
+                dimsdict[int(d['DimID'])] = (i//div) % mod
+                div *= mod
         
-        Returns
-        -------
-        pixelsize : tuple of float
-            physical size in µm of the pixels/voxels along (z,y,x)
-        """
-        
-        pixelsize = []
-        for d in ['z-axis','y-axis','x-axis']:
-            try:
-                pixelsize.append(self.get_dimension_stepsize(d)[0]*1e6)
-            except ValueError:
-                pass
-        return tuple(pixelsize)
+        #return requested image with get_plane and correct dimension(s)
+        if isinstance(channel,int):
+            return np.array(self.lifimage.get_plane(c=channel,
+                                                    requested_dims=dimsdict))
+        else:
+            return tuple([np.array(self.lifimage.get_plane(
+                c=c,requested_dims=dimsdict)) for c in channel])
     
     def load_stack(self,dim_range={}):
         """
