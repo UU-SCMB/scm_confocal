@@ -2,6 +2,7 @@
 import glob
 import numpy as np
 import os
+from slicerator import Slicerator
 
 class sp8_lif:
     """
@@ -43,7 +44,7 @@ class sp8_lif:
         [here](https://github.com/nimne/readlif)
         
     """
-    def __init__(self,filename,quiet=False):
+    def __init__(self,filename=None,quiet=False):
         """
         Initialize the class instance and the underlying LifFile instance
         """
@@ -51,6 +52,9 @@ class sp8_lif:
         
         #try reading, if fails try again with extension appended
         try:
+            if filename is None:
+                filename = glob.glob('*.lif')[0]
+            
             self.liffile = LifFile(filename)
             self.filename = filename
         except FileNotFoundError:
@@ -160,7 +164,8 @@ class sp8_lif:
             image = self.image_list[image]['name']
                 
         return image
-    
+
+@Slicerator.from_class
 class sp8_image(sp8_lif):
     """
     Subclass of `sp8_lif` for relevant attributes and functions for a specific
@@ -188,9 +193,17 @@ class sp8_image(sp8_lif):
     def __init__(self,filename,image):
         """inherit all functions and attributes from parent sp8_lif class and 
         add some image specific ones"""
+        
+        #inherit parent attribs and initialize readlif.LifImage class
         super().__init__(filename,quiet=True)
         self.image = image
         self.lifimage = self.liffile.get_image(self.image)
+        
+        #note if it is single or multichannel
+        if self.lifimage.channels > 1:
+            self._is_multichannel = True
+        else:
+            self._is_multichannel = False
     
     def __getattr__(self,attrName):
         """Automatically called when getattribute fails. Delegate parent 
@@ -200,6 +213,27 @@ class sp8_image(sp8_lif):
         else:
             raise AttributeError(self,'has no attribute',attrName)
     
+    def __getitem__(self,i):
+        """make indexable, where it returns the ith frame, where a frame is 
+        defined by the first 2 dimensions in recording order"""
+        return self.get_frame(i)
+    
+    def __len__(self):
+        """length of image (series), given as number of images where an image
+        is defined by the first two dimensions in recording order, where all
+        channels are considered as part of the same frame"""
+        #only calculate length once and store as _len attribute
+        if hasattr(self,'_len'):
+            return self._len
+        else:
+            dims = self.get_dimensions()
+            if len(dims) <= 2:
+                self._len = 1
+            else:
+                self._len = np.product([int(d['NumberOfElements']) \
+                                        for d in dims[2:]])
+            return self._len
+            
     def __repr__(self):
         """returns string representing the object in the interpreter"""
         return f"scm_confocal.sp8_image('{self.filename}',{self.image})"
@@ -282,9 +316,9 @@ class sp8_image(sp8_lif):
         -------
         list of dictionaries
         """
-        try:
+        if hasattr(self,'metadata_dimensions'):
             return self.metadata_dimensions
-        except AttributeError:    
+        else:    
             root = self.get_metadata()
             self.metadata_dimensions = [dict(dim.attrib) \
                                         for dim in root.find('.//Dimensions')]
@@ -386,7 +420,54 @@ class sp8_image(sp8_lif):
         length = float(dim['Length'])
         steps = int(dim['NumberOfElements'])
         return np.linspace(start,start+length,steps),dim['Unit']
+    
+    def get_frame(self,i=0,channel=None):
+        """returns specified image frame"""
         
+        #check image index
+        if i>=len(self):
+            raise IndexError('requested image out of range')
+        
+        #get default channel
+        if channel is None:
+            if self._is_multichannel:
+                channel = range(self.channels)
+            else:
+                channel = 0
+        
+        #get dims
+        dims = self.get_dimensions()
+        
+        #if the first two dimensions are x and y, use normal get_frame
+        if dims[0]['DimID']=='1' and dims[1]['DimID']=='2' \
+            and not any([int(d['DimID'])>4 for d in dims]):
+            
+            #in case of 2D data (single image)
+            if len(dims) == 2:
+                z,t = 0,0
+            
+            #if lenth is only along time or z-axis
+            elif len(dims) == 3:
+                if dims[2]['DimID']=='3':
+                    z = i
+                    t = 0
+                else:
+                    z = 0
+                    t = i
+            # if both t and z present and z first
+            else:
+                z = i % int(dims[2]['NumberOfElements'])
+                t = i // int(dims[2]['NumberOfElements'])
+            
+            #return image with correct t&z and channel(s)
+            if isinstance(channel,int):
+                return np.array(self.lifimage.get_frame(z=z,t=t,c=channel))
+            else:
+                return tuple([np.array(self.lifimage.get_frame(z=z,t=t,c=c)) \
+                              for c in channel])
+        else:
+            raise NotImplementedError()
+    
     def get_pixelsize(self):
         """
         shorthand for `get_dimension_stepsize()` to get the pixel/voxel size
@@ -686,6 +767,9 @@ class sp8_image(sp8_lif):
             multichannel = False
         else:
             multichannel = True
+            if not self._is_multichannel:
+                raise ValueError('cannot set multiple channels for single '
+                                 'channel data')
         
         #get dimensionality of the image to calculate which frame to get
         dims = self.lifimage.dims
