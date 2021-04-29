@@ -14,6 +14,6 @@ setup(
         "pillow>=6.2.1",
         "pims>=0.5",
         "opencv-python>=3.0.0",
-        "readlif>=0.5.1",
+        "readlif>=0.6.0",
     ],
 )
