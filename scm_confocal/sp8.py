@@ -1,6 +1,8 @@
+# -*- coding: utf-8 -*-
 import glob
 import numpy as np
 import os
+from slicerator import Slicerator
 
 class sp8_lif:
     """
@@ -42,7 +44,7 @@ class sp8_lif:
         [here](https://github.com/nimne/readlif)
         
     """
-    def __init__(self,filename,quiet=False):
+    def __init__(self,filename=None,quiet=False):
         """
         Initialize the class instance and the underlying LifFile instance
         """
@@ -50,6 +52,9 @@ class sp8_lif:
         
         #try reading, if fails try again with extension appended
         try:
+            if filename is None:
+                filename = glob.glob('*.lif')[0]
+            
             self.liffile = LifFile(filename)
             self.filename = filename
         except FileNotFoundError:
@@ -57,31 +62,40 @@ class sp8_lif:
                 self.liffile = LifFile(filename+'.lif')
                 self.filename = filename+'.lif'
             except FileNotFoundError:
-                raise FileNotFoundError("No such file or directory: '"+str(filename)+"'")
-        
+                raise FileNotFoundError(
+                    f"No such file or directory: '{filename}'"
+                )
         #for convenience print contents of file
         if not quiet:
-            self.print_images()
+            print(self)
 
-    
     def __getattr__(self,attrName):
-        """
-        Automatically called when getattribute fails. Delegate parent attribs
-        from LifFile
-        """
-        try:
+        """Automatically called when getattribute fails. Delegate parent 
+        attribs from LifFile"""
+        if hasattr(self.liffile,attrName):
             return getattr(self.liffile,attrName)
-        except AttributeError:
-            raise AttributeError('sp8_lif object has no attribute %s' % attrName)
-            
-    def print_images(self):
-        """
-        for convenience print basic info of the datasets in the lif file
-        
-        the format is `<image index>: <number of channels>, <dimensions>`
-        """
+        else:
+            raise AttributeError(self,'has no attribute',attrName)
+    
+    def __len__(self):
+        """"define len(self) as number of datasets/images"""
+        return len(self.image_list)
+    
+    def __getitem__(self,i):
+        """allows using indexing as a shorthand for `get_image()`"""
+        return self.get_image(i)
+    
+    def __repr__(self):
+        """returns string representing the object in the interpreter"""
+        return f"scm_confocal.sp8_lif('{self.filename}')"
+    
+    def __str__(self):
+        """for convenience print basic info of the datasets in the lif file
+        the format is `<image index>: <number of channels>, <dimensions>`"""
+        s = f"<scm_confocal.sp8_lif('{self.filename}')>\n"
         for i,im in enumerate(self.image_list):
-            print('{:}: {:}, {:} channels, {:}'.format(i,im['name'],im['channels'],im['dims']))
+            s+=f"{i}: {im['name']}, {im['channels']} channels, {im['dims']}\n"
+        return s[:-1]#strips last newline
     
     def get_image(self,image=0):
         """
@@ -123,7 +137,6 @@ class sp8_lif:
     
     def _image_name_to_int(self,image):
         """shortcut for converting image name to integer for accessing data"""
-        
         #check input
         if not isinstance(image,(str,int)):
             raise TypeError('`image` must be of type `int` or `str`')
@@ -133,7 +146,7 @@ class sp8_lif:
             try:
                 image = [im['name'] for im in self.image_list].index(image)
             except ValueError:
-                raise ValueError('{:} it not in {:}'.format(image,self.filename))
+                raise ValueError(f'{image} it not in {self.filename}')
                 
         return image
     
@@ -151,7 +164,8 @@ class sp8_lif:
             image = self.image_list[image]['name']
                 
         return image
-    
+
+@Slicerator.from_class
 class sp8_image(sp8_lif):
     """
     Subclass of `sp8_lif` for relevant attributes and functions for a specific
@@ -179,20 +193,59 @@ class sp8_image(sp8_lif):
     def __init__(self,filename,image):
         """inherit all functions and attributes from parent sp8_lif class and 
         add some image specific ones"""
+        
+        #inherit parent attribs and initialize readlif.LifImage class
         super().__init__(filename,quiet=True)
         self.image = image
         self.lifimage = self.liffile.get_image(self.image)
+        
+        #note if it is single or multichannel
+        if self.lifimage.channels > 1:
+            self._is_multichannel = True
+        else:
+            self._is_multichannel = False
     
     def __getattr__(self,attrName):
-        """
-        Automatically called when getattribute fails. Delegate parent attribs
-        from LifFile
-        """
-        try:
+        """Automatically called when getattribute fails. Delegate parent 
+        attribs from LifFile"""
+        if hasattr(self.lifimage,attrName):
             return getattr(self.lifimage,attrName)
-        except AttributeError:
-            raise AttributeError('sp8_lif object has no attribute %s' % attrName)
+        else:
+            raise AttributeError(self,'has no attribute',attrName)
     
+    def __getitem__(self,i):
+        """make indexable, where it returns the ith frame, where a frame is 
+        defined by the first 2 dimensions in recording order"""
+        return self.get_frame(i)
+    
+    def __len__(self):
+        """length of image (series), given as number of images where an image
+        is defined by the first two dimensions in recording order, where all
+        channels are considered as part of the same frame"""
+        #only calculate length once and store as _len attribute
+        if hasattr(self,'_len'):
+            return self._len
+        else:
+            dims = self.get_dimensions()
+            if len(dims) <= 2:
+                self._len = 1
+            else:
+                self._len = np.product([int(d['NumberOfElements']) \
+                                        for d in dims[2:]])
+            return self._len
+            
+    def __repr__(self):
+        """returns string representing the object in the interpreter"""
+        return f"scm_confocal.sp8_image('{self.filename}',{self.image})"
+    
+    def __str__(self):
+        """for convenience print basic info about the image"""
+        return f"<scm_confocal.sp8_image('{self.filename}',{self.image})>\n" +\
+            f'file:\t\t{self.filename}\n' +\
+            f'image:\t\t{self.name}\n' +\
+            f'channels:\t{self.channels}\n' +\
+            f'shape:\t\t{self.dims}'
+
     def get_name(self):
         """
         shortcut for getting the name of the dataset / image for e.g. 
@@ -214,7 +267,8 @@ class sp8_image(sp8_lif):
             self.metadata
         except AttributeError:
             self.metadata = \
-                self.liffile.xml_root.find('.//Children').findall('Element')[self.image]
+                self.liffile.xml_root.find('.//Children'
+                                           ).findall('Element')[self.image]
         return self.metadata
         
     def get_channels(self):
@@ -229,7 +283,8 @@ class sp8_image(sp8_lif):
             return self.metadata_channels
         except AttributeError:    
             root = self.get_metadata()
-            self.metadata_channels = [dict(dim.attrib) for dim in root.find('.//Channels')]
+            self.metadata_channels = [dict(dim.attrib) \
+                                      for dim in root.find('.//Channels')]
         return self.metadata_channels
     
     def get_channel(self,chl):   
@@ -261,11 +316,12 @@ class sp8_image(sp8_lif):
         -------
         list of dictionaries
         """
-        try:
+        if hasattr(self,'metadata_dimensions'):
             return self.metadata_dimensions
-        except AttributeError:    
+        else:    
             root = self.get_metadata()
-            self.metadata_dimensions = [dict(dim.attrib) for dim in root.find('.//Dimensions')]
+            self.metadata_dimensions = [dict(dim.attrib) \
+                                        for dim in root.find('.//Dimensions')]
         return self.metadata_dimensions
     
     def get_dimension(self,dim):
@@ -364,7 +420,7 @@ class sp8_image(sp8_lif):
         length = float(dim['Length'])
         steps = int(dim['NumberOfElements'])
         return np.linspace(start,start+length,steps),dim['Unit']
-        
+    
     def get_pixelsize(self):
         """
         shorthand for `get_dimension_stepsize()` to get the pixel/voxel size
@@ -385,6 +441,68 @@ class sp8_image(sp8_lif):
             except ValueError:
                 pass
         return tuple(pixelsize)
+    
+    def load_frame(self,i=0,channel=None):
+        """
+        returns specified image frame where a frame is considered a 2D image in
+        the plane of the two fastes axes in the recording order (typically xy).
+                
+        Parameters
+        ----------
+        i : int, optional
+            the index number of the requested image. The default is 0.
+        channel : int or list of int, optional
+            which channel(s) to return. For multiple channels, a tuple with an 
+            numpy.ndarray for each image is returned, for a single channel a 
+            single numpy.ndarray is returned. The default is to return all 
+            channels.
+        
+        Returns
+        -------
+        frame : numpy.ndarray or tuple of numpy.ndarray
+            the raw image data values for the requested frame / channel(s)
+        """
+        
+        #check image index
+        if i>=len(self):
+            raise IndexError('requested image out of range')
+        
+        #get default channel
+        if channel is None:
+            if self._is_multichannel:
+                channel = range(self.channels)
+            else:
+                channel = 0
+        elif not self._is_multichannel and channel != 0:
+            raise IndexError('requested channel not in data')
+        
+        #get dims
+        dims = self.get_dimensions()
+
+        #for just a single image, we just load it
+        if len(dims)==2:
+            dimsdict = None
+        #for 3D data the i-th frame is just the i-th im along the third dim
+        elif len(dims)==3:
+            dimsdict = {int(dims[2]['DimID']):i}
+        #for higher dims, we need to separate i into the components along each
+        #dimension beyond the first 2, by floor dividing out lower dims and
+        #and modulo-ing the current dim with its length
+        else:
+            dimsdict = dict()
+            div = 1
+            for d in dims[:]:
+                mod = int(d['NumberOfElements'])
+                dimsdict[int(d['DimID'])] = (i//div) % mod
+                div *= mod
+        
+        #return requested image with get_plane and correct dimension(s)
+        if isinstance(channel,int):
+            return np.array(self.lifimage.get_plane(c=channel,
+                                                    requested_dims=dimsdict))
+        else:
+            return tuple([np.array(self.lifimage.get_plane(
+                c=c,requested_dims=dimsdict)) for c in channel])
     
     def load_stack(self,dim_range={}):
         """
@@ -515,12 +633,15 @@ class sp8_image(sp8_lif):
         #account (top to bottom) for trimming x ánd y, only x, or only y.
         if 'x-axis' in dim_range:
             if 'y-axis' in dim_range:
-                slices = tuple([slice(None)]*len(newshape[:-2]) + [dim_range['y-axis'],dim_range['x-axis']])
+                slices = tuple([slice(None)]*len(newshape[:-2]) + 
+                               [dim_range['y-axis'],dim_range['x-axis']])
             else:
-                slices = tuple([slice(None)]*len(newshape[:-1]) + [dim_range['x-axis']])
+                slices = tuple([slice(None)]*len(newshape[:-1]) + 
+                               [dim_range['x-axis']])
             data = data[slices]
         elif 'y-axis' in dim_range:
-            slices = tuple([slice(None)]*len(newshape[:-2]) + [dim_range['y-axis']])
+            slices = tuple([slice(None)]*len(newshape[:-2]) + 
+                           [dim_range['y-axis']])
             data = data[slices]
         
         #squeeze out dimensions with only one element
@@ -593,9 +714,9 @@ class sp8_image(sp8_lif):
             of the original image (after optional cropping using `crop`).
         cmap : str or callable or list of str or list of callable, optional
             name of a named Matplotlib colormap used to color the data. see the 
-            [Matplotlib documentation](https://matplotlib.org/stable/tutorials/
-            colors/colormaps.html) for more information. The default is 
-            `'inferno'`.
+            [Matplotlib documentation](
+                https://matplotlib.org/stable/tutorials/colors/colormaps.html)
+            for more information. The default is `'inferno'`.
             
             In addition to the colormaps listed there, the following maps for 
             linearly incrementing pure RGB channels are available, useful for 
@@ -610,13 +731,10 @@ class sp8_image(sp8_lif):
             `(0,255,255)`.
             
             Alternatively, a fully custom colormap may be used by entering a 
-            [ListedColormap](https://matplotlib.org/stable/api/_as_gen/matplotl
-            ib.colors.ListedColormap.html#matplotlib.colors.ListedColormap) or 
-            [LinearSegmentedColormap](https://matplotlib.org/stable/api/_as_gen
-            /matplotlib.colors.LinearSegmentedColormap.html#matplotlib.colors.L
-            inearSegmentedColormap) object from the Matplotlib.colors module. 
-            For more information on creating colormaps, see the Matplotlib 
-            documentation linked above.
+            [ListedColormap](https://matplotlib.org/stable/api/_as_gen/matplotlib.colors.ListedColormap.html#matplotlib.colors.ListedColormap)
+            or [LinearSegmentedColormap](https://matplotlib.org/stable/api/_as_gen/matplotlib.colors.LinearSegmentedColormap.html#matplotlib.colors.LinearSegmentedColormap)
+            object from the Matplotlib.colors module. For more information on 
+            creating colormaps, see the Matplotlib documentation linked above.
             
             For multichannel data, a list of colormaps *must* be provided, with
             a separate colormap for each channel.
@@ -664,6 +782,9 @@ class sp8_image(sp8_lif):
             multichannel = False
         else:
             multichannel = True
+            if not self._is_multichannel:
+                raise ValueError('cannot set multiple channels for single '
+                                 'channel data')
         
         #get dimensionality of the image to calculate which frame to get
         dims = self.lifimage.dims
@@ -686,12 +807,13 @@ class sp8_image(sp8_lif):
             ))
         
         #call main export_with_scalebar function with correct pixelsize etc
-        from .utility import _export_with_scalebar
+        from .util import _export_with_scalebar
         _export_with_scalebar(exportim, pixelsize, unit, filename, barsize, 
                               crop, scale, loc, resolution, convert, barcolor,
                               cmap, cmap_range, box, boxcolor, boxopacity, 
                               multichannel)
 
+@Slicerator.from_class
 class sp8_series:
     """
     Class of functions related to the sp8 microscope. The functions assume that
@@ -721,17 +843,48 @@ class sp8_series:
         fmt : str, optional
             format to use for finding the files. Uses the notation of the glob
             library. The default is '*.tif'.
-
-
-        Returns
-        -------
-        None.
-
         """
-
+        #look for images
         self.filenames = glob.glob(fmt)
         if len(self.filenames) < 1:
             raise ValueError('No images found in current directory')
+        
+        #check number of channels
+        self.channels = len(self.get_metadata_channels())
+        if self.channels == 1:
+            self._is_multichannel = False
+        else:
+            self._is_multichannel = True
+        
+    def __len__(self):
+        """define length as number of images (where multiple channels do not) 
+        contribute to the count"""
+        #only calculate length once
+        if hasattr(self, '_len'):
+            return self._len
+        else:
+            self._len = len(self.filenames) // self.channels
+            return self._len
+    
+    def __getitem__(self,i):
+        """get i-th recorded 2D image (where multiple channels are considered 
+        part of the same image), return as numpy array or tuple of numpy arrays
+        for multichannel data"""
+        if self._is_multichannel:
+            return tuple([im for im in self.load_data(
+                self.filenames[i*self.channels:(i+1)*self.channels:])])
+        else:
+            return self.load_data(self.filenames[i:i+1])[0]
+    
+    def __repr__(self):
+        """represents class instance in interpreter"""
+        return f"scm_confocal.sp8_series('{self.get_series_name()}')"
+    
+    def __str__(self):
+        """for convenience print basic series info"""
+        return "<scm_confocal.sp8_series()>\n" +\
+            f'name:\t{self.get_series_name()}\n' +\
+            f'files:\t{len(self.filenames)}'
         
     def load_data(self, filenames=None, first=None, last=None, dtype=np.uint8):
         """
@@ -763,29 +916,36 @@ class sp8_series:
         else:
             for file in filenames:
                 if not os.path.exists(file):
-                    raise FileNotFoundError('could not find the file "'+file+'"')
+                    raise FileNotFoundError(
+                        f'could not find the file "{file}"')
 
         #this ugly try-except block tries different importers for availability
         try:
             #check pillow import
             from PIL.Image import open as imopen
-            data = np.array([np.array(imopen(name)) for name in filenames[first:last]])
+            data = np.array(
+                [np.array(imopen(name)) for name in filenames[first:last]]
+            )
             data[0]*1
         except:
-            print('[WARNING] scm_confocal.load_data: could not import with PIL'+
-                  ', retrying with scikit-image. Make sure libtiff version >= '+
-                  '4.0.10 is installed')
+            print('[WARNING] scm_confocal.load_data: could not import with '+
+                  'PIL, retrying with scikit-image. Make sure libtiff version'+
+                  ' >= 4.0.10 is installed')
             try:
                 from skimage.io import imread
-                data = np.array([imread(name) for name in filenames[first:last]])
+                data = np.array(
+                    [imread(name) for name in filenames[first:last]]
+                )
             except:
-                raise ImportError('could not load data, check if pillow/PIL or '+
-                                  ' scikit-image are installed')
+                raise ImportError('could not load data, check if pillow/PIL '+
+                                  'or scikit-image are installed')
 
         #check if images are 2D (i.e. greyscale)
         if data.ndim > 3:
-            print("[WARNING] sp8_series.load_data(): images do not have the correct dimensionality, "+
-                  "did you load colour images perhaps? Continueing with average values of higher dimensions")
+            print("[WARNING] sp8_series.load_data(): images do not have the "+
+                  "correct dimensionality, did you load colour images "+
+                  "perhaps? Continueing with average values of higher "+
+                  "dimensions")
             data = np.mean(data,axis=tuple(range(3,data.ndim)),dtype=dtype)
 
         #optionally fix dtype of data
@@ -876,7 +1036,8 @@ class sp8_series:
             dimensions = sp8_series.get_metadata_dimensions(self)
         
         #determine what the new shape should be from dimensional metadata
-        newshape = [int(dim['NumberOfElements']) for dim in reversed(dimensions)]
+        newshape = [int(dim['NumberOfElements']) \
+                    for dim in reversed(dimensions)]
         
         #create list of dimension labels
         order = [_DimID_to_str(dim['DimID']) for dim in reversed(dimensions)]
@@ -920,7 +1081,8 @@ class sp8_series:
                 slices.append(dim_range[dim])
             slices = tuple(slices)
             
-            #reshape the filenames and apply slicing, then ravel back to flat list
+            #reshape the filenames and apply slicing, then ravel back to flat
+            #list
             filenames = np.reshape(filenames,newshape[:-2])[slices]
         
         else:
@@ -944,12 +1106,15 @@ class sp8_series:
         #account (top to bottom) for trimming x ánd y, only x, or only y.
         if 'x-axis' in dim_range:
             if 'y-axis' in dim_range:
-                slices = tuple([slice(None)]*len(newshape[:-2]) + [dim_range['y-axis'],dim_range['x-axis']])
+                slices = tuple([slice(None)]*len(newshape[:-2]) + 
+                               [dim_range['y-axis'],dim_range['x-axis']])
             else:
-                slices = tuple([slice(None)]*len(newshape[:-1]) + [dim_range['x-axis']])
+                slices = tuple([slice(None)]*len(newshape[:-1]) + 
+                               [dim_range['x-axis']])
             data = data[slices]
         elif 'y-axis' in dim_range:
-            slices = tuple([slice(None)]*len(newshape[:-2]) + [dim_range['y-axis']])
+            slices = tuple([slice(None)]*len(newshape[:-2]) + 
+                           [dim_range['y-axis']])
             data = data[slices]
         
         return data, tuple(order)
@@ -967,7 +1132,9 @@ class sp8_series:
         """
         import xml.etree.ElementTree as et
         
-        metadata_path = sorted(glob.glob(os.path.join(os.path.curdir, 'MetaData', '*.xml')))[0]
+        metadata_path = sorted(
+            glob.glob(os.path.join(os.path.curdir, 'MetaData', '*.xml'))
+        )[0]
         metadata = et.parse(metadata_path)
         metadata = metadata.getroot()
         
@@ -1012,7 +1179,8 @@ class sp8_series:
         except AttributeError:
             metadata = sp8_series.load_metadata(self)
         
-        dimensions = [dict(dim.attrib) for dim in metadata.find('.//Dimensions')]
+        dimensions = [dict(dim.attrib) \
+                      for dim in metadata.find('.//Dimensions')]
         
         self.metadata_dimensions = dimensions
         
@@ -1220,9 +1388,9 @@ class sp8_series:
             of the original image (after optional cropping using `crop`).
         cmap : str or callable or list of str or list of callable, optional
             name of a named Matplotlib colormap used to color the data. see the 
-            [Matplotlib documentation](https://matplotlib.org/stable/tutorials/
-            colors/colormaps.html) for more information. The default is 
-            `'inferno'`.
+            [Matplotlib documentation](
+                https://matplotlib.org/stable/tutorials/colors/colormaps.html)
+            for more information. The default is `'inferno'`.
             
             In addition to the colormaps listed there, the following maps for 
             linearly incrementing pure RGB channels are available, useful for 
@@ -1237,13 +1405,10 @@ class sp8_series:
             `(0,255,255)`.
             
             Alternatively, a fully custom colormap may be used by entering a 
-            [ListedColormap](https://matplotlib.org/stable/api/_as_gen/matplotl
-            ib.colors.ListedColormap.html#matplotlib.colors.ListedColormap) or 
-            [LinearSegmentedColormap](https://matplotlib.org/stable/api/_as_gen
-            /matplotlib.colors.LinearSegmentedColormap.html#matplotlib.colors.L
-            inearSegmentedColormap) object from the Matplotlib.colors module. 
-            For more information on creating colormaps, see the Matplotlib 
-            documentation linked above.
+            [ListedColormap](https://matplotlib.org/stable/api/_as_gen/matplotlib.colors.ListedColormap.html#matplotlib.colors.ListedColormap)
+            or [LinearSegmentedColormap](https://matplotlib.org/stable/api/_as_gen/matplotlib.colors.LinearSegmentedColormap.html#matplotlib.colors.LinearSegmentedColormap)
+            object from the Matplotlib.colors module. For more information on 
+            creating colormaps, see the Matplotlib documentation linked above.
             
             For multichannel data, a list of colormaps **must** be provided, 
             with a separate colormap for each channel.
@@ -1306,7 +1471,7 @@ class sp8_series:
             exportim = self.load_data(filenames=[to_load])[0]
         
         #call main export_with_scalebar function with correct pixelsize etc
-        from .utility import _export_with_scalebar
+        from .util import _export_with_scalebar
         _export_with_scalebar(exportim, pixelsize, unit, filename, barsize, 
                               crop, scale, loc, resolution, convert, barcolor,
                               cmap, cmap_range, box, boxcolor, boxopacity,

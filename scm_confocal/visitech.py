@@ -1,7 +1,9 @@
 import numpy as np
 import pims
+from slicerator import Slicerator
 import os
 from decimal import Decimal
+import warnings
 
 class visitech_series:
     """
@@ -31,6 +33,10 @@ class visitech_series:
         self.binning = binning
         self._pixelsizeXY = 6.5/magnification*binning
         #Hamamatsu C11440-22CU has pixels of 6.5x6.5 um
+    
+    def __repr__(self):
+        """"represents class instance in the interpreter"""
+        return f"<scm_confocal.visitech_series('{self.filename}')>"
 
     def _init_pims(self):
         """only initialize PIMS object when necessary, since it may take a long
@@ -165,7 +171,8 @@ class visitech_series:
                 if dim=='z-axis':
                     indices = indices[(slice(None),)*i+(dim_range['z-axis'],)]
 
-        #store image indices array for self.get_timestamps(load_stack_indices=True)
+        #store image indices array for 
+        # self.get_timestamps(load_stack_indices=True)
         self._stack_indices = indices
 
         #load and reshape data
@@ -270,22 +277,28 @@ class visitech_series:
                 indices = indices[:,dim_range['z-axis']]
                 indices = np.concatenate((indices,backsteps),axis=1)
 
-        #store image indices array for self.get_timestamps(load_stack_indices=True)
+        #store image indices array for
+        # self.get_timestamps(load_stack_indices=True)
         self._stack_indices = indices
 
         #store stack size as attribute
         self.stack_shape = indices.shape + self.datafile[0].shape
         if 'y-axis' in dim_range:
-            self.stack_shape = self.stack_shape[:2] + (len(range(self.stack_shape[2])[dim_range['y-axis']]),self.stack_shape[3])
+            self.stack_shape = self.stack_shape[:2] + (
+                len(range(self.stack_shape[2])[dim_range['y-axis']]),
+                self.stack_shape[3]
+            )
         if 'x-axis' in dim_range:
-            self.stack_shape = self.stack_shape[:3] + (len(range(self.stack_shape[3])[dim_range['x-axis']]),)
+            self.stack_shape = self.stack_shape[:3] + \
+                (len(range(self.stack_shape[3])[dim_range['x-axis']]),)
 
         #generator loop over each time step in a inner function such that the
         #initialization is excecuted up to this point upon creation rather than
         #upon iteration over the loop
         def stack_iter():
             for zstack_indices in indices:
-                zstack = self.load_data(indices=zstack_indices.ravel(),dtype=dtype)
+                zstack = self.load_data(indices=zstack_indices.ravel(),
+                                        dtype=dtype)
                 zstack = zstack.reshape(self.stack_shape[1:])
     
                 #trim x and y axis
@@ -333,7 +346,8 @@ class visitech_series:
 
     def get_metadata(self):
         """
-        loads OME metadata from visitech .ome.tif file and returns xml tree object
+        loads OME metadata from visitech .ome.tif file and returns xml tree 
+        object
             
         Returns
         -------
@@ -435,7 +449,9 @@ class visitech_series:
         planedata = self.metadata.find('Image').find('Pixels').findall('Plane')
 
         imagedata = pd.DataFrame([dict(p.attrib) for p in planedata[indices]])
-        imagedata = imagedata.astype({'DeltaT':float,'ExposureTime':float,'PositionZ':float,'TheC':int,'TheT':int,'TheZ':int})
+        imagedata = imagedata.astype({'DeltaT':float,'ExposureTime':float,
+                                      'PositionZ':float,'TheC':int,'TheT':int,
+                                      'TheZ':int})
 
         self.image_metadata = imagedata
         return imagedata
@@ -449,7 +465,9 @@ class visitech_series:
 
         pixelsize = []
         if 'z-axis' in self.dimensions:
-            pixelsize.append(float(dict(self.metadata.find('Image').find('Pixels').attrib)['PhysicalSizeZ']))
+            pixelsize.append(float(dict(
+                self.metadata.find('Image').find('Pixels').attrib
+            )['PhysicalSizeZ']))
         if 'y-axis' in self.dimensions:
             pixelsize.append(self._pixelsizeXY)
         if 'x-axis' in self.dimensions:
@@ -469,7 +487,8 @@ class visitech_series:
             self.get_metadata_dimensions()
 
         if dim not in self.dimensions or dim == 'channel':
-            raise NotImplementedError('"'+dim+'" is not a valid dimension for visitech_series.get_dimension_steps()')
+            raise NotImplementedError(f'"{dim}" is not a valid dimension for '+
+                                      'visitech_series.get_dimension_steps()')
 
         if dim == 'time':
             if use_stack_indices:
@@ -493,13 +512,15 @@ class visitech_series:
 
         if dim == 'y-axis':
             if 'x-axis' in self.dimensions:
-                return (np.arange(0,self.shape[-2]*self._pixelsizeXY,self._pixelsizeXY),'µm')
+                return (np.arange(0,self.shape[-2]*self._pixelsizeXY,
+                                  self._pixelsizeXY),'µm')
             else:
-                return (np.arange(0,self.shape[-1]*self._pixelsizeXY,self._pixelsizeXY),'µm')
+                return (np.arange(0,self.shape[-1]*self._pixelsizeXY,
+                                  self._pixelsizeXY),'µm')
 
         if dim == 'x-axis':
-            return (np.arange(0,self.shape[-1]*self._pixelsizeXY,self._pixelsizeXY),'µm')
-
+            return (np.arange(0,self.shape[-1]*self._pixelsizeXY,
+                              self._pixelsizeXY),'µm')
 
 class visitech_faststack:
     """
@@ -507,7 +528,8 @@ class visitech_faststack:
     driver, saved to multipage .ome.tiff files containing entire stack
     """
 
-    def __init__(self,filename,zsize,zstep,zbacksteps,zstart=0,magnification=63,binning=1):
+    def __init__(self,filename,zsize,zstep,zbacksteps,zstart=0,
+                 magnification=63,binning=1):
         """
         initialize class (lazy-loads data)
         
@@ -538,14 +560,17 @@ class visitech_faststack:
         #in case of a multipage ome.tiff
         if isinstance(filename,str):
             self.datafile = pims.TiffStack(filename)
+        #in case of list of single images
         elif isinstance(filename,list) or isinstance(filename,np.ndarray):
             self.datafile = pims.ImageSequence(filename)
         else:
-            raise ValueError('expected string (for a multipage-tiff) or list-like (for image sequence)')
+            raise ValueError('expected string (for a multipage-tiff) or '
+                             'list-like (for image sequence)')
         
         print('PIMS initialized')
         
-        #use decimal objects for stack and step size for preventing floating point errors
+        #use decimal objects for stack and step size for preventing floating 
+        # point errors
         zsize = Decimal('{:}'.format(zsize))
         zstep = Decimal('{:}'.format(zstep))
         
@@ -557,10 +582,27 @@ class visitech_faststack:
 
         #find physical sizes of data
         self.binning = binning
-        self.zsteps = np.linspace(zstart,zstart+float(zsize),self.nz,endpoint=True)
-        self.pixelsize = (float(zstep),6.5/magnification*binning,6.5/magnification*binning)
+        self.zsteps = np.linspace(
+            zstart,
+            zstart+float(zsize),
+            self.nz,endpoint=True
+        )
+        self.pixelsize = (
+            float(zstep),
+            6.5/magnification*binning,
+            6.5/magnification*binning
+        )
         #Hamamatsu C11440-22CU has pixels of 6.5x6.5 um
-
+        
+    def __len__(self):
+        """returns length of series, in number of z-stacks"""
+        return self.nz
+        
+    def __repr__(self):
+        """"represents class instance in the interpreter"""
+        return "<scm_confocal.visitech_series('{}',{},{},{})>".format(
+            self.filename,self.zsize,self.zstep,self.backsteps)
+    
     def load_data(self,indices=slice(None,None,None),dtype=np.uint16):
         """
         load images from datafile into 3D numpy array
@@ -636,26 +678,31 @@ class visitech_faststack:
         
         try: 
             if offset == 0:
-                indices = np.reshape(range(self.nf),(self.nt,self.nz+self.backsteps))
+                indices = np.reshape(range(self.nf),
+                                     (self.nt,self.nz+self.backsteps))
     
             elif offset <= self.backsteps and remove_backsteps:
-                #if we remove backsteps and offset is smaller than nbacksteps, we can keep the last stack
+                #if we remove backsteps and offset is smaller than nbacksteps,
+                # we can keep the last stack
                 indices = list(range(offset,self.nf))+[0]*offset
                 indices = np.reshape(indices,(self.nt,self.nz+self.backsteps))
     
             else:
-                #in case of larger offset, lose one stack in total (~half at begin and half at end)
+                #in case of larger offset, lose one stack in total (~half at
+                # begin and half at end)
                 nf = self.nf - (self.nz+self.backsteps)
                 nt = self.nt - 1
-                indices = np.reshape(range(offset,offset+nf),(nt,self.nz+self.backsteps))
+                indices = np.reshape(range(offset,offset+nf),
+                                     (nt,self.nz+self.backsteps))
         
         #in case the number of images does nog correspond to an integer number
         #of stacks, throw an error or a warning in case of forced loading
         except ValueError:
             if force_reshape:
-                print(('[WARNING] scm_confocal.visitech_faststack.load_stack: '+
-                       'cannot reshape {:} images into stack of '+
-                      'shape ({:},{:})').format(self.nf,self.nt,self.nz+self.backsteps))
+                print(('[WARNING] scm_confocal.visitech_faststack.load_stack:'+
+                       ' cannot reshape {:} images into stack of '+
+                      'shape ({:},{:})').format(
+                          self.nf,self.nt,self.nz+self.backsteps))
                 nt = int(self.nf/(self.nz+self.backsteps))
                 nf = nt*(self.nz+self.backsteps)
                 
@@ -665,18 +712,22 @@ class visitech_faststack:
                     indices = np.reshape(range(nf),(nt,self.nz+self.backsteps))
             
                 elif offset <= self.backsteps and remove_backsteps:
-                    #if we remove backsteps and offset is smaller than nbacksteps, we can keep the last stack
+                    #if we remove backsteps and offset is smaller than 
+                    # nbacksteps, we can keep the last stack
                     indices = list(range(offset,nf))+[0]*offset
                     indices = np.reshape(indices,(nt,self.nz+self.backsteps))
         
                 else:
-                    #in case of larger offset, lose one stack in total (~half at begin and half at end)
+                    #in case of larger offset, lose one stack in total (~half
+                    # at begin and half at end)
                     nf = nf - (self.nz+self.backsteps)
                     nt = nt - 1
-                    indices = np.reshape(range(offset,offset+nf),(nt,self.nz+self.backsteps))
+                    indices = np.reshape(range(offset,offset+nf),
+                                         (nt,self.nz+self.backsteps))
             else:
                 raise ValueError(('cannot reshape {:} images into stack of '+
-                      'shape ({:},{:})').format(self.nf,self.nt,self.nz+self.backsteps))
+                      'shape ({:},{:})').format(self.nf,self.nt,
+                                                self.nz+self.backsteps))
 
         #remove backsteps from indices
         if remove_backsteps:
@@ -684,7 +735,8 @@ class visitech_faststack:
                 
         #check dim_range items for faulty values and remove None slices
         for key,val in dim_range.copy().items():
-            if type(key) != str or key not in ['time','z-axis','y-axis','x-axis']:
+            if type(key) != str or \
+                key not in ['time','z-axis','y-axis','x-axis']:
                 print("[WARNING] confocal.visitech_faststack.load_stack: "+
                           "dimension '"+key+"' not present in data, ignoring "+
                           "this entry.")
@@ -694,10 +746,10 @@ class visitech_faststack:
 
         #warn for inefficient x and y trimming
         if 'x-axis' in dim_range or 'y-axis' in dim_range:
-            print("[WARNING] scm_confocal.visitech_faststack.load_stack: Loading"+
-                  " only part of the data along dimensions 'x-axis' and/or "+
-                  "'y-axis' not implemented. Data will be loaded fully "+
-                  "into memory before discarding values outside of the "+
+            print("[WARNING] scm_confocal.visitech_faststack.load_stack: "+
+                  "Loading only part of the data along dimensions 'x-axis' "+
+                  "and/or 'y-axis' not implemented. Data will be loaded fully"+
+                  " into memory before discarding values outside of the "+
                   "slice range specified for the x-axis and/or y-axis. "+
                   "Other axes for which a range is specified will still "+
                   "be treated normally, avoiding unneccesary memory use.")
@@ -714,12 +766,14 @@ class visitech_faststack:
                 indices = indices[:,dim_range['z-axis']]
                 indices = np.concatenate((indices,backsteps),axis=1)
 
-        #store image indices array for self.get_timestamps(load_stack_indices=True)
+        #store image indices array for
+        # self.get_timestamps(load_stack_indices=True)
         self._stack_indices = indices
 
         #load and reshape data
         stack = self.load_data(indices=indices.ravel(),dtype=dtype)
-        shape = (indices.shape[0],indices.shape[1],stack.shape[1],stack.shape[2])
+        shape = (indices.shape[0],indices.shape[1],stack.shape[1],
+                 stack.shape[2])
         stack = stack.reshape(shape)
 
         #trim x and y axis
@@ -784,26 +838,31 @@ class visitech_faststack:
 
         try: 
             if offset == 0:
-                indices = np.reshape(range(self.nf),(self.nt,self.nz+self.backsteps))
+                indices = np.reshape(range(self.nf),
+                                     (self.nt,self.nz+self.backsteps))
     
             elif offset <= self.backsteps and remove_backsteps:
-                #if we remove backsteps and offset is smaller than nbacksteps, we can keep the last stack
+                #if we remove backsteps and offset is smaller than nbacksteps,
+                # we can keep the last stack
                 indices = list(range(offset,self.nf))+[0]*offset
                 indices = np.reshape(indices,(self.nt,self.nz+self.backsteps))
     
             else:
-                #in case of larger offset, lose one stack in total (~half at begin and half at end)
+                #in case of larger offset, lose one stack in total (~half at
+                # begin and half at end)
                 nf = self.nf - (self.nz+self.backsteps)
                 nt = self.nt - 1
-                indices = np.reshape(range(offset,offset+nf),(nt,self.nz+self.backsteps))
+                indices = np.reshape(range(offset,offset+nf),
+                                     (nt,self.nz+self.backsteps))
         
         #in case the number of images does nog correspond to an integer number
         #of stacks, throw an error or a warning in case of forced loading
         except ValueError:
             if force_reshape:
-                print(('[WARNING] scm_confocal.visitech_faststack.yield_stack: '+
-                       'cannot reshape {:} images into stack of '+
-                      'shape ({:},{:})').format(self.nf,self.nt,self.nz+self.backsteps))
+                print(('[WARNING] scm_confocal.visitech_faststack.yield_stack'+
+                       ': cannot reshape {:} images into stack of '+
+                      'shape ({:},{:})').format(self.nf,self.nt,
+                                                self.nz+self.backsteps))
                 nt = int(self.nf/(self.nz+self.backsteps))
                 nf = nt*(self.nz+self.backsteps)
                 
@@ -813,18 +872,22 @@ class visitech_faststack:
                     indices = np.reshape(range(nf),(nt,self.nz+self.backsteps))
             
                 elif offset <= self.backsteps and remove_backsteps:
-                    #if we remove backsteps and offset is smaller than nbacksteps, we can keep the last stack
+                    #if we remove backsteps and offset is smaller than
+                    # nbacksteps, we can keep the last stack
                     indices = list(range(offset,nf))+[0]*offset
                     indices = np.reshape(indices,(nt,self.nz+self.backsteps))
         
                 else:
-                    #in case of larger offset, lose one stack in total (~half at begin and half at end)
+                    #in case of larger offset, lose one stack in total (~half
+                    # at begin and half at end)
                     nf = nf - (self.nz+self.backsteps)
                     nt = nt - 1
-                    indices = np.reshape(range(offset,offset+nf),(nt,self.nz+self.backsteps))
+                    indices = np.reshape(range(offset,offset+nf),
+                                         (nt,self.nz+self.backsteps))
             else:
                 raise ValueError(('cannot reshape {:} images into stack of '+
-                      'shape ({:},{:})').format(self.nf,self.nt,self.nz+self.backsteps))
+                      'shape ({:},{:})').format(self.nf,self.nt,
+                                                self.nz+self.backsteps))
 
         #remove backsteps from indices
         if remove_backsteps:
@@ -832,7 +895,8 @@ class visitech_faststack:
 
         #check dim_range items for faulty values and remove None slices
         for key,val in dim_range.copy().items():
-            if type(key) != str or key not in ['time','z-axis','y-axis','x-axis']:
+            if type(key) != str or \
+                key not in ['time','z-axis','y-axis','x-axis']:
                 print("[WARNING] confocal.visitech_faststack.load_stack: "+
                           "dimension '"+key+"' not present in data, ignoring "+
                           "this entry.")
@@ -842,10 +906,10 @@ class visitech_faststack:
 
         #warn for inefficient x and y trimming
         if 'x-axis' in dim_range or 'y-axis' in dim_range:
-            print("[WARNING] scm_confocal.visitech_faststack.yield_stack: Loading"+
-                  " only part of the data along dimensions 'x-axis' and/or "+
-                  "'y-axis' not implemented. Data will be loaded fully "+
-                  "into memory before discarding values outside of the "+
+            print("[WARNING] scm_confocal.visitech_faststack.yield_stack: "+
+                  "Loading only part of the data along dimensions 'x-axis' "+
+                  "and/or 'y-axis' not implemented. Data will be loaded fully"+
+                  " into memory before discarding values outside of the "+
                   "slice range specified for the x-axis and/or y-axis. "+
                   "Other axes for which a range is specified will still "+
                   "be treated normally, avoiding unneccesary memory use.")
@@ -862,7 +926,8 @@ class visitech_faststack:
                 indices = indices[:,dim_range['z-axis']]
                 indices = np.concatenate((indices,backsteps),axis=1)
 
-        #store image indices array for self.get_timestamps(load_stack_indices=True)
+        #store image indices array for
+        # self.get_timestamps(load_stack_indices=True)
         self._stack_indices = indices
 
         #store stack size as attribute
@@ -870,16 +935,21 @@ class visitech_faststack:
         self.stack_shape = indices.shape + self.datafile[0].shape
         
         if 'y-axis' in dim_range:
-            self.stack_shape = self.stack_shape[:2] + (len(range(self.stack_shape[2])[dim_range['y-axis']]),self.stack_shape[3])
+            self.stack_shape = self.stack_shape[:2] + (
+                len(range(self.stack_shape[2])[dim_range['y-axis']]),
+                self.stack_shape[3]
+            )
         if 'x-axis' in dim_range:
-            self.stack_shape = self.stack_shape[:3] + (len(range(self.stack_shape[3])[dim_range['x-axis']]),)
+            self.stack_shape = self.stack_shape[:3] + \
+                (len(range(self.stack_shape[3])[dim_range['x-axis']]),)
 
         #generator loop over each time step in a inner function such that the
         #initialization is excecuted up to this point upon creation rather than
         #upon iteration over the loop
         def stack_iter():
             for zstack_indices in indices:
-                zstack = self.load_data(indices=zstack_indices.ravel(),dtype=dtype)
+                zstack = self.load_data(indices=zstack_indices.ravel(),
+                                        dtype=dtype)
                 zstack = zstack.reshape(stack_shape[1:])
     
                 #trim x and y axis
@@ -892,7 +962,8 @@ class visitech_faststack:
 
         return stack_iter()
 
-    def save_stack(self,data,filename_prefix='visitech_faststack',sequence_type='multipage'):
+    def save_stack(self,data,filename_prefix='visitech_faststack',
+                   sequence_type='multipage'):
         """
         save stacks to tiff files
         
@@ -906,9 +977,11 @@ class visitech_faststack:
         sequence_type : {'multipage','image_sequence','multipage_sequence'}, optional
             The way to store the data. The following options are available:
             
-                - 'image_sequence' : stores as a series of 2D images with time and or frame number appended
+                - 'image_sequence' : stores as a series of 2D images with time 
+                and or frame number appended
                 - 'multipage' : store all data in a single multipage tiff file
-                - 'multipage_sequence' : stores a multipage tiff file for each time step
+                - 'multipage_sequence' : stores a multipage tiff file for each 
+                time step
             
             The default is 'multipage'.
             
@@ -926,7 +999,8 @@ class visitech_faststack:
             if len(shape) == 4:
                 for i,t in enumerate(data):
                     for j,im in enumerate(t):
-                        filename = filename_prefix + '_t{:03d}_z{:03d}.tif'.format(i,j)
+                        filename = filename_prefix + \
+                            '_t{:03d}_z{:03d}.tif'.format(i,j)
                         Image.fromarray(im).save(filename)
             #for (z,y,x)
             elif len(shape) == 3:
@@ -934,35 +1008,46 @@ class visitech_faststack:
                     filename = filename_prefix + '_z{:03d}.tif'.format(i)
                     Image.fromarray(im).save(filename)  
             else:
-                raise ValueError('data must be 3-dimensional (z,y,x) or 4-dimensional (t,z,y,x)')
+                raise ValueError('data must be 3-dimensional (z,y,x) or '+
+                                 '4-dimensional (t,z,y,x)')
             
         #store as single multipage tiff
         elif sequence_type == 'multipage':
             #for (t,z,y,x)
             if len(shape) == 4:
                 data = [Image.fromarray(im) for _ in data for im in _]
-                data[0].save(filename_prefix+'.tif',append_images=data[1:],save_all=True,)
+                data[0].save(filename_prefix+'.tif',append_images=data[1:],
+                             save_all=True,)
             #for (z,y,x)
             elif len(shape) == 3:
                 data = [Image.fromarray(im) for im in data]
-                data[0].save(filename_prefix+'.tif',append_images=data[1:],save_all=True,)
+                data[0].save(filename_prefix+'.tif',append_images=data[1:],
+                             save_all=True,)
             else:
-                raise ValueError('data must be 3-dimensional (z,y,x) or 4-dimensional (t,z,y,x)')
+                raise ValueError('data must be 3-dimensional (z,y,x) or '+
+                                 '4-dimensional (t,z,y,x)')
             
         elif sequence_type == 'multipage_sequence':
             if len(shape) == 4:
                 for i,t in enumerate(data):
                     t = [Image.fromarray(im) for im in t]
-                    t[0].save(filename_prefix+'_t{:03d}.tif'.format(i),append_images=t[1:],save_all=True)
+                    t[0].save(filename_prefix+'_t{:03d}.tif'.format(i),
+                              append_images=t[1:],save_all=True)
             elif len(shape) == 3:
-                print("[WARNING] scm_confocal.faststack.save_stack(): 'multipage_sequence' invalid sequence_type for 3-dimensional data. Saving as option 'multipage' instead")
+                print("[WARNING] scm_confocal.faststack.save_stack(): "+
+                      "'multipage_sequence' invalid sequence_type for "+
+                      "3-dimensional data. Saving as option 'multipage' "+
+                      "instead")
                 data = [Image.fromarray(im) for im in data]
-                data[0].save(filename_prefix+'.tif',append_images=data[1:],save_all=True)
+                data[0].save(filename_prefix+'.tif',append_images=data[1:],
+                             save_all=True)
             else:
                 raise ValueError('data must be 4-dimensional (t,z,y,x)')
 
         else:
-            raise ValueError("invalid option for sequence_type: must be 'image_sequence', 'multipage' or 'multipage_sequence'")
+            raise ValueError("invalid option for sequence_type: must be "+
+                             "'image_sequence', 'multipage' or "+
+                             "'multipage_sequence'")
     
     def _get_metadata_string(self):
         """reads out the raw metadata from a file"""
@@ -1019,7 +1104,8 @@ class visitech_faststack:
 
     def get_metadata(self):
         """
-        loads OME metadata from visitech .ome.tif file and returns xml tree object
+        loads OME metadata from visitech .ome.tif file and returns xml tree 
+        object
             
         Returns
         -------
@@ -1064,9 +1150,10 @@ class visitech_faststack:
                 indices = self._stack_indices
             except AttributeError:
                 raise AttributeError('data must be loaded with '+
-                                  '`visitech_faststack.load_stack()` prior to '+
-                                  'calling `visitech_faststack.get_timestamps()`'
-                                  +' with `load_stack_indices=True`')
+                                  '`visitech_faststack.load_stack()` prior to'+
+                                  ' calling '+
+                                  '`visitech_faststack.get_timestamps()`'+
+                                  ' with `load_stack_indices=True`')
 
         #in case of multipage tiff
         if isinstance(self.filename,str):
