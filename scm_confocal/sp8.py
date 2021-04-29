@@ -807,7 +807,7 @@ class sp8_image(sp8_lif):
             ))
         
         #call main export_with_scalebar function with correct pixelsize etc
-        from .utility import _export_with_scalebar
+        from .util import _export_with_scalebar
         _export_with_scalebar(exportim, pixelsize, unit, filename, barsize, 
                               crop, scale, loc, resolution, convert, barcolor,
                               cmap, cmap_range, box, boxcolor, boxopacity, 
@@ -1443,7 +1443,7 @@ class sp8_series:
             exportim = self.load_data(filenames=[to_load])[0]
         
         #call main export_with_scalebar function with correct pixelsize etc
-        from .utility import _export_with_scalebar
+        from .util import _export_with_scalebar
         _export_with_scalebar(exportim, pixelsize, unit, filename, barsize, 
                               crop, scale, loc, resolution, convert, barcolor,
                               cmap, cmap_range, box, boxcolor, boxopacity,
