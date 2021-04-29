@@ -813,7 +813,7 @@ class sp8_image(sp8_lif):
                               cmap, cmap_range, box, boxcolor, boxopacity, 
                               multichannel)
 
-@Slicerator.from_class()
+@Slicerator.from_class
 class sp8_series:
     """
     Class of functions related to the sp8 microscope. The functions assume that
