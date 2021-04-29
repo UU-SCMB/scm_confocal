@@ -1,4 +1,4 @@
-__version__ = '1.1.3'
+__version__ = '1.2.0'
 
 from .sp8 import sp8_lif,sp8_image,sp8_series
 from .visitech import visitech_series,visitech_faststack
