@@ -813,6 +813,7 @@ class sp8_image(sp8_lif):
                               cmap, cmap_range, box, boxcolor, boxopacity, 
                               multichannel)
 
+@Slicerator.from_class()
 class sp8_series:
     """
     Class of functions related to the sp8 microscope. The functions assume that
@@ -843,11 +844,38 @@ class sp8_series:
             format to use for finding the files. Uses the notation of the glob
             library. The default is '*.tif'.
         """
-
+        #look for images
         self.filenames = glob.glob(fmt)
         if len(self.filenames) < 1:
             raise ValueError('No images found in current directory')
         
+        #check number of channels
+        self.channels = len(self.get_metadata_channels())
+        if self.channels == 1:
+            self._is_multichannel = False
+        else:
+            self._is_multichannel = True
+        
+    def __len__(self):
+        """define length as number of images (where multiple channels do not) 
+        contribute to the count"""
+        #only calculate length once
+        if hasattr(self, '_len'):
+            return self._len
+        else:
+            self._len = len(self.filenames) // self.channels
+            return self._len
+    
+    def __getitem__(self,i):
+        """get i-th recorded 2D image (where multiple channels are considered 
+        part of the same image), return as numpy array or tuple of numpy arrays
+        for multichannel data"""
+        if self._is_multichannel:
+            return tuple([im for im in self.load_data(
+                self.filenames[i*self.channels:(i+1)*self.channels:])])
+        else:
+            return self.load_data(self.filenames[i:i+1])[0]
+    
     def __repr__(self):
         """represents class instance in interpreter"""
         return f"scm_confocal.sp8_series('{self.get_series_name()}')"
