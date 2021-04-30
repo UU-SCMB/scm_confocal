@@ -5,7 +5,7 @@ import os
 
 class sp8_lif:
     """
-    Class of functions related to the sp8 microscope, for data saves as .lif 
+    Class of functions related to the sp8 microscope, for data saved as .lif 
     files, the default file format for the Leica LAS-X software. Essentially
     a wrapper around the `readlif` library, which provides access to the data 
     and metadata directly in Python.
@@ -227,7 +227,6 @@ class sp8_image(sp8_lif):
                                         for d in dims[2:]])
             return self._len
 
-    
     def __getitem__(self,key):
         """make indexable, where it returns the ith frame, where a frame is 
         defined by the first 2 dimensions in recording order"""
