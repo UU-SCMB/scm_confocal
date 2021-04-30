@@ -9,13 +9,12 @@ __all__ = [
     'sp8_image',
     'sp8_series',
     'visitech_series',
-    'visitech_faststack',
-    'util'
+    'visitech_faststack'
 ]
 
 #add submodules to pdoc ignore list
 __pdoc__ = {
     'sp8' : False,
     'visitech' : False,
-    'utility' : False,
+    'util' : True,
 }

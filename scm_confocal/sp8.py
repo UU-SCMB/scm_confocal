@@ -2,7 +2,6 @@
 import glob
 import numpy as np
 import os
-from slicerator import Slicerator
 
 class sp8_lif:
     """
@@ -165,7 +164,6 @@ class sp8_lif:
                 
         return image
 
-@Slicerator.from_class
 class sp8_image(sp8_lif):
     """
     Subclass of `sp8_lif` for relevant attributes and functions for a specific
@@ -212,12 +210,7 @@ class sp8_image(sp8_lif):
             return getattr(self.lifimage,attrName)
         else:
             raise AttributeError(self,'has no attribute',attrName)
-    
-    def __getitem__(self,i):
-        """make indexable, where it returns the ith frame, where a frame is 
-        defined by the first 2 dimensions in recording order"""
-        return self.get_frame(i)
-    
+
     def __len__(self):
         """length of image (series), given as number of images where an image
         is defined by the first two dimensions in recording order, where all
@@ -233,6 +226,28 @@ class sp8_image(sp8_lif):
                 self._len = np.product([int(d['NumberOfElements']) \
                                         for d in dims[2:]])
             return self._len
+
+    
+    def __getitem__(self,key):
+        """make indexable, where it returns the ith frame, where a frame is 
+        defined by the first 2 dimensions in recording order"""
+        if isinstance(key,slice):
+            return [self[i] for i in range(*key.indices(len(self)))]
+        else:
+            return self.load_frame(key)
+    
+    def __iter__(self):
+        """initialize iterator"""
+        self._iter_n = 0
+        return self
+
+    def __next__(self):
+        "make iterable where it returns one image at a time"
+        self._iter_n += 1
+        if self._iter_n >= len(self):
+            raise StopIteration
+        else:
+            return self[self._iter_n]
             
     def __repr__(self):
         """returns string representing the object in the interpreter"""
@@ -498,11 +513,10 @@ class sp8_image(sp8_lif):
         
         #return requested image with get_plane and correct dimension(s)
         if isinstance(channel,int):
-            return np.array(self.lifimage.get_plane(c=channel,
-                                                    requested_dims=dimsdict))
+            return self.lifimage.get_plane(c=channel,requested_dims=dimsdict)
         else:
-            return tuple([np.array(self.lifimage.get_plane(
-                c=c,requested_dims=dimsdict)) for c in channel])
+            return tuple([self.lifimage.get_plane(c=c,requested_dims=dimsdict)\
+                          for c in channel])
     
     def load_stack(self,dim_range={}):
         """
@@ -813,7 +827,6 @@ class sp8_image(sp8_lif):
                               cmap, cmap_range, box, boxcolor, boxopacity, 
                               multichannel)
 
-@Slicerator.from_class
 class sp8_series:
     """
     Class of functions related to the sp8 microscope. The functions assume that
@@ -866,15 +879,32 @@ class sp8_series:
             self._len = len(self.filenames) // self.channels
             return self._len
     
-    def __getitem__(self,i):
+    def __getitem__(self,key):
         """get i-th recorded 2D image (where multiple channels are considered 
         part of the same image), return as numpy array or tuple of numpy arrays
         for multichannel data"""
+        #for slice, turn into indices
+        if isinstance(key,slice):
+            return [self[i] for i in range(*key.indices(len(self)))]
+        #for int, check multichannel and return item(s)
         if self._is_multichannel:
             return tuple([im for im in self.load_data(
-                self.filenames[i*self.channels:(i+1)*self.channels:])])
+                self.filenames[key*self.channels:(key+1)*self.channels:])])
         else:
-            return self.load_data(self.filenames[i:i+1])[0]
+            return self.load_data(self.filenames[key:key+1])[0]
+    
+    def __iter__(self):
+        """initialize iterator"""
+        self._iter_n = 0
+        return self
+
+    def __next__(self):
+        "make iterable where it returns one image at a time"
+        self._iter_n += 1
+        if self._iter_n >= len(self):
+            raise StopIteration
+        else:
+            return self[self._iter_n]
     
     def __repr__(self):
         """represents class instance in interpreter"""
