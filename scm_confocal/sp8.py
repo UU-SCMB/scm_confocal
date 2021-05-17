@@ -277,13 +277,13 @@ class sp8_image(sp8_lif):
         -------
         `xml.etree.ElementTree` instance for the current image
         """
-        try:
-            self.metadata
-        except AttributeError:
+        if hasattr(self,'metadata'):
+            return self.metadata
+        else:
             self.metadata = \
                 self.liffile.xml_root.find('.//Children'
                                            ).findall('Element')[self.image]
-        return self.metadata
+            return self.metadata
         
     def get_channels(self):
         """
@@ -293,14 +293,36 @@ class sp8_image(sp8_lif):
         -------
         list of dictionaries
         """
-        try:
+        if hasattr(self,'metadata_channels'):
             return self.metadata_channels
-        except AttributeError:    
+        else:   
             root = self.get_metadata()
             self.metadata_channels = [dict(dim.attrib) \
                                       for dim in root.find('.//Channels')]
         return self.metadata_channels
     
+    def get_detector_settings(self):
+        """
+        Parses the xml metadata for the detector settings.
+        
+        Returns
+        -------
+        dictionary or (in case of multichannel data) a list thereof
+        """
+        #get detector data
+        detectors = self.get_metadata().findall('.//Detector')
+        detectors = [d.attrib for d in detectors]
+        
+        #select only active detectors
+        detectors = [d for d in detectors if d['IsActive']=='1']
+        
+        #return list for multichannel or first active detector for single
+        #channel data
+        if self._is_multichannel:
+            return detectors
+        else:
+            return detectors[0]
+        
     def get_channel(self,chl):   
         """
         get info from the metadata on a specific channel
