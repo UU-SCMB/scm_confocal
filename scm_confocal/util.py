@@ -1341,9 +1341,12 @@ def _get_pure_cmap(name):
     
     return cmap
 
-def _export_with_scalebar(exportim,pixelsize,unit,filename,barsize,crop,scale,
-                          loc,resolution,convert,barcolor,cmap,cmap_range,box,
-                          boxcolor,boxopacity,multichannel):
+def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
+                          crop=None,resolution=None,cmap='inferno',
+                          cmap_range=None,draw_bar=True,barsize=None,scale=1,
+                          loc=2,convert=None,font='arialbd.ttf',fontsize=16,
+                          barcolor=(255,255,255),box=False,boxcolor=(0,0,0),
+                          boxopacity=255):
     """
     see top level export_with_scalebar functions for docs
     """
@@ -1351,8 +1354,9 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,barsize,crop,scale,
     import matplotlib.pyplot as plt
     from matplotlib import cm
     from matplotlib.colors import Normalize
-    from PIL import ImageFont, ImageDraw, Image
     import cv2
+    if draw_bar:
+        from PIL import ImageFont, ImageDraw, Image
     
     #get imshape, for multichannel check shapes are all the same
     if multichannel:
@@ -1368,6 +1372,9 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,barsize,crop,scale,
             cmap_range = [(np.amin(im),np.amax(im)) for im in exportim]
         else:
             cmap_range = (np.amin(exportim),np.amax(exportim))
+    elif multichannel:
+        cmap_range = [(np.amin(im),np.amax(im)) if cmr is None else cmr \
+                      for cmr,im in zip(cmap_range,exportim)]
     
     #list of possible custom maps
     pure_maps = ['pure_reds', 'pure_greens', 'pure_blues', 'pure_yellows', 
@@ -1439,24 +1446,26 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,barsize,crop,scale,
     ax.callbacks.connect("ylim_changed", _on_lim_change)
     plt.show(block=False)
     
-    #set default unit to µm
-    if type(convert) == type(None):
-        convert = 'µm'
-    #always use mu for micrometer
-    elif convert == 'um':
-        convert = 'µm'
-    
-    #convert unit if needed
-    if convert != unit:
+    if draw_bar:
+        #set default unit to µm
+        if type(convert) == type(None):
+            convert = 'µm'
+        #always use mu for micrometer
+        elif convert == 'um':
+            convert = 'µm'
         
-        #check input against list of possible units
-        units = ['pm','nm','µm','mm','m']
-        if not unit in units:
-            raise ValueError('"'+str(unit)+'" is not a valid unit')
-        
-        #factor 10**3 for every step from list, use indices to calculate
-        pixelsize = pixelsize*10**(3*(units.index(unit)-units.index(convert)))
-        unit = convert
+        #convert unit if needed
+        if convert != unit:
+            
+            #check input against list of possible units
+            units = ['pm','nm','µm','mm','m']
+            if not unit in units:
+                raise ValueError('"'+str(unit)+'" is not a valid unit')
+            
+            #factor 10**3 for every step from list, use indices to calculate
+            pixelsize = \
+                pixelsize*10**(3*(units.index(unit)-units.index(convert)))
+            unit = convert
     
     #(optionally) crop
     if type(crop) != type(None):
@@ -1523,103 +1532,108 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,barsize,crop,scale,
         norm = Normalize(vmin=cmap_range[0],vmax=cmap_range[1])
         exportim = (cm.get_cmap(cmap)(norm(exportim))*255).astype(np.uint8)
     
-    #adjust general scaling for all sizes relative to 1024 pixels
-    scale = scale*resolution/1024
-    
-    #set up sizes
-    barheight = scale*16
-    boxpad = scale*10
-    barpad = scale*10
-    textpad = scale*2
-    #boxalpha = 0.6
-    font = 'arialbd.ttf'
-    fontsize = 32*scale
-    
-    #format string
-    if round(barsize)==barsize:
-        text = str(int(barsize))+' '+unit
-    else:
-        for i in range(1,4):
-            if round(barsize,i)==barsize:
-                text = ('{:.'+str(i)+'f} ').format(barsize)+unit
-                break
-            elif i==3:
-                text = '{:.3f} '.format(round(barsize,3))+unit
-    
-    #get size of text
-    #textsize = cv2.getTextSize(text, font, fontsize, int(fontthickness))[0]
-    font = ImageFont.truetype(font,size=int(fontsize))
-    textsize = ImageDraw.Draw(Image.fromarray(exportim)).textsize(text,font=font)
-    offset = font.getoffset(text)
-    textsize = (textsize[0]+offset[0],textsize[1]+offset[1])    
-    
-    #correct baseline for mu in case of micrometer
-    if unit=='µm':
-        textsize = (textsize[0],textsize[1]-6*scale)
-    
-    #determine box size
-    boxheight = barpad + barheight + 2*textpad + textsize[1]
-    
-    #determine box position based on loc
-    #top left
-    if loc == 0:
-        x = boxpad
-        y = boxpad
-    #top right
-    elif loc == 1:
-        x = nx - boxpad - 2*barpad - max([barsize_px,textsize[0]])
-        y = boxpad
-    #bottom left
-    elif loc == 2:
-        x = boxpad
-        y = ny - boxpad - boxheight
-    #bottom right
-    elif loc == 3:
-        x = nx - boxpad - 2*barpad - max([barsize_px,textsize[0]])
-        y = ny - boxpad - boxheight
-    else:
-        raise ValueError("loc must be 0, 1, 2 or 3 for top left, top right"+
-                         ", bottom left or bottom right respectively.")
-    
-    #put semitransparent box
-    if box:
-        #get rectangle from im
-        w,h = 2*barpad+max([barsize_px,textsize[0]]),boxheight
-        subim = exportim[int(y):int(y+h), int(x):int(x+w)]
+    #can skip this whole part when not actually drawing the scalebar
+    if draw_bar:
+        #adjust general scaling for all sizes relative to 1024 pixels
+        scale = scale*resolution/1024
         
-        #add alpha channel 255 and create box
-        boxcolor = boxcolor + (255,)
-        boxarray = np.ones(subim.shape,dtype=np.uint8)*np.array(boxcolor,dtype=np.uint8)
+        #set up sizes
+        barheight = scale*16
+        boxpad = scale*10
+        barpad = scale*10
+        textpad = scale*2
+        fontsize = 2*fontsize*scale
         
-        #add box to im with opacity as weight, and put back in im
-        exportim[int(y):int(y+h), int(x):int(x+w)] = \
-            cv2.addWeighted(subim, 1-boxopacity/255, boxarray, boxopacity/255, 0)
-
-    #calculate positions for bar and text (horizontally centered in box)
-    barx = (2*x + 2*barpad + max([barsize_px,textsize[0]]))/2 - barsize_px/2
-    bary = y+boxheight-barpad-barheight
-    textx = (2*x + 2*barpad + max([barsize_px,textsize[0]]))/2 - textsize[0]/2
-    texty = y + textpad
+        #format string
+        if round(barsize)==barsize:
+            text = str(int(barsize))+' '+unit
+        else:
+            for i in range(1,4):
+                if round(barsize,i)==barsize:
+                    text = ('{:.'+str(i)+'f} ').format(barsize)+unit
+                    break
+                elif i==3:
+                    text = '{:.3f} '.format(round(barsize,3))+unit
+        
+        #get size of text
+        font = ImageFont.truetype(font,size=int(fontsize))
+        textsize = ImageDraw.Draw(Image.fromarray(exportim)).textsize(
+                                                                text,font=font)
+        offset = font.getoffset(text)
+        textsize = (textsize[0]+offset[0],textsize[1]+offset[1])    
+        
+        #correct baseline for mu in case of micrometer
+        if unit=='µm':
+            textsize = (textsize[0],textsize[1]-6*scale)
+        
+        #determine box size
+        boxheight = barpad + barheight + 2*textpad + textsize[1]
+        
+        #determine box position based on loc
+        #top left
+        if loc == 0:
+            x = boxpad
+            y = boxpad
+        #top right
+        elif loc == 1:
+            x = nx - boxpad - 2*barpad - max([barsize_px,textsize[0]])
+            y = boxpad
+        #bottom left
+        elif loc == 2:
+            x = boxpad
+            y = ny - boxpad - boxheight
+        #bottom right
+        elif loc == 3:
+            x = nx - boxpad - 2*barpad - max([barsize_px,textsize[0]])
+            y = ny - boxpad - boxheight
+        else:
+            raise ValueError("loc must be 0, 1, 2 or 3 for top left, top "
+                             "right, bottom left or bottom right "
+                             "respectively.")
+        
+        #put semitransparent box
+        if box:
+            #get rectangle from im
+            w,h = 2*barpad+max([barsize_px,textsize[0]]),boxheight
+            subim = exportim[int(y):int(y+h), int(x):int(x+w)]
+            
+            #add alpha channel 255 and create box
+            boxcolor = boxcolor + (255,)
+            boxarray = np.ones(subim.shape,dtype=np.uint8) * \
+                np.array(boxcolor,dtype=np.uint8)
+            
+            #add box to im with opacity as weight, and put back in im
+            exportim[int(y):int(y+h), int(x):int(x+w)] = \
+                cv2.addWeighted(subim, 1-boxopacity/255, boxarray, 
+                                boxopacity/255, 0)
     
-    #draw scalebar
-    exportim = cv2.rectangle(
-        exportim,
-        (int(barx),int(bary)),
-        (int(barx+barsize_px),int(bary+barheight)),
-        barcolor+(255,),
-        -1
-    )
-    
-    #draw text
-    exportim = Image.fromarray(exportim)
-    draw = ImageDraw.Draw(exportim)
-    draw.text(
-        (textx,texty),
-        text,
-        fill=barcolor,
-        font=font
-    )
-    exportim = np.array(exportim)
+        #calculate positions for bar and text (horizontally centered in box)
+        barx = (2*x + 2*barpad + max([barsize_px,textsize[0]]))/2 \
+            - barsize_px/2
+        bary = y+boxheight-barpad-barheight
+        textx = (2*x + 2*barpad + max([barsize_px,textsize[0]]))/2 \
+            - textsize[0]/2
+        texty = y + textpad
+        
+        #draw scalebar
+        exportim = cv2.rectangle(
+            exportim,
+            (int(barx),int(bary)),
+            (int(barx+barsize_px),int(bary+barheight)),
+            barcolor+(255,),
+            -1
+        )
+        
+        #draw text
+        exportim = Image.fromarray(exportim)
+        draw = ImageDraw.Draw(exportim)
+        draw.text(
+            (textx,texty),
+            text,
+            fill=barcolor,
+            font=font
+        )
+        exportim = np.array(exportim)
     
     #show result
     plt.figure()

@@ -688,11 +688,7 @@ class sp8_image(sp8_lif):
 
         return data, tuple(dim_order)
     
-    def export_with_scalebar(self,frame=0,channel=0,filename=None,barsize=None,
-                             crop=None,scale=1,loc=2,resolution=None,
-                             cmap='inferno',cmap_range=None,convert=None,
-                             barcolor=(255,255,255),box=False,
-                             boxcolor=(0,0,0),boxopacity=255):
+    def export_with_scalebar(self,frame=0,channel=0,filename=None,**kwargs):
         """
         saves an exported image of the TEM image with a scalebar in one of the 
         four corners, where barsize is the scalebar size in data units (e.g. 
@@ -713,12 +709,6 @@ class sp8_image(sp8_lif):
             Filename + extension to use for the export file. The default is the
             filename sans extension of the original TEM file, with 
             '_exported.png' appended.
-        barsize : float or `None`, optional
-            size (in data units matching the original scale bar, e.g. nm) of 
-            the scale bar to use. The default `None`, wich takes the desired 
-            length for the current scale (ca. 15% of the width of the image for
-            `scale=1`) and round this to the nearest option from a list of 
-            "nice" values.
         crop : tuple or `None`, optional 
             range describing a area of the original image (before rescaling the
             resolution) to crop out for the export image. Can have two forms:
@@ -731,22 +721,6 @@ class sp8_image(sp8_lif):
             optional rescaling using `resolution`).
             
             The default is `None` which takes the entire image.
-        scale : float, optional
-            factor to change the size of the scalebar+text with respect to the
-            width of the image. Scale is chosen such, that at `scale=1` the
-            font size of the scale bar text is approximately 10 pt when 
-            the image is printed at half the width of the text in a typical A4
-            paper document (e.g. two images side-by-side). Note that this is 
-            with respect to the **output** image, so after optional cropping 
-            and/or up/down sampling has been applied. The default is 1.
-        loc : int, one of [`0`,`1`,`2`,`3`], optional
-            Location of the scalebar on the image, where `0`, `1`, `2` and `3` 
-            refer to the top left, top right, bottom left and bottom right 
-            respectively. The default is `2`, which is the bottom left corner.
-        resolution : int, optional
-            the resolution along the x-axis (i.e. image width in pixels) to use
-            for the exported image. The default is `None`, which uses the size 
-            of the original image (after optional cropping using `crop`).
         cmap : str or callable or list of str or list of callable, optional
             name of a named Matplotlib colormap used to color the data. see the 
             [Matplotlib documentation](
@@ -773,15 +747,47 @@ class sp8_image(sp8_lif):
             
             For multichannel data, a list of colormaps *must* be provided, with
             a separate colormap for each channel.
+        resolution : int, optional
+            the resolution along the x-axis (i.e. image width in pixels) to use
+            for the exported image. The default is `None`, which uses the size 
+            of the original image (after optional cropping using `crop`).
         cmap_range : tuple of form (min,max), optional
             sets the scaling of the colormap. The minimum and maximum 
             values to map the colormap to, values outside of this range will
             be colored according to the min and max value of the colormap. The 
             default is to take the lowest and highest value in the image.
+        draw_bar : boolean, optional
+            whether to draw a scalebar on the image, such that this function 
+            may be used just to apply a colormap. The default is `True`.
+        barsize : float or `None`, optional
+            size (in data units matching the original scale bar, e.g. nm) of 
+            the scale bar to use. The default `None`, wich takes the desired 
+            length for the current scale (ca. 15% of the width of the image for
+            `scale=1`) and round this to the nearest option from a list of 
+            "nice" values.
+        scale : float, optional
+            factor to change the size of the scalebar+text with respect to the
+            width of the image. Scale is chosen such, that at `scale=1` the
+            font size of the scale bar text is approximately 10 pt when 
+            the image is printed at half the width of the text in a typical A4
+            paper document (e.g. two images side-by-side). Note that this is 
+            with respect to the **output** image, so after optional cropping 
+            and/or up/down sampling has been applied. The default is `1`.
+        loc : int, one of [`0`,`1`,`2`,`3`], optional
+            Location of the scalebar on the image, where `0`, `1`, `2` and `3` 
+            refer to the top left, top right, bottom left and bottom right 
+            respectively. The default is `2`, which is the bottom left corner.
         convert : str, one of [`pm`,`nm`,`um`,`µm`,`mm`,`m`], optional
             Unit that will be used for the scale bar, the value will be 
             automatically converted if this unit differs from the pixel size
             unit. The default is `None`, which uses micrometers.
+        font : str, optional
+            filename of an installed TrueType font ('.ttf' file) to use for the
+            text on the scalebar. The default is `'arialbd.ttf'`.
+        fontsize : int, optional
+            base font size to use for the scale bar text. The default is 16. 
+            Note that this size will be re-scaled according to `resolution` and
+            `scale`.
         barcolor : tuple of ints, optional
             RGB color to use for the scalebar and text, given
             as a tuple of form (R,G,B) where R, G B and A are values between 0 
@@ -799,7 +805,6 @@ class sp8_image(sp8_lif):
             value between 0 and 255 for the opacity/alpha of the box, useful
             for creating a semitransparent box. The default is 255.
         """      
-        
         #check if pixelsize already calculated, otherwise call get_pixelsize
         pixelsize, unit = self.get_dimension_stepsize('x-axis')
         
@@ -843,10 +848,8 @@ class sp8_image(sp8_lif):
         
         #call main export_with_scalebar function with correct pixelsize etc
         from .util import _export_with_scalebar
-        _export_with_scalebar(exportim, pixelsize, unit, filename, barsize, 
-                              crop, scale, loc, resolution, convert, barcolor,
-                              cmap, cmap_range, box, boxcolor, boxopacity, 
-                              multichannel)
+        _export_with_scalebar(exportim, pixelsize, unit, filename, 
+                              multichannel, **kwargs)
 
 class sp8_series:
     """
@@ -1378,11 +1381,7 @@ class sp8_series:
         path = sorted(glob.glob(path))[0]
         return os.path.split(path)[1][:-4]
     
-    def export_with_scalebar(self,frame=0,channel=0,filename=None,barsize=None,
-                             crop=None,scale=1,loc=2,resolution=None,
-                             cmap='inferno',cmap_range=None,convert=None,
-                             barcolor=(255,255,255),box=False,
-                             boxcolor=(0,0,0),boxopacity=255):
+    def export_with_scalebar(self,frame=0,channel=0,filename=None,**kwargs):
         """
         saves an exported image of the TEM image with a scalebar in one of the 
         four corners, where barsize is the scalebar size in data units (e.g. 
@@ -1403,12 +1402,6 @@ class sp8_series:
             Filename + extension to use for the export file. The default is the
             filename sans extension of the original TEM file, with 
             '_exported.png' appended.
-        barsize : float or `None`, optional
-            size (in data units matching the original scale bar, e.g. nm) of 
-            the scale bar to use. The default `None`, wich takes the desired 
-            length for the current scale (ca. 15% of the width of the image for
-            `scale=1`) and round this to the nearest option from a list of 
-            "nice" values.
         crop : tuple or `None`, optional 
             range describing a area of the original image (before rescaling the
             resolution) to crop out for the export image. Can have two forms:
@@ -1421,22 +1414,6 @@ class sp8_series:
             optional rescaling using `resolution`).
             
             The default is `None` which takes the entire image.
-        scale : float, optional
-            factor to change the size of the scalebar+text with respect to the
-            width of the image. Scale is chosen such, that at `scale=1` the
-            font size of the scale bar text is approximately 10 pt when 
-            the image is printed at half the width of the text in a typical A4
-            paper document (e.g. two images side-by-side). Note that this is 
-            with respect to the *output* image, so after optional cropping 
-            and/or up/down sampling has been applied. The default is 1.
-        loc : int, one of [`0`,`1`,`2`,`3`], optional
-            Location of the scalebar on the image, where `0`, `1`, `2` and `3` 
-            refer to the top left, top right, bottom left and bottom right 
-            respectively. The default is `2`, which is the bottom left corner.
-        resolution : int, optional
-            the resolution along the x-axis (i.e. image width in pixels) to use
-            for the exported image. The default is `None`, which uses the size 
-            of the original image (after optional cropping using `crop`).
         cmap : str or callable or list of str or list of callable, optional
             name of a named Matplotlib colormap used to color the data. see the 
             [Matplotlib documentation](
@@ -1461,17 +1438,49 @@ class sp8_series:
             object from the Matplotlib.colors module. For more information on 
             creating colormaps, see the Matplotlib documentation linked above.
             
-            For multichannel data, a list of colormaps **must** be provided, 
-            with a separate colormap for each channel.
+            For multichannel data, a list of colormaps *must* be provided, with
+            a separate colormap for each channel.
+        resolution : int, optional
+            the resolution along the x-axis (i.e. image width in pixels) to use
+            for the exported image. The default is `None`, which uses the size 
+            of the original image (after optional cropping using `crop`).
         cmap_range : tuple of form (min,max), optional
             sets the scaling of the colormap. The minimum and maximum 
             values to map the colormap to, values outside of this range will
             be colored according to the min and max value of the colormap. The 
             default is to take the lowest and highest value in the image.
+        draw_bar : boolean, optional
+            whether to draw a scalebar on the image, such that this function 
+            may be used just to apply a colormap. The default is `True`.
+        barsize : float or `None`, optional
+            size (in data units matching the original scale bar, e.g. nm) of 
+            the scale bar to use. The default `None`, wich takes the desired 
+            length for the current scale (ca. 15% of the width of the image for
+            `scale=1`) and round this to the nearest option from a list of 
+            "nice" values.
+        scale : float, optional
+            factor to change the size of the scalebar+text with respect to the
+            width of the image. Scale is chosen such, that at `scale=1` the
+            font size of the scale bar text is approximately 10 pt when 
+            the image is printed at half the width of the text in a typical A4
+            paper document (e.g. two images side-by-side). Note that this is 
+            with respect to the **output** image, so after optional cropping 
+            and/or up/down sampling has been applied. The default is `1`.
+        loc : int, one of [`0`,`1`,`2`,`3`], optional
+            Location of the scalebar on the image, where `0`, `1`, `2` and `3` 
+            refer to the top left, top right, bottom left and bottom right 
+            respectively. The default is `2`, which is the bottom left corner.
         convert : str, one of [`pm`,`nm`,`um`,`µm`,`mm`,`m`], optional
             Unit that will be used for the scale bar, the value will be 
             automatically converted if this unit differs from the pixel size
             unit. The default is `None`, which uses micrometers.
+        font : str, optional
+            filename of an installed TrueType font ('.ttf' file) to use for the
+            text on the scalebar. The default is `'arialbd.ttf'`.
+        fontsize : int, optional
+            base font size to use for the scale bar text. The default is 16. 
+            Note that this size will be re-scaled according to `resolution` and
+            `scale`.
         barcolor : tuple of ints, optional
             RGB color to use for the scalebar and text, given
             as a tuple of form (R,G,B) where R, G B and A are values between 0 
@@ -1523,11 +1532,9 @@ class sp8_series:
         
         #call main export_with_scalebar function with correct pixelsize etc
         from .util import _export_with_scalebar
-        _export_with_scalebar(exportim, pixelsize, unit, filename, barsize, 
-                              crop, scale, loc, resolution, convert, barcolor,
-                              cmap, cmap_range, box, boxcolor, boxopacity,
-                              multichannel)
-    
+        _export_with_scalebar(exportim, pixelsize, unit, filename, 
+                              multichannel, **kwargs)
+
 def _DimID_to_str(dim):
     """replaces a dimID integer with more sensible string labels"""
     #names and labels
