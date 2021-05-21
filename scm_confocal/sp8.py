@@ -690,11 +690,11 @@ class sp8_image(sp8_lif):
     
     def export_with_scalebar(self,frame=0,channel=0,filename=None,**kwargs):
         """
-        saves an exported image of the TEM image with a scalebar in one of the 
-        four corners, where barsize is the scalebar size in data units (e.g. 
-        nm) and scale the overall size of the scalebar and text with respect to
-        the width of the image. Additionally, a colormap is applied to the data
-        for better visualisation.
+        saves an exported image of the confocal slice with a scalebar in one of
+        the four corners, where barsize is the scalebar size in data units 
+        (e.g. µm) and scale the overall size of the scalebar and text with 
+        respect to the width of the image. Additionally, a colormap is applied
+        to the data for better visualisation.
 
         Parameters
         ----------
@@ -1383,11 +1383,11 @@ class sp8_series:
     
     def export_with_scalebar(self,frame=0,channel=0,filename=None,**kwargs):
         """
-        saves an exported image of the TEM image with a scalebar in one of the 
-        four corners, where barsize is the scalebar size in data units (e.g. 
-        nm) and scale the overall size of the scalebar and text with respect to
-        the width of the image. Additionally, a colormap is applied to the data
-        for better visualisation.
+        saves an exported image of the confocal slice with a scalebar in one of
+        the four corners, where barsize is the scalebar size in data units 
+        (e.g. µm) and scale the overall size of the scalebar and text with 
+        respect to the width of the image. Additionally, a colormap is applied
+        to the data for better visualisation.
 
         Parameters
         ----------
