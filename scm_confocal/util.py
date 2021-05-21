@@ -1508,8 +1508,9 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
         ny = int(shape[0]/shape[1]*nx)
         barsize_px = barsize_px/shape[1]*resolution
         if multichannel:
-            exportim = [cv2.resize(im, (int(nx),int(ny)),
-                                   interpolation=cv2.INTER_AREA) for im in exportim]
+            exportim = [cv2.resize(im, (int(nx),int(ny)), 
+                                   interpolation=cv2.INTER_AREA
+                                   ) for im in exportim]
         else:
             exportim = cv2.resize(exportim, (int(nx),int(ny)), 
                                   interpolation=cv2.INTER_AREA)
@@ -1544,7 +1545,7 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
         textpad = scale*2
         fontsize = 2*fontsize*scale
         
-        #format string
+        #format string for correct number of decimals
         if round(barsize)==barsize:
             text = str(int(barsize))+' '+unit
         else:
