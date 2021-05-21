@@ -521,13 +521,152 @@ class visitech_series:
         if dim == 'x-axis':
             return (np.arange(0,self.shape[-1]*self._pixelsizeXY,
                               self._pixelsizeXY),'µm')
+    
+    def get_series_name(self):
+        """
+        Returns a name for the series based on the filename.
+
+        Returns
+        -------
+        str
+        """
+        return self.filename.rpartition('.')[0].rpartition('.')[0]
+        
+    
+    def export_with_scalebar(self,frame=0,filename=None,**kwargs):
+        """
+        saves an exported image of the TEM image with a scalebar in one of the 
+        four corners, where barsize is the scalebar size in data units (e.g. 
+        nm) and scale the overall size of the scalebar and text with respect to
+        the width of the image. Additionally, a colormap is applied to the data
+        for better visualisation.
+
+        Parameters
+        ----------
+        frame : int, optional
+            index of the frame to export. The default is 0.
+        filename : string or `None`, optional
+            Filename + extension to use for the export file. The default is the
+            filename sans extension of the original TEM file, with 
+            '_exported.png' appended.
+        crop : tuple or `None`, optional 
+            range describing a area of the original image (before rescaling the
+            resolution) to crop out for the export image. Can have two forms:
+                
+            - `((xmin,ymin),(xmax,ymax))`, with the integer indices of the top
+            left and bottom right corners respectively.
+                
+            - `(xmin,ymin,w,h)` with the integer indices of the top left corner
+            and the width and heigth of the cropped image in pixels (prior to 
+            optional rescaling using `resolution`).
+            
+            The default is `None` which takes the entire image.
+        cmap : str or callable, optional
+            name of a named Matplotlib colormap used to color the data. see the 
+            [Matplotlib documentation](
+                https://matplotlib.org/stable/tutorials/colors/colormaps.html)
+            for more information. The default is `'inferno'`.
+            
+            In addition to the colormaps listed there, the following maps for 
+            linearly incrementing pure RGB channels are available, useful for 
+            e.g. displaying multichannel data with complementary colors (no 
+            overlap between between colormaps possible):
+            ```
+            ['pure_reds', 'pure_greens', 'pure_blues', 'pure_yellows', 
+             'pure_cyans', 'pure_purples','pure_greys']
+            ```
+            where for example `'pure_reds'` scales between RGB values `(0,0,0)`
+            and  `(255,0,0)`, and `'pure_cyans'` between `(0,0,0)` and 
+            `(0,255,255)`.
+            
+            Alternatively, a fully custom colormap may be used by entering a 
+            [ListedColormap](https://matplotlib.org/stable/api/_as_gen/matplotlib.colors.ListedColormap.html#matplotlib.colors.ListedColormap)
+            or [LinearSegmentedColormap](https://matplotlib.org/stable/api/_as_gen/matplotlib.colors.LinearSegmentedColormap.html#matplotlib.colors.LinearSegmentedColormap)
+            object from the Matplotlib.colors module. For more information on 
+            creating colormaps, see the Matplotlib documentation linked above.
+        resolution : int, optional
+            the resolution along the x-axis (i.e. image width in pixels) to use
+            for the exported image. The default is `None`, which uses the size 
+            of the original image (after optional cropping using `crop`).
+        cmap_range : tuple of form (min,max), optional
+            sets the scaling of the colormap. The minimum and maximum 
+            values to map the colormap to, values outside of this range will
+            be colored according to the min and max value of the colormap. The 
+            default is to take the lowest and highest value in the image.
+        draw_bar : boolean, optional
+            whether to draw a scalebar on the image, such that this function 
+            may be used just to apply a colormap. The default is `True`.
+        barsize : float or `None`, optional
+            size (in data units matching the original scale bar, e.g. nm) of 
+            the scale bar to use. The default `None`, wich takes the desired 
+            length for the current scale (ca. 15% of the width of the image for
+            `scale=1`) and round this to the nearest option from a list of 
+            "nice" values.
+        scale : float, optional
+            factor to change the size of the scalebar+text with respect to the
+            width of the image. Scale is chosen such, that at `scale=1` the
+            font size of the scale bar text is approximately 10 pt when 
+            the image is printed at half the width of the text in a typical A4
+            paper document (e.g. two images side-by-side). Note that this is 
+            with respect to the **output** image, so after optional cropping 
+            and/or up/down sampling has been applied. The default is `1`.
+        loc : int, one of [`0`,`1`,`2`,`3`], optional
+            Location of the scalebar on the image, where `0`, `1`, `2` and `3` 
+            refer to the top left, top right, bottom left and bottom right 
+            respectively. The default is `2`, which is the bottom left corner.
+        convert : str, one of [`pm`,`nm`,`um`,`µm`,`mm`,`m`], optional
+            Unit that will be used for the scale bar, the value will be 
+            automatically converted if this unit differs from the pixel size
+            unit. The default is `None`, which uses micrometers.
+        font : str, optional
+            filename of an installed TrueType font ('.ttf' file) to use for the
+            text on the scalebar. The default is `'arialbd.ttf'`.
+        fontsize : int, optional
+            base font size to use for the scale bar text. The default is 16. 
+            Note that this size will be re-scaled according to `resolution` and
+            `scale`.
+        barcolor : tuple of ints, optional
+            RGB color to use for the scalebar and text, given
+            as a tuple of form (R,G,B) where R, G B and A are values between 0 
+            and 255 for red, green and blue respectively. The default is 
+            `(255,255,255,255)`, which is a white scalebar and text.
+        box : bool, optional
+            Whether to put a colored box behind the scalebar and text to 
+            enhance contrast on busy images. The default is `False`.
+        boxcolor : tuple of ints, optional
+            RGB color to use for the box behind/around the scalebar and text,
+            given as a tuple of form (R,G,B) where R, G B and A are values 
+            between 0 and 255 for red, green and blue respectively. The default
+            is (0,0,0) which gives a black box.
+        boxopacity : int
+            value between 0 and 255 for the opacity/alpha of the box, useful
+            for creating a semitransparent box. The default is 255.
+        """      
+        #check if pixelsize already calculated, otherwise call get_pixelsize
+        pixelsize, unit = self._pixelsizeXY, 'µm'
+        
+        #set default export filename
+        if type(filename) != str:
+            filename = self.get_series_name()+'_scalebar.png'
+        
+        #check we're not overwriting the original file
+        if filename==self.filename:
+            raise ValueError('overwriting original file not recommended, '+
+                             'use a different filename for exporting.')
+        
+        #get image
+        exportim = self.load_data(indices=frame)
+        
+        #call main export_with_scalebar function with correct pixelsize etc
+        from .util import _export_with_scalebar
+        _export_with_scalebar(exportim, pixelsize, unit, filename, False,
+                              **kwargs)
 
 class visitech_faststack:
     """
     functions for fast stacks taken with the custom MicroManager Visitech 
     driver, saved to multipage .ome.tiff files containing entire stack
     """
-
     def __init__(self,filename,zsize,zstep,zbacksteps,zstart=0,
                  magnification=63,binning=1):
         """
@@ -1049,6 +1188,16 @@ class visitech_faststack:
                              "'image_sequence', 'multipage' or "+
                              "'multipage_sequence'")
     
+    def get_series_name(self):
+        """
+        Returns a name for the series based on the filename.
+
+        Returns
+        -------
+        str
+        """
+        return self.filename.rpartition('.')[0].rpartition('.')[0]    
+    
     def _get_metadata_string(self):
         """reads out the raw metadata from a file"""
         import struct
@@ -1079,7 +1228,7 @@ class visitech_faststack:
         #decode bytes to string
         metadata = metadata.decode('utf-8')
         
-        #cut off extra characters from end
+        #cut off extra characters from end if needed
         return metadata[metadata.find('<?xml'):metadata.find('</OME>')+6]
 
     def _get_metadata_string_imagelist(self):
@@ -1193,3 +1342,145 @@ class visitech_faststack:
     def get_pixelsize(self):
         """shortcut to get (z,y,x) pixelsize with unit"""
         return (self.pixelsize,'µm')
+    
+    def export_with_scalebar(self,stack=0,zslice=0,filename=None,**kwargs):
+        """
+        saves an exported image of the TEM image with a scalebar in one of the 
+        four corners, where barsize is the scalebar size in data units (e.g. 
+        nm) and scale the overall size of the scalebar and text with respect to
+        the width of the image. Additionally, a colormap is applied to the data
+        for better visualisation.
+
+        Parameters
+        ----------
+        stack : int, optional
+            integer index of the z-stack to take the frame to export from. The 
+            default is `0`.
+        zslice : int, optional
+            integer index of the frame within `stack` to export. The default is
+            `0`.
+        filename : string or `None`, optional
+            Filename + extension to use for the export file. The default is the
+            filename sans extension of the original TEM file, with 
+            '_exported.png' appended.
+        crop : tuple or `None`, optional 
+            range describing a area of the original image (before rescaling the
+            resolution) to crop out for the export image. Can have two forms:
+                
+            - `((xmin,ymin),(xmax,ymax))`, with the integer indices of the top
+            left and bottom right corners respectively.
+                
+            - `(xmin,ymin,w,h)` with the integer indices of the top left corner
+            and the width and heigth of the cropped image in pixels (prior to 
+            optional rescaling using `resolution`).
+            
+            The default is `None` which takes the entire image.
+        cmap : str or callable, optional
+            name of a named Matplotlib colormap used to color the data. see the 
+            [Matplotlib documentation](
+                https://matplotlib.org/stable/tutorials/colors/colormaps.html)
+            for more information. The default is `'inferno'`.
+            
+            In addition to the colormaps listed there, the following maps for 
+            linearly incrementing pure RGB channels are available, useful for 
+            e.g. displaying multichannel data with complementary colors (no 
+            overlap between between colormaps possible):
+            ```
+            ['pure_reds', 'pure_greens', 'pure_blues', 'pure_yellows', 
+             'pure_cyans', 'pure_purples','pure_greys']
+            ```
+            where for example `'pure_reds'` scales between RGB values `(0,0,0)`
+            and  `(255,0,0)`, and `'pure_cyans'` between `(0,0,0)` and 
+            `(0,255,255)`.
+            
+            Alternatively, a fully custom colormap may be used by entering a 
+            [ListedColormap](https://matplotlib.org/stable/api/_as_gen/matplotlib.colors.ListedColormap.html#matplotlib.colors.ListedColormap)
+            or [LinearSegmentedColormap](https://matplotlib.org/stable/api/_as_gen/matplotlib.colors.LinearSegmentedColormap.html#matplotlib.colors.LinearSegmentedColormap)
+            object from the Matplotlib.colors module. For more information on 
+            creating colormaps, see the Matplotlib documentation linked above.
+        resolution : int, optional
+            the resolution along the x-axis (i.e. image width in pixels) to use
+            for the exported image. The default is `None`, which uses the size 
+            of the original image (after optional cropping using `crop`).
+        cmap_range : tuple of form (min,max), optional
+            sets the scaling of the colormap. The minimum and maximum 
+            values to map the colormap to, values outside of this range will
+            be colored according to the min and max value of the colormap. The 
+            default is to take the lowest and highest value in the image.
+        draw_bar : boolean, optional
+            whether to draw a scalebar on the image, such that this function 
+            may be used just to apply a colormap. The default is `True`.
+        barsize : float or `None`, optional
+            size (in data units matching the original scale bar, e.g. nm) of 
+            the scale bar to use. The default `None`, wich takes the desired 
+            length for the current scale (ca. 15% of the width of the image for
+            `scale=1`) and round this to the nearest option from a list of 
+            "nice" values.
+        scale : float, optional
+            factor to change the size of the scalebar+text with respect to the
+            width of the image. Scale is chosen such, that at `scale=1` the
+            font size of the scale bar text is approximately 10 pt when 
+            the image is printed at half the width of the text in a typical A4
+            paper document (e.g. two images side-by-side). Note that this is 
+            with respect to the **output** image, so after optional cropping 
+            and/or up/down sampling has been applied. The default is `1`.
+        loc : int, one of [`0`,`1`,`2`,`3`], optional
+            Location of the scalebar on the image, where `0`, `1`, `2` and `3` 
+            refer to the top left, top right, bottom left and bottom right 
+            respectively. The default is `2`, which is the bottom left corner.
+        convert : str, one of [`pm`,`nm`,`um`,`µm`,`mm`,`m`], optional
+            Unit that will be used for the scale bar, the value will be 
+            automatically converted if this unit differs from the pixel size
+            unit. The default is `None`, which uses micrometers.
+        font : str, optional
+            filename of an installed TrueType font ('.ttf' file) to use for the
+            text on the scalebar. The default is `'arialbd.ttf'`.
+        fontsize : int, optional
+            base font size to use for the scale bar text. The default is 16. 
+            Note that this size will be re-scaled according to `resolution` and
+            `scale`.
+        barcolor : tuple of ints, optional
+            RGB color to use for the scalebar and text, given
+            as a tuple of form (R,G,B) where R, G B and A are values between 0 
+            and 255 for red, green and blue respectively. The default is 
+            `(255,255,255,255)`, which is a white scalebar and text.
+        box : bool, optional
+            Whether to put a colored box behind the scalebar and text to 
+            enhance contrast on busy images. The default is `False`.
+        boxcolor : tuple of ints, optional
+            RGB color to use for the box behind/around the scalebar and text,
+            given as a tuple of form (R,G,B) where R, G B and A are values 
+            between 0 and 255 for red, green and blue respectively. The default
+            is (0,0,0) which gives a black box.
+        boxopacity : int
+            value between 0 and 255 for the opacity/alpha of the box, useful
+            for creating a semitransparent box. The default is 255.
+        """      
+        #get x pixelsize, unit is always micrometer
+        pixelsize, unit = self.pixelsize[2], 'µm'
+        
+        #set default export filename
+        if type(filename) != str:
+            filename = self.get_series_name()+'_scalebar.png'
+        
+        #check we're not overwriting the original file
+        if filename==self.filename:
+            raise ValueError('overwriting original file not recommended, '+
+                             'use a different filename for exporting.')
+        
+        #check inputs
+        if stack >= self.nt:
+            raise IndexError(f'stack with index {stack} out of range '
+                             f'{self.nt}')
+        if zslice >= self.nz:
+            raise IndexError(f'zslice with index {zslice} out of range '
+                             f'{self.nz}')
+        
+        #get image
+        frame = stack*(self.nz+self.backsteps)+zslice
+        exportim = self.load_data(indices=frame)
+        
+        #call main export_with_scalebar function with correct pixelsize etc
+        from .util import _export_with_scalebar
+        _export_with_scalebar(exportim, pixelsize, unit, filename, False,
+                              **kwargs)
