@@ -625,11 +625,23 @@ class visitech_series:
             base font size to use for the scale bar text. The default is 16. 
             Note that this size will be re-scaled according to `resolution` and
             `scale`.
+        fontbaseline : int, optional
+            vertical offset for the baseline of the scale bar text in printer
+             points. The default is 0.
+        fontpad : int, optional
+            minimum size in printer points of the space/padding between the 
+            text and the bar and surrounding box. The default is 2.
         barcolor : tuple of ints, optional
             RGB color to use for the scalebar and text, given
             as a tuple of form (R,G,B) where R, G B and A are values between 0 
             and 255 for red, green and blue respectively. The default is 
             `(255,255,255,255)`, which is a white scalebar and text.
+        barthickness : int, optional
+            thickness in printer points of the scale bar itself. The default is
+            16.
+        barpad : int, optional
+            size in printer points of the padding between the scale bar and the
+            surrounding box. The default is 10.
         box : bool, optional
             Whether to put a colored box behind the scalebar and text to 
             enhance contrast on busy images. The default is `False`.
@@ -638,10 +650,13 @@ class visitech_series:
             given as a tuple of form (R,G,B) where R, G B and A are values 
             between 0 and 255 for red, green and blue respectively. The default
             is (0,0,0) which gives a black box.
-        boxopacity : int
+        boxopacity : int, optional
             value between 0 and 255 for the opacity/alpha of the box, useful
             for creating a semitransparent box. The default is 255.
-        """      
+        boxpad : int, optional
+            size of the space/padding around the box (with respect to the sides
+            of the image) in printer points. The default is 10.
+        """       
         #check if pixelsize already calculated, otherwise call get_pixelsize
         pixelsize, unit = self._pixelsizeXY, 'µm'
         
@@ -1439,11 +1454,23 @@ class visitech_faststack:
             base font size to use for the scale bar text. The default is 16. 
             Note that this size will be re-scaled according to `resolution` and
             `scale`.
+        fontbaseline : int, optional
+            vertical offset for the baseline of the scale bar text in printer
+             points. The default is 0.
+        fontpad : int, optional
+            minimum size in printer points of the space/padding between the 
+            text and the bar and surrounding box. The default is 2.
         barcolor : tuple of ints, optional
             RGB color to use for the scalebar and text, given
             as a tuple of form (R,G,B) where R, G B and A are values between 0 
             and 255 for red, green and blue respectively. The default is 
             `(255,255,255,255)`, which is a white scalebar and text.
+        barthickness : int, optional
+            thickness in printer points of the scale bar itself. The default is
+            16.
+        barpad : int, optional
+            size in printer points of the padding between the scale bar and the
+            surrounding box. The default is 10.
         box : bool, optional
             Whether to put a colored box behind the scalebar and text to 
             enhance contrast on busy images. The default is `False`.
@@ -1452,10 +1479,13 @@ class visitech_faststack:
             given as a tuple of form (R,G,B) where R, G B and A are values 
             between 0 and 255 for red, green and blue respectively. The default
             is (0,0,0) which gives a black box.
-        boxopacity : int
+        boxopacity : int, optional
             value between 0 and 255 for the opacity/alpha of the box, useful
             for creating a semitransparent box. The default is 255.
-        """      
+        boxpad : int, optional
+            size of the space/padding around the box (with respect to the sides
+            of the image) in printer points. The default is 10.
+        """    
         #get x pixelsize, unit is always micrometer
         pixelsize, unit = self.pixelsize[2], 'µm'
         

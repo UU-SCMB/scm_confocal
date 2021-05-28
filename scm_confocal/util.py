@@ -1345,8 +1345,9 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
                           crop=None,resolution=None,cmap='inferno',
                           cmap_range=None,draw_bar=True,barsize=None,scale=1,
                           loc=2,convert=None,font='arialbd.ttf',fontsize=16,
-                          barcolor=(255,255,255),box=False,boxcolor=(0,0,0),
-                          boxopacity=255):
+                          fontbaseline=0,fontpad=2,barcolor=(255,255,255),
+                          barthickness=16,barpad=10,box=False,
+                          boxcolor=(0,0,0),boxopacity=255,boxpad=10):
     """
     see top level export_with_scalebar functions for docs
     """
@@ -1539,11 +1540,12 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
         scale = scale*resolution/1024
         
         #set up sizes
-        barheight = scale*16
-        boxpad = scale*10
-        barpad = scale*10
-        textpad = scale*2
+        barthickness = barthickness*scale
+        boxpad = boxpad*scale
+        barpad = barpad*scale
+        fontpad = fontpad*scale
         fontsize = 2*fontsize*scale
+        fontbaseline = fontbaseline*scale
         
         #format string for correct number of decimals
         if round(barsize)==barsize:
@@ -1561,14 +1563,14 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
         textsize = ImageDraw.Draw(Image.fromarray(exportim)).textsize(
                                                                 text,font=font)
         offset = font.getoffset(text)
-        textsize = (textsize[0]+offset[0],textsize[1]+offset[1])    
+        textsize = (textsize[0]+offset[0],textsize[1]+offset[1]+fontbaseline)    
         
         #correct baseline for mu in case of micrometer
         if unit=='µm':
             textsize = (textsize[0],textsize[1]-6*scale)
         
         #determine box size
-        boxheight = barpad + barheight + 2*textpad + textsize[1]
+        boxheight = barpad + barthickness + 2*fontpad + textsize[1]
         
         #determine box position based on loc
         #top left
@@ -1611,16 +1613,16 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
         #calculate positions for bar and text (horizontally centered in box)
         barx = (2*x + 2*barpad + max([barsize_px,textsize[0]]))/2 \
             - barsize_px/2
-        bary = y+boxheight-barpad-barheight
+        bary = y+boxheight-barpad-barthickness
         textx = (2*x + 2*barpad + max([barsize_px,textsize[0]]))/2 \
             - textsize[0]/2
-        texty = y + textpad
+        texty = y + fontpad
         
         #draw scalebar
         exportim = cv2.rectangle(
             exportim,
             (int(barx),int(bary)),
-            (int(barx+barsize_px),int(bary+barheight)),
+            (int(barx+barsize_px),int(bary+barthickness)),
             barcolor+(255,),
             -1
         )
