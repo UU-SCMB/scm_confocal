@@ -38,6 +38,37 @@ class visitech_series:
         """"represents class instance in the interpreter"""
         return f"<scm_confocal.visitech_series('{self.filename}')>"
 
+    def __len__(self):
+        """length of series is number of frames"""
+        if hasattr(self,'nf'):
+            return self.nf
+        else:
+            self._init_pims()
+            return self.nf
+    
+    def __getitem__(self,key):
+        """make indexable, where it returns the ith frame, where a frame is 
+        defined by the first 2 dimensions in recording order"""
+        if not hasattr(self,'nf'):
+            self._init_pims()
+        if isinstance(key,slice):
+            return [self[i] for i in range(*key.indices(len(self)))]
+        else:
+            return self.datafile[key]
+    
+    def __iter__(self):
+        """initialize iterator"""
+        self._iter_n = 0
+        return self
+
+    def __next__(self):
+        "make iterable where it returns one image at a time"
+        self._iter_n += 1
+        if self._iter_n >= len(self):
+            raise StopIteration
+        else:
+            return self.datafile[self._iter_n]
+
     def _init_pims(self):
         """only initialize PIMS object when necessary, since it may take a long
         time for large series / slow harddrives even to just index the data"""
