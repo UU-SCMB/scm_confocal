@@ -172,7 +172,7 @@ def fit_powerlaw(x,y,weights=None,**kwargs):
     
     return A,n,sigmaA,sigmaN
 
-def mean_square_displacement(features, pos_cols = ['x','y','z'], t_col='t (s)',
+def mean_square_displacement_legacy(features, pos_cols = ['x','y','z'], t_col='t (s)',
                          nparticles=None, pickrandom=False, nbins=20,
                          tmin=None, tmax=None, itmin=1, itmax=None,
                          parallel=False, cores=None):
@@ -226,8 +226,19 @@ def mean_square_displacement(features, pos_cols = ['x','y','z'], t_col='t (s)',
     features = features.set_index('particle')
     dims = len(pos_cols)
     
+    #check min and max step interval
+    if itmin < 1:
+        itmin = 1
+    if itmax == None:
+        itmax = False
+    else:
+        if not isinstance(itmax,int):
+            raise TypeError('`itmax` must be None or integer')
+    
     #converting to set assures unique values only
-    particles = set(features.index)
+    particles  = features.groupby('particle').size()
+    particles = set(particles.loc[particles>itmin].index)
+    #particles = set(features.index)
     
     #optionally take a subset of particles
     if nparticles != None and len(particles)>nparticles:
@@ -245,15 +256,6 @@ def mean_square_displacement(features, pos_cols = ['x','y','z'], t_col='t (s)',
     
     n = len(particles)
     
-    #check min and max step interval
-    if itmin <= 1:
-        itmin = False
-    if itmax == None:
-        itmax = False
-    else:
-        if not isinstance(itmax,int):
-            raise TypeError('`itmax` must be None or integer')
-    
     import time
     t = time.time()
     
@@ -262,36 +264,36 @@ def mean_square_displacement(features, pos_cols = ['x','y','z'], t_col='t (s)',
         
         import multiprocessing as mp
         from itertools import repeat
+        from functools import partial
         
         if cores == None:
             cores = mp.cpu_count()
         
-        #set up multiprocessing pool and run
         pool = mp.Pool(cores)
-        pf = pool.starmap_async(
-            _per_particle_function,
-            zip(
-                particles,
-                repeat(features),
-                repeat(dims),
-                repeat(itmin),
-                repeat(itmax)
-            )
-        )
+        map_func = pool.starmap_async
+        curry = partial(_per_particle_function,repeat,dims,itmin,itmax)
         
-        chunksize = pf._chunksize
+        try:
+            #set up multiprocessing pool and run
+            
+            pf = map_func(curry,particles)
+            
+            chunksize = pf._chunksize
+            
+            while not pf.ready():
+                i = max([0,int((n - pf._number_left*chunksize)/n*100)])
+                print('\rprocessing MSD using {:d} cores, {:d}% done'.format(cores,i),end='',flush=True)
+                time.sleep(0.1)  
+            
+            #get results and terminate
+            pool.close()
+            pool.join()
+            dt_dr = np.concatenate(pf.get(), axis=0)
+            
+            print('\rprocessing MSD using {:d} cores, {:d}% done, took {:d} s.'.format(cores,100,int(time.time()-t)))
         
-        while not pf.ready():
-            i = max([0,int((n - pf._number_left*chunksize)/n*100)])
-            print('\rprocessing MSD using {:d} cores, {:d}% done'.format(cores,i),end='',flush=True)
-            time.sleep(0.1)  
-        
-        #get results and terminate
-        pool.close()
-        pool.join()
-        dt_dr = np.concatenate(pf.get(), axis=0)
-        pool.terminate()
-        print('\rprocessing MSD using {:d} cores, {:d}% done, took {:d} s.'.format(cores,100,int(time.time()-t)))
+        finally:
+            pool.terminate()
         
     
     #normal single core process
@@ -306,15 +308,22 @@ def mean_square_displacement(features, pos_cols = ['x','y','z'], t_col='t (s)',
             pdata = features.loc[p]
             for j in range(len(pdata)):
                 for i in range(j):
-                    if (not itmin or j-i>=itmin) and (not itmax or j-i < itmax):
-                        dt_dr = np.append(
-                                dt_dr,
-                                [[
-                                        pdata.iat[j,0] - pdata.iat[i,0],
-                                        sum([(pdata.iat[j,d] - pdata.iat[i,d])**2 for d in range(1,dims+1)])
-                                ]],
-                                axis = 0
-                                )
+                    if (j-i>=itmin) and (not itmax or j-i < itmax):
+                        try:
+                            dt_dr = np.append(
+                                    dt_dr,
+                                    [[
+                                            pdata.iat[j,0] - pdata.iat[i,0],
+                                            sum([(pdata.iat[j,d] - pdata.iat[i,d])**2 for d in range(1,dims+1)])
+                                    ]],
+                                    axis = 0
+                                    )
+                        except:
+                            print()
+                            print('particle:',p)
+                            print(pdata)
+                            print('i:',i)
+                            print('j:',j)
         
         print('\rprocessing MSD {:d}% done, took {:d} s.'.format(100,int(time.time()-t)))
         
@@ -340,6 +349,158 @@ def mean_square_displacement(features, pos_cols = ['x','y','z'], t_col='t (s)',
     binmeans[bincounts>0] /= bincounts[bincounts>0]
     
     return binedges,bincounts[:-1],binmeans[:-1]
+
+
+def mean_square_displacement(features, pos_cols = ['x','y','z'], t_col='t (s)',
+                         nparticles=None, pickrandom=False, bins=20,
+                         tmin=None, tmax=None, itmin=1, itmax=None,
+                         parallel=False, cores=None):
+    """
+    calculate the mean square displacement vs time for linked particles
+    
+    Parameters
+    ----------
+    features : pandas.DataFrame
+        output from trackpy.link containing tracking data
+    pos_cols : list of str, optional
+        names of columns to use for coordinates. The default is
+        ['x','y','z'].
+    t_col : str, optional
+        name of column containing timestamps. The default is 't (s)'.
+    nparticles : int, optional
+        number of particles to use for calculation (useful for large
+        datasets). The default is all particles.
+    pickrandom : bool, optional
+        whether to pick nparticles randomly or not, if False it takes the 
+        n longest tracked particles from data. The default is False.
+    bins : int or sequence of floats, optional
+        number of bins or bin edges for output. The default is 20.
+    tmin : float, optional
+        left edge of first bin. The default is min(t_col).
+    tmax : float, optional
+       right edge of last bin, The default is max(t_col).
+    itmin : int, optional
+        minimum (integer) step size in timesteps. The default is 1.
+    itmax : int, optional
+        maximum (integer) step size in timesteps. The default is no limit.
+    parallel : bool, optional
+        whether to use the parallelized implementation. Requires rest of 
+        the code to be protected in a if __name__ == '__main__' block. The
+        default is False.
+    cores : int, optional
+        the number of cores to use when using the parallelized
+        implementation. When parallel=False this option is ignored
+    
+    Returns
+    -------
+    binedges : numpy.array
+        edges of time bins
+    bincounts : numpy.array
+        number of sampling points for each bin
+    binmeans : numpy.array
+        mean square displacement values
+    """
+    #restructure data to correct order
+    features = features[['particle']+[t_col]+pos_cols]
+    features = features.set_index('particle')
+    
+    #check min and max step interval
+    if itmin is None or itmin < 1:
+        itmin = 1
+    if itmax == None:
+        itmax = False
+    else:
+        if not isinstance(itmax,int):
+            raise TypeError('`itmax` must be None or integer')
+    
+    #converting to set assures unique values only
+    particles  = features.groupby('particle').size()
+    particles = set(particles.loc[particles>itmin].index)
+    #particles = set(features.index)
+    
+    #optionally take a subset of particles
+    if not nparticles is None and len(particles)>nparticles:
+        
+        #optionally take random subset of particles
+        if pickrandom:
+            import random
+            particles = random.sample(set(features.index),nparticles)
+        
+        #else take the particles which occur in most of the frames
+        else:
+            vals, counts = np.unique(features.index, return_counts=True)
+            sortedindices = np.argsort(-counts)[:nparticles]
+            particles = vals[sortedindices]
+    
+    n = len(particles)
+    
+    import time
+    t = time.time()
+    
+    #when using parallel processing
+    if parallel:
+        
+        import multiprocessing as mp
+        from functools import partial
+        
+        curry = partial(_msd_particle_loop,itmin=itmin,itmax=itmax)
+        dt_dr = np.empty((0,2))
+        
+        if cores == None:
+            cores = mp.cpu_count()
+        try:
+            pool = mp.Pool(cores)
+            result = pool.imap(curry,(features.loc[p].to_numpy() for p in particles))
+    
+            for i,res in enumerate(result):
+                dt_dr = np.append(dt_dr,res,axis=0)
+                print(f'\rprocessing MSD using {cores} cores, {100*(i+1)/(n+1):.1f}% done',end='',flush=True)
+                
+            #get results and terminate
+            pool.close()
+
+            print('\rprocessing MSD using {:d} cores, {:d}% done, took {:d} s.'.format(cores,100,int(time.time()-t)))
+        
+        finally:
+            pool.terminate()
+        
+    
+    #normal single core process
+    else:
+        #initialize empty arrays to contain dt and dr
+        #dt = np.empty(0)
+        #dr = np.empty(0)
+        dt_dr = np.empty((0,2))
+        
+        #iterate over all particles
+        for k,p in enumerate(particles):
+            print('\rprocessing MSD {:d}% done'.format(int(100*k/n)),end='',flush=True)
+            
+            #loop over all intervals
+            pdata = features.loc[p].to_numpy()
+            dt_dr = np.append(dt_dr, _msd_particle_loop(pdata,itmin,itmax),axis=0)
+        
+        print('\rprocessing MSD {:d}% done, took {:d} s.'.format(100,int(time.time()-t)))
+    
+    bincounts,binedges = np.histogram(dt_dr[:,0],bins=bins)
+    binmeans,_ = np.histogram(dt_dr[:,0],weights=dt_dr[:,1],bins=bins)
+    binmeans[bincounts==0] = np.nan
+    binmeans[bincounts>0] /= bincounts[bincounts>0]
+    
+    return binedges,bincounts,binmeans
+
+import numba as nb
+@nb.njit()
+def _msd_particle_loop(pdata,itmin=1,itmax=False):
+    dt_dr = np.empty((0,2))
+    l = len(pdata)
+    for i in range(itmin, l if not itmax else min([l,itmax])):
+        for j in range(min([i,l-i])):
+            diff = pdata[j+i::i] - pdata[j:-i:i]
+            diff[:,1] = (diff[:,1:]**2).sum(axis=1)
+            dt_dr = np.append(dt_dr,diff[:,:2],axis=0)
+    return dt_dr
+
 
 def mean_square_displacement_per_frame(features, pos_cols = ['x','y'], feat_col = 'particle'):
     """
