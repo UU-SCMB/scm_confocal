@@ -354,7 +354,7 @@ def mean_square_displacement_legacy(features, pos_cols = ['x','y','z'], t_col='t
 def mean_square_displacement(features, pos_cols = ['x','y','z'], t_col='t (s)',
                          nparticles=None, pickrandom=False, bins=20,
                          tmin=None, tmax=None, itmin=1, itmax=None,
-                         parallel=False, cores=None):
+                         parallel=False, cores=None,linear_sampling=False):
     """
     calculate the mean square displacement vs time for linked particles
     
@@ -442,8 +442,9 @@ def mean_square_displacement(features, pos_cols = ['x','y','z'], t_col='t (s)',
         
         import multiprocessing as mp
         from functools import partial
+        print(f'processing MSD using {cores} cores...',end='',flush=True)
         
-        curry = partial(_msd_particle_loop,itmin=itmin,itmax=itmax)
+        curry = partial(_msd_particle_loop,itmin=itmin,itmax=itmax,linear=linear_sampling)
         dt_dr = np.empty((0,2))
         
         if cores == None:
@@ -478,7 +479,7 @@ def mean_square_displacement(features, pos_cols = ['x','y','z'], t_col='t (s)',
             
             #loop over all intervals
             pdata = features.loc[p].to_numpy()
-            dt_dr = np.append(dt_dr, _msd_particle_loop(pdata,itmin,itmax),axis=0)
+            dt_dr = np.append(dt_dr, _msd_particle_loop(pdata,itmin,itmax,linear=linear_sampling),axis=0)
         
         print('\rprocessing MSD {:d}% done, took {:d} s.'.format(100,int(time.time()-t)))
     
@@ -491,11 +492,15 @@ def mean_square_displacement(features, pos_cols = ['x','y','z'], t_col='t (s)',
 
 import numba as nb
 @nb.njit()
-def _msd_particle_loop(pdata,itmin=1,itmax=False):
+def _msd_particle_loop(pdata,itmin=1,itmax=False,linear=False):
     dt_dr = np.empty((0,2))
     l = len(pdata)
     for i in range(itmin, l if not itmax else min([l,itmax])):
-        for j in range(min([i,l-i])):
+        if linear:
+            js = np.random.randint(0,min([i,l-i]),size=1)
+        else:
+            js = np.arange(min([i,l-i]))
+        for j in js:
             diff = pdata[j+i::i] - pdata[j:-i:i]
             diff[:,1] = (diff[:,1:]**2).sum(axis=1)
             dt_dr = np.append(dt_dr,diff[:,:2],axis=0)
