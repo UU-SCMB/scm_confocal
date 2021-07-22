@@ -527,7 +527,7 @@ class sp8_image(sp8_lif):
         else:
             dimsdict = dict()
             div = 1
-            for d in dims[:]:
+            for d in dims[2:]:
                 mod = int(d['NumberOfElements'])
                 dimsdict[int(d['DimID'])] = (i//div) % mod
                 div *= mod
@@ -571,6 +571,8 @@ class sp8_image(sp8_lif):
             
             9. `'excitation wavelength'`
             
+            10. `'mosaic'`
+        
         - As an example, a 2 channel xyt measurement would result in a 4-d
           array with axis order ('channel','time','y-axis',
           'x-axis'), and a single channel xyz scan would be returned as
@@ -611,7 +613,7 @@ class sp8_image(sp8_lif):
         #dimensions = self.get_dimensions()
         #order = [_DimID_to_str(dim['DimID']) for dim in reversed(dimensions)]
         #order = ['channel'] + order
-        order = ['channel','time','z-axis','y-axis','x-axis']
+        order = ['mosaic','channel','time','z-axis','y-axis','x-axis']
         
         #store slicing
         self._stack_dim_range = dim_range
@@ -653,16 +655,18 @@ class sp8_image(sp8_lif):
         channels = np.array(range(self.channels))[dim_range['channel']]
         times = np.array(range(self.nt))[dim_range['time']]
         zsteps = np.array(range(self.nz))[dim_range['z-axis']]
+        msteps = np.array(range(self.dims.m))[dim_range['mosaic']]
         
         #determine shape and init array
-        newshape = (len(channels),len(times),len(zsteps),ny,nx)
+        newshape = (len(msteps),len(channels),len(times),len(zsteps),ny,nx)
         data = np.empty(newshape,dtype=np.uint8)
-        
+
         #loop over indices and load
-        for i,c in enumerate(channels):
-            for j,t in enumerate(times):
-                for k,z in enumerate(zsteps):
-                    data[i,j,k,:,:] = self.lifimage.get_frame(z,t,c)
+        for i,m in enumerate(msteps):
+            for j,c in enumerate(channels):
+                for k,t in enumerate(times):
+                    for l,z in enumerate(zsteps):
+                        data[i,j,k,l,:,:] = self.lifimage.get_frame(z,t,c,m)
         
         #if ranges for x or y are chosen, remove those from the array now,
         #account (top to bottom) for trimming x ánd y, only x, or only y.
