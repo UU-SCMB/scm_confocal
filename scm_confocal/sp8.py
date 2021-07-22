@@ -527,7 +527,7 @@ class sp8_image(sp8_lif):
         else:
             dimsdict = dict()
             div = 1
-            for d in dims[:]:
+            for d in dims[2:]:
                 mod = int(d['NumberOfElements'])
                 dimsdict[int(d['DimID'])] = (i//div) % mod
                 div *= mod
