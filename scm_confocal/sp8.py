@@ -82,6 +82,9 @@ class sp8_lif:
     
     def __getitem__(self,i):
         """allows using indexing as a shorthand for `get_image()`"""
+        if i >= len(self):
+            raise IndexError(f"Index {i} is out of range for image_list with"\
+                              f" size {len(self)}")
         return self.get_image(i)
     
     def __repr__(self):
