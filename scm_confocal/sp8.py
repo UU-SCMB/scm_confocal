@@ -431,7 +431,7 @@ class sp8_image(sp8_lif):
             stepsize = float(dim['Length'])/(int(dim['NumberOfElements'])-1)
         return (stepsize,dim['Unit'])
     
-    def get_dimension_steps(self,dim):
+    def get_dimension_steps(self,dim,load_stack_indices=False):
         """
         returns a list of corresponding physical values for all steps along
         a given dimension, e.g. a list of time steps or x coordinates.
@@ -454,11 +454,27 @@ class sp8_image(sp8_lif):
             physical unit of the data.
 
         """
-        dim = self.get_dimension(dim)
-        start = float(dim['Origin'])
-        length = float(dim['Length'])
-        steps = int(dim['NumberOfElements'])
-        return np.linspace(start,start+length,steps),dim['Unit']
+        dimdata = self.get_dimension(dim)
+        start = float(dimdata['Origin'])
+        length = float(dimdata['Length'])
+        nsteps = int(dimdata['NumberOfElements'])
+        steps = np.linspace(start,start+length,nsteps)
+        
+        if load_stack_indices:
+            try:
+                dim_range = self._stack_dim_range
+            except AttributeError:
+                raise AttributeError('data must be loaded with '
+                    'sp8_image.load_stack() prior to '
+                    'calling sp8_image.get_dimension_steps() with '
+                    'load_stack_indices=True')
+
+            if dim in dim_range:
+                if type(dim)==int:
+                    dim = _DimID_to_str(dim)
+                steps = steps[dim_range[dim]]
+        
+        return steps,dimdata['Unit']
     
     def get_pixelsize(self):
         """
