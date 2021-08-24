@@ -1534,11 +1534,17 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
         shape = exportim.shape
     
     #default colormap scaling, for multichannel check length
-    if type(cmap_range) == type(None):
+    if cmap_range is None:
         if multichannel:
             cmap_range = [(np.amin(im),np.amax(im)) for im in exportim]
         else:
             cmap_range = (np.amin(exportim),np.amax(exportim))
+    elif cmap_range == 'auto':
+        if multichannel:
+            cmap_range = [(np.percentile(im,1),np.percentile(im,99)) \
+                          for im in exportim]
+        else:
+            cmap_range = (np.percentile(exportim,1),np.percentile(exportim,99))
     elif multichannel:
         cmap_range = [(np.amin(im),np.amax(im)) if cmr is None else cmr \
                       for cmr,im in zip(cmap_range,exportim)]
