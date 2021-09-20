@@ -660,15 +660,9 @@ class sp8_image(sp8_lif):
             if not dim in dim_range:
                 dim_range[dim] = slice(None,None)
         
-        #set x and y sizes
-        try:
-            nx = int(self.get_dimension(1)['NumberOfElements'])
-        except ValueError:
-            nx = 1
-        try:
-            ny = int(self.get_dimension(2)['NumberOfElements'])
-        except ValueError:
-            ny = 1
+        #set x and y sizes (not to be sliced)
+        nx = self.dims.x
+        ny = self.dims.y
         
         #create list of indices for each dimension and slice them
         channels = np.array(range(self.channels))[dim_range['channel']]
