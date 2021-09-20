@@ -1513,7 +1513,7 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
                           loc=2,convert=None,font='arialbd.ttf',fontsize=16,
                           fontbaseline=0,fontpad=2,barcolor=(255,255,255),
                           barthickness=16,barpad=10,box=False,
-                          boxcolor=(0,0,0),boxopacity=255,boxpad=10):
+                          boxcolor=(0,0,0),boxopacity=255,boxpad=10,save=True):
     """
     see top level export_with_scalebar functions for docs
     """
@@ -1819,5 +1819,8 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
     plt.show(block=False)
     
     #convert to BGRA, save image
-    cv2.imwrite(filename,cv2.cvtColor(exportim, cv2.COLOR_RGBA2BGRA))
-    print('Image saved as "'+filename+'"')
+    exportim = cv2.cvtColor(exportim, cv2.COLOR_RGBA2BGRA)
+    if save:
+        cv2.imwrite(filename,exportim)
+        print('Image saved as "'+filename+'"')
+    return exportim

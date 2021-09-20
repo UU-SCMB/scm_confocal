@@ -880,7 +880,7 @@ class sp8_image(sp8_lif):
         
         #call main export_with_scalebar function with correct pixelsize etc
         from .util import _export_with_scalebar
-        _export_with_scalebar(exportim, pixelsize, unit, filename, 
+        return _export_with_scalebar(exportim, pixelsize, unit, filename, 
                               multichannel, **kwargs)
 
 class sp8_series:
