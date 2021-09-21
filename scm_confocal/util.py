@@ -1513,7 +1513,8 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
                           loc=2,convert=None,font='arialbd.ttf',fontsize=16,
                           fontbaseline=0,fontpad=2,barcolor=(255,255,255),
                           barthickness=16,barpad=10,box=False,
-                          boxcolor=(0,0,0),boxopacity=255,boxpad=10,save=True):
+                          boxcolor=(0,0,0),boxopacity=255,boxpad=10,save=True,
+                          show_figure=True):
     """
     see top level export_with_scalebar functions for docs
     """
@@ -1574,50 +1575,51 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
             cmap = _get_pure_cmap(cmap)
     
     #draw original figure before changing exportim
-    fig,ax = plt.subplots(1,1)
-    if multichannel:
-        for i,(im,mp,rng) in enumerate(zip(exportim,cmap,cmap_range)):
-            ax.imshow(im,cmap=mp,vmin=rng[0],vmax=rng[1],alpha=1/(i+1))
-    else:
-        ax.imshow(exportim,cmap=cmap,vmin=cmap_range[0],vmax=cmap_range[1])
-    plt.title('original image')
-    plt.axis('off')
-    plt.tight_layout()
-    
-    #check if alternative form of cropping is used
-    if type(crop) != type(None) and len(crop) == 4:
-        altcrop = True
-    else:
-        altcrop = False
-    
-    #print current axes limits for easy cropping
-    def _on_lim_change(call):
-        [txt.set_visible(False) for txt in ax.texts]
-        xmin,xmax = ax.get_xlim()
-        ymax,ymin = ax.get_ylim()
-        if altcrop:
-            croptext = 'current crop: ({:}, {:}, {:}, {:})'
-            croptext = croptext.format(
-                int(xmin),
-                int(ymin),
-                int(xmax-xmin+1),
-                int(ymax-ymin+1)
-            )
+    if show_figure:
+        fig,ax = plt.subplots(1,1)
+        if multichannel:
+            for i,(im,mp,rng) in enumerate(zip(exportim,cmap,cmap_range)):
+                ax.imshow(im,cmap=mp,vmin=rng[0],vmax=rng[1],alpha=1/(i+1))
         else:
-            croptext = 'current crop: (({:}, {:}), ({:}, {:}))'
-            croptext = croptext.format(
-                int(xmin),
-                int(ymin),
-                int(xmax+1),
-                int(ymax+1)
-            )
-        ax.text(0.01,0.01,croptext,fontsize=12,ha='left',va='bottom',
-                transform=ax.transAxes,color='red')
-    
-    #attach callback to limit change
-    ax.callbacks.connect("xlim_changed", _on_lim_change)
-    ax.callbacks.connect("ylim_changed", _on_lim_change)
-    plt.show(block=False)
+            ax.imshow(exportim,cmap=cmap,vmin=cmap_range[0],vmax=cmap_range[1])
+        plt.title('original image')
+        plt.axis('off')
+        plt.tight_layout()
+        
+        #check if alternative form of cropping is used
+        if type(crop) != type(None) and len(crop) == 4:
+            altcrop = True
+        else:
+            altcrop = False
+        
+        #print current axes limits for easy cropping
+        def _on_lim_change(call):
+            [txt.set_visible(False) for txt in ax.texts]
+            xmin,xmax = ax.get_xlim()
+            ymax,ymin = ax.get_ylim()
+            if altcrop:
+                croptext = 'current crop: ({:}, {:}, {:}, {:})'
+                croptext = croptext.format(
+                    int(xmin),
+                    int(ymin),
+                    int(xmax-xmin+1),
+                    int(ymax-ymin+1)
+                )
+            else:
+                croptext = 'current crop: (({:}, {:}), ({:}, {:}))'
+                croptext = croptext.format(
+                    int(xmin),
+                    int(ymin),
+                    int(xmax+1),
+                    int(ymax+1)
+                )
+            ax.text(0.01,0.01,croptext,fontsize=12,ha='left',va='bottom',
+                    transform=ax.transAxes,color='red')
+        
+        #attach callback to limit change
+        ax.callbacks.connect("xlim_changed", _on_lim_change)
+        ax.callbacks.connect("ylim_changed", _on_lim_change)
+        plt.show(block=False)
     
     if draw_bar:
         #set default unit to µm
@@ -1811,16 +1813,18 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
         exportim = np.array(exportim)
     
     #show result
-    plt.figure()
-    plt.imshow(exportim)
-    plt.title('exported image')
-    plt.axis('off')
-    plt.tight_layout()
-    plt.show(block=False)
+    if show_figure:
+        plt.figure()
+        plt.imshow(exportim)
+        plt.title('exported image')
+        plt.axis('off')
+        plt.tight_layout()
+        plt.show(block=False)
     
     #convert to BGRA, save image
     exportim = cv2.cvtColor(exportim, cv2.COLOR_RGBA2BGRA)
     if save:
         cv2.imwrite(filename,exportim)
         print('Image saved as "'+filename+'"')
+    
     return exportim

@@ -687,6 +687,10 @@ class visitech_series:
         boxpad : int, optional
             size of the space/padding around the box (with respect to the sides
             of the image) in printer points. The default is 10.
+            
+        Returns
+        -------
+        Y×X×4 numpy.array containing the BGRA pixel data
         """       
         #check if pixelsize already calculated, otherwise call get_pixelsize
         pixelsize, unit = self._pixelsizeXY, 'µm'
@@ -705,8 +709,8 @@ class visitech_series:
         
         #call main export_with_scalebar function with correct pixelsize etc
         from .util import _export_with_scalebar
-        _export_with_scalebar(exportim, pixelsize, unit, filename, False,
-                              **kwargs)
+        return _export_with_scalebar(exportim, pixelsize, unit, filename, 
+                                     False, **kwargs)
 
 class visitech_faststack:
     """
@@ -1516,6 +1520,10 @@ class visitech_faststack:
         boxpad : int, optional
             size of the space/padding around the box (with respect to the sides
             of the image) in printer points. The default is 10.
+            
+        Returns
+        -------
+        Y×X×4 numpy.array containing the BGRA pixel data
         """    
         #get x pixelsize, unit is always micrometer
         pixelsize, unit = self.pixelsize[2], 'µm'
@@ -1543,5 +1551,5 @@ class visitech_faststack:
         
         #call main export_with_scalebar function with correct pixelsize etc
         from .util import _export_with_scalebar
-        _export_with_scalebar(exportim, pixelsize, unit, filename, False,
-                              **kwargs)
+        return _export_with_scalebar(exportim, pixelsize, unit, filename, 
+                                     False, **kwargs)

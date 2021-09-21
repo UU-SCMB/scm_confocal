@@ -836,6 +836,10 @@ class sp8_image(sp8_lif):
         boxpad : int, optional
             size of the space/padding around the box (with respect to the sides
             of the image) in printer points. The default is 10.
+            
+        Returns
+        -------
+        Y×X×4 numpy.array containing the BGRA pixel data
         """      
         #check if pixelsize already calculated, otherwise call get_pixelsize
         pixelsize, unit = self.get_dimension_stepsize('x-axis')
@@ -1544,6 +1548,11 @@ class sp8_series:
         boxpad : int, optional
             size of the space/padding around the box (with respect to the sides
             of the image) in printer points. The default is 10.
+            
+            
+        Returns
+        -------
+        Y×X×4 numpy.array containing the BGRA pixel data
         """    
         #check if pixelsize already calculated, otherwise call get_pixelsize
         pixelsize, unit = self.get_dimension_stepsize('x-axis')
@@ -1579,7 +1588,7 @@ class sp8_series:
         
         #call main export_with_scalebar function with correct pixelsize etc
         from .util import _export_with_scalebar
-        _export_with_scalebar(exportim, pixelsize, unit, filename, 
+        return s_export_with_scalebar(exportim, pixelsize, unit, filename, 
                               multichannel, **kwargs)
 
 def _DimID_to_str(dim):
