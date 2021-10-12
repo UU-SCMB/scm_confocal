@@ -431,7 +431,7 @@ class sp8_image(sp8_lif):
             stepsize = float(dim['Length'])/(int(dim['NumberOfElements'])-1)
         return (stepsize,dim['Unit'])
     
-    def get_dimension_steps(self,dim):
+    def get_dimension_steps(self,dim,load_stack_indices=False):
         """
         returns a list of corresponding physical values for all steps along
         a given dimension, e.g. a list of time steps or x coordinates.
@@ -454,11 +454,27 @@ class sp8_image(sp8_lif):
             physical unit of the data.
 
         """
-        dim = self.get_dimension(dim)
-        start = float(dim['Origin'])
-        length = float(dim['Length'])
-        steps = int(dim['NumberOfElements'])
-        return np.linspace(start,start+length,steps),dim['Unit']
+        dimdata = self.get_dimension(dim)
+        start = float(dimdata['Origin'])
+        length = float(dimdata['Length'])
+        nsteps = int(dimdata['NumberOfElements'])
+        steps = np.linspace(start,start+length,nsteps)
+        
+        if load_stack_indices:
+            try:
+                dim_range = self._stack_dim_range
+            except AttributeError:
+                raise AttributeError('data must be loaded with '
+                    'sp8_image.load_stack() prior to '
+                    'calling sp8_image.get_dimension_steps() with '
+                    'load_stack_indices=True')
+
+            if dim in dim_range:
+                if type(dim)==int:
+                    dim = _DimID_to_str(dim)
+                steps = steps[dim_range[dim]]
+        
+        return steps,dimdata['Unit']
     
     def get_pixelsize(self):
         """
@@ -645,15 +661,9 @@ class sp8_image(sp8_lif):
             if not dim in dim_range:
                 dim_range[dim] = slice(None,None)
         
-        #set x and y sizes
-        try:
-            nx = int(self.get_dimension(1)['NumberOfElements'])
-        except ValueError:
-            nx = 1
-        try:
-            ny = int(self.get_dimension(2)['NumberOfElements'])
-        except ValueError:
-            ny = 1
+        #set x and y sizes (not to be sliced)
+        nx = self.dims.x
+        ny = self.dims.y
         
         #create list of indices for each dimension and slice them
         channels = np.array(range(self.channels))[dim_range['channel']]
@@ -707,11 +717,11 @@ class sp8_image(sp8_lif):
     
     def export_with_scalebar(self,frame=0,channel=0,filename=None,**kwargs):
         """
-        saves an exported image of the TEM image with a scalebar in one of the 
-        four corners, where barsize is the scalebar size in data units (e.g. 
-        nm) and scale the overall size of the scalebar and text with respect to
-        the width of the image. Additionally, a colormap is applied to the data
-        for better visualisation.
+        saves an exported image of the confocal slice with a scalebar in one of
+        the four corners, where barsize is the scalebar size in data units 
+        (e.g. µm) and scale the overall size of the scalebar and text with 
+        respect to the width of the image. Additionally, a colormap is applied
+        to the data for better visualisation.
 
         Parameters
         ----------
@@ -805,11 +815,23 @@ class sp8_image(sp8_lif):
             base font size to use for the scale bar text. The default is 16. 
             Note that this size will be re-scaled according to `resolution` and
             `scale`.
+        fontbaseline : int, optional
+            vertical offset for the baseline of the scale bar text in printer
+             points. The default is 0.
+        fontpad : int, optional
+            minimum size in printer points of the space/padding between the 
+            text and the bar and surrounding box. The default is 2.
         barcolor : tuple of ints, optional
             RGB color to use for the scalebar and text, given
             as a tuple of form (R,G,B) where R, G B and A are values between 0 
             and 255 for red, green and blue respectively. The default is 
             `(255,255,255,255)`, which is a white scalebar and text.
+        barthickness : int, optional
+            thickness in printer points of the scale bar itself. The default is
+            16.
+        barpad : int, optional
+            size in printer points of the padding between the scale bar and the
+            surrounding box. The default is 10.
         box : bool, optional
             Whether to put a colored box behind the scalebar and text to 
             enhance contrast on busy images. The default is `False`.
@@ -818,9 +840,16 @@ class sp8_image(sp8_lif):
             given as a tuple of form (R,G,B) where R, G B and A are values 
             between 0 and 255 for red, green and blue respectively. The default
             is (0,0,0) which gives a black box.
-        boxopacity : int
+        boxopacity : int, optional
             value between 0 and 255 for the opacity/alpha of the box, useful
             for creating a semitransparent box. The default is 255.
+        boxpad : int, optional
+            size of the space/padding around the box (with respect to the sides
+            of the image) in printer points. The default is 10.
+            
+        Returns
+        -------
+        Y×X×4 numpy.array containing the BGRA pixel data
         """      
         #check if pixelsize already calculated, otherwise call get_pixelsize
         pixelsize, unit = self.get_dimension_stepsize('x-axis')
@@ -865,7 +894,7 @@ class sp8_image(sp8_lif):
         
         #call main export_with_scalebar function with correct pixelsize etc
         from .util import _export_with_scalebar
-        _export_with_scalebar(exportim, pixelsize, unit, filename, 
+        return _export_with_scalebar(exportim, pixelsize, unit, filename, 
                               multichannel, **kwargs)
 
 class sp8_series:
@@ -1400,11 +1429,11 @@ class sp8_series:
     
     def export_with_scalebar(self,frame=0,channel=0,filename=None,**kwargs):
         """
-        saves an exported image of the TEM image with a scalebar in one of the 
-        four corners, where barsize is the scalebar size in data units (e.g. 
-        nm) and scale the overall size of the scalebar and text with respect to
-        the width of the image. Additionally, a colormap is applied to the data
-        for better visualisation.
+        saves an exported image of the confocal slice with a scalebar in one of
+        the four corners, where barsize is the scalebar size in data units 
+        (e.g. µm) and scale the overall size of the scalebar and text with 
+        respect to the width of the image. Additionally, a colormap is applied
+        to the data for better visualisation.
 
         Parameters
         ----------
@@ -1498,11 +1527,23 @@ class sp8_series:
             base font size to use for the scale bar text. The default is 16. 
             Note that this size will be re-scaled according to `resolution` and
             `scale`.
+        fontbaseline : int, optional
+            vertical offset for the baseline of the scale bar text in printer
+             points. The default is 0.
+        fontpad : int, optional
+            minimum size in printer points of the space/padding between the 
+            text and the bar and surrounding box. The default is 2.
         barcolor : tuple of ints, optional
             RGB color to use for the scalebar and text, given
             as a tuple of form (R,G,B) where R, G B and A are values between 0 
             and 255 for red, green and blue respectively. The default is 
             `(255,255,255,255)`, which is a white scalebar and text.
+        barthickness : int, optional
+            thickness in printer points of the scale bar itself. The default is
+            16.
+        barpad : int, optional
+            size in printer points of the padding between the scale bar and the
+            surrounding box. The default is 10.
         box : bool, optional
             Whether to put a colored box behind the scalebar and text to 
             enhance contrast on busy images. The default is `False`.
@@ -1511,10 +1552,18 @@ class sp8_series:
             given as a tuple of form (R,G,B) where R, G B and A are values 
             between 0 and 255 for red, green and blue respectively. The default
             is (0,0,0) which gives a black box.
-        boxopacity : int
+        boxopacity : int, optional
             value between 0 and 255 for the opacity/alpha of the box, useful
             for creating a semitransparent box. The default is 255.
-        """       
+        boxpad : int, optional
+            size of the space/padding around the box (with respect to the sides
+            of the image) in printer points. The default is 10.
+            
+            
+        Returns
+        -------
+        Y×X×4 numpy.array containing the BGRA pixel data
+        """    
         #check if pixelsize already calculated, otherwise call get_pixelsize
         pixelsize, unit = self.get_dimension_stepsize('x-axis')
         
@@ -1549,7 +1598,7 @@ class sp8_series:
         
         #call main export_with_scalebar function with correct pixelsize etc
         from .util import _export_with_scalebar
-        _export_with_scalebar(exportim, pixelsize, unit, filename, 
+        return s_export_with_scalebar(exportim, pixelsize, unit, filename, 
                               multichannel, **kwargs)
 
 def _DimID_to_str(dim):

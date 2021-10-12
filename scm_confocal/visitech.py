@@ -38,6 +38,37 @@ class visitech_series:
         """"represents class instance in the interpreter"""
         return f"<scm_confocal.visitech_series('{self.filename}')>"
 
+    def __len__(self):
+        """length of series is number of frames"""
+        if hasattr(self,'nf'):
+            return self.nf
+        else:
+            self._init_pims()
+            return self.nf
+    
+    def __getitem__(self,key):
+        """make indexable, where it returns the ith frame, where a frame is 
+        defined by the first 2 dimensions in recording order"""
+        if not hasattr(self,'nf'):
+            self._init_pims()
+        if isinstance(key,slice):
+            return [self[i] for i in range(*key.indices(len(self)))]
+        else:
+            return self.datafile[key]
+    
+    def __iter__(self):
+        """initialize iterator"""
+        self._iter_n = 0
+        return self
+
+    def __next__(self):
+        "make iterable where it returns one image at a time"
+        self._iter_n += 1
+        if self._iter_n >= len(self):
+            raise StopIteration
+        else:
+            return self.datafile[self._iter_n]
+
     def _init_pims(self):
         """only initialize PIMS object when necessary, since it may take a long
         time for large series / slow harddrives even to just index the data"""
@@ -535,11 +566,11 @@ class visitech_series:
     
     def export_with_scalebar(self,frame=0,filename=None,**kwargs):
         """
-        saves an exported image of the TEM image with a scalebar in one of the 
-        four corners, where barsize is the scalebar size in data units (e.g. 
-        nm) and scale the overall size of the scalebar and text with respect to
-        the width of the image. Additionally, a colormap is applied to the data
-        for better visualisation.
+        saves an exported image of the confocal slice with a scalebar in one of
+        the four corners, where barsize is the scalebar size in data units 
+        (e.g. µm) and scale the overall size of the scalebar and text with 
+        respect to the width of the image. Additionally, a colormap is applied
+        to the data for better visualisation.
 
         Parameters
         ----------
@@ -625,11 +656,23 @@ class visitech_series:
             base font size to use for the scale bar text. The default is 16. 
             Note that this size will be re-scaled according to `resolution` and
             `scale`.
+        fontbaseline : int, optional
+            vertical offset for the baseline of the scale bar text in printer
+             points. The default is 0.
+        fontpad : int, optional
+            minimum size in printer points of the space/padding between the 
+            text and the bar and surrounding box. The default is 2.
         barcolor : tuple of ints, optional
             RGB color to use for the scalebar and text, given
             as a tuple of form (R,G,B) where R, G B and A are values between 0 
             and 255 for red, green and blue respectively. The default is 
             `(255,255,255,255)`, which is a white scalebar and text.
+        barthickness : int, optional
+            thickness in printer points of the scale bar itself. The default is
+            16.
+        barpad : int, optional
+            size in printer points of the padding between the scale bar and the
+            surrounding box. The default is 10.
         box : bool, optional
             Whether to put a colored box behind the scalebar and text to 
             enhance contrast on busy images. The default is `False`.
@@ -638,10 +681,17 @@ class visitech_series:
             given as a tuple of form (R,G,B) where R, G B and A are values 
             between 0 and 255 for red, green and blue respectively. The default
             is (0,0,0) which gives a black box.
-        boxopacity : int
+        boxopacity : int, optional
             value between 0 and 255 for the opacity/alpha of the box, useful
             for creating a semitransparent box. The default is 255.
-        """      
+        boxpad : int, optional
+            size of the space/padding around the box (with respect to the sides
+            of the image) in printer points. The default is 10.
+            
+        Returns
+        -------
+        Y×X×4 numpy.array containing the BGRA pixel data
+        """       
         #check if pixelsize already calculated, otherwise call get_pixelsize
         pixelsize, unit = self._pixelsizeXY, 'µm'
         
@@ -659,8 +709,8 @@ class visitech_series:
         
         #call main export_with_scalebar function with correct pixelsize etc
         from .util import _export_with_scalebar
-        _export_with_scalebar(exportim, pixelsize, unit, filename, False,
-                              **kwargs)
+        return _export_with_scalebar(exportim, pixelsize, unit, filename, 
+                                     False, **kwargs)
 
 class visitech_faststack:
     """
@@ -1345,11 +1395,11 @@ class visitech_faststack:
     
     def export_with_scalebar(self,stack=0,zslice=0,filename=None,**kwargs):
         """
-        saves an exported image of the TEM image with a scalebar in one of the 
-        four corners, where barsize is the scalebar size in data units (e.g. 
-        nm) and scale the overall size of the scalebar and text with respect to
-        the width of the image. Additionally, a colormap is applied to the data
-        for better visualisation.
+        saves an exported image of the confocal slice with a scalebar in one of
+        the four corners, where barsize is the scalebar size in data units 
+        (e.g. µm) and scale the overall size of the scalebar and text with 
+        respect to the width of the image. Additionally, a colormap is applied
+        to the data for better visualisation.
 
         Parameters
         ----------
@@ -1439,11 +1489,23 @@ class visitech_faststack:
             base font size to use for the scale bar text. The default is 16. 
             Note that this size will be re-scaled according to `resolution` and
             `scale`.
+        fontbaseline : int, optional
+            vertical offset for the baseline of the scale bar text in printer
+             points. The default is 0.
+        fontpad : int, optional
+            minimum size in printer points of the space/padding between the 
+            text and the bar and surrounding box. The default is 2.
         barcolor : tuple of ints, optional
             RGB color to use for the scalebar and text, given
             as a tuple of form (R,G,B) where R, G B and A are values between 0 
             and 255 for red, green and blue respectively. The default is 
             `(255,255,255,255)`, which is a white scalebar and text.
+        barthickness : int, optional
+            thickness in printer points of the scale bar itself. The default is
+            16.
+        barpad : int, optional
+            size in printer points of the padding between the scale bar and the
+            surrounding box. The default is 10.
         box : bool, optional
             Whether to put a colored box behind the scalebar and text to 
             enhance contrast on busy images. The default is `False`.
@@ -1452,10 +1514,17 @@ class visitech_faststack:
             given as a tuple of form (R,G,B) where R, G B and A are values 
             between 0 and 255 for red, green and blue respectively. The default
             is (0,0,0) which gives a black box.
-        boxopacity : int
+        boxopacity : int, optional
             value between 0 and 255 for the opacity/alpha of the box, useful
             for creating a semitransparent box. The default is 255.
-        """      
+        boxpad : int, optional
+            size of the space/padding around the box (with respect to the sides
+            of the image) in printer points. The default is 10.
+            
+        Returns
+        -------
+        Y×X×4 numpy.array containing the BGRA pixel data
+        """    
         #get x pixelsize, unit is always micrometer
         pixelsize, unit = self.pixelsize[2], 'µm'
         
@@ -1482,5 +1551,5 @@ class visitech_faststack:
         
         #call main export_with_scalebar function with correct pixelsize etc
         from .util import _export_with_scalebar
-        _export_with_scalebar(exportim, pixelsize, unit, filename, False,
-                              **kwargs)
+        return _export_with_scalebar(exportim, pixelsize, unit, filename, 
+                                     False, **kwargs)
