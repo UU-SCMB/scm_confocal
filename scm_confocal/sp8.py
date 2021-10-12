@@ -558,7 +558,7 @@ class sp8_image(sp8_lif):
             return tuple([self.lifimage.get_plane(c=c,requested_dims=dimsdict)\
                           for c in channel])
     
-    def load_stack(self,dim_range={}):
+    def load_stack(self,dim_range={},dtype=None):
         """
         Similar to sp8_series.load_data(), but converts the 3D array of images
         automatically to a np.ndarray of the appropriate dimensionality.
@@ -618,7 +618,8 @@ class sp8_image(sp8_lif):
                 
             The default is {}.
         dtype : (numpy) datatype, optional
-            type to scale data to. The default is np.uint8.
+            type to scale data to. The default is None which uses the same bit
+            depth as the original image (either 8- or 16-bit unsigned int).
 
         Returns
         -------
@@ -672,7 +673,9 @@ class sp8_image(sp8_lif):
         
         #determine shape and init array
         newshape = (len(msteps),len(channels),len(times),len(zsteps),ny,nx)
-        data = np.empty(newshape,dtype=np.uint8)
+        data = np.empty(newshape,
+                        dtype=np.uint8 if self.lifimage.bit_depth[0] == 8 
+                        else np.uint16)
 
         #loop over indices and load
         for i,m in enumerate(msteps):
@@ -702,6 +705,13 @@ class sp8_image(sp8_lif):
             if s > 1:
                 dim_order.append(order[i])
         data = np.squeeze(data)
+
+        # convert to requested dtype
+        if dtype is not None and data.dtype != dtype:
+            data = data.astype(float)
+            data -= data.min()
+            data *= 255.0/data.max()
+            data = data.astype(dtype)  
 
         return data, tuple(dim_order)
     
