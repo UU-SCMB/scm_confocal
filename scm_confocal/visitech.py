@@ -785,7 +785,7 @@ class visitech_faststack:
         
     def __len__(self):
         """returns length of series, in number of z-stacks"""
-        return self.nz
+        return self.nt
         
     def __repr__(self):
         """"represents class instance in the interpreter"""
@@ -1357,7 +1357,7 @@ class visitech_faststack:
         #in case of multipage tiff
         if isinstance(self.filename,str):
             import re
-            metadata = visitech_faststack._get_metadata_string(self.filename)
+            metadata = self._get_metadata_string()
             times = re.findall(r'DeltaT="([0-9]*\.[0-9]*)"',metadata)
             times = np.array([float(t) for t in times])
             
