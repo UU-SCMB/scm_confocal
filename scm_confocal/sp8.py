@@ -497,6 +497,16 @@ class sp8_image(sp8_lif):
                 pass
         return tuple(pixelsize)
     
+    def get_stage_position(self):
+        """Returns base (z,y,x) position of the stage in micrometer"""
+        md = self.get_metadata()
+        atlasdata = dict(md.find('.//ATLConfocalSettingDefinition').attrib)
+        return (
+            float(atlasdata['ZPosition'])*1e6,
+            float(atlasdata['StagePosY'])*1e6,
+            float(atlasdata['StagePosX'])*1e6
+        )
+    
     def load_frame(self,i=0,channel=None):
         """
         returns specified image frame where a frame is considered a 2D image in
@@ -714,6 +724,45 @@ class sp8_image(sp8_lif):
             data = data.astype(dtype)  
 
         return data, tuple(dim_order)
+    
+    def print_medata(self):
+        """ 
+        Prints a somewhat formatted version of the full image metadata, the 
+        xml hierarchy is indicated with prepended dashes.
+        """
+        #define recursive function to either print data, or call itself on children
+        def recursive_print(element,prefix):
+            """
+            recursive function for printing xml metadata with subelements
+            """
+            #if there are subelements, print and call itself on subelements
+            if element:
+                if element.attrib:
+                    print(prefix + element.tag + ' ' + \
+                          str(element.attrib) + ':')
+                else:
+                    print(prefix + element.tag + ':')
+                for child in element:
+                    recursive_print(child,prefix=prefix+'-')
+            
+            #otherwise, just print available info
+            else:
+                if not element.text:
+                    element.text = ''
+                if not element.attrib:#if attributes are empty
+                    print(prefix + element.tag + ': ' + element.text)
+                elif element.text:#when attributes not empty check if there is text
+                    print(prefix + element.tag + ': ' + str(element.attrib) + \
+                          element.text)
+                else:
+                    print(prefix + element.tag + ': ' + str(element.attrib))
+        
+        #print header, output and footer
+        print('\n -------------------------------------------- ')
+        print('|                  METADATA                  |')
+        print(' -------------------------------------------- ')
+        recursive_print(self.get_metadata(),'|')
+        print(' -------------------------------------------- ')
     
     def export_with_scalebar(self,frame=0,channel=0,filename=None,**kwargs):
         """
