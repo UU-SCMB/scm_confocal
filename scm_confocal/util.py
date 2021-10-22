@@ -1512,7 +1512,7 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
                           cmap_range=None,draw_bar=True,barsize=None,scale=1,
                           loc=2,convert=None,font='arialbd.ttf',fontsize=16,
                           fontbaseline=0,fontpad=2,barcolor=(255,255,255),
-                          barthickness=16,barpad=10,box=False,
+                          barthickness=14,barpad=10,box=False,
                           boxcolor=(0,0,0),boxopacity=255,boxpad=10,save=True,
                           show_figure=True):
     """
@@ -1587,7 +1587,7 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
         plt.tight_layout()
         
         #check if alternative form of cropping is used
-        if type(crop) != type(None) and len(crop) == 4:
+        if not crop is None and len(crop) == 4:
             altcrop = True
         else:
             altcrop = False
@@ -1643,7 +1643,7 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
             unit = convert
     
     #(optionally) crop
-    if type(crop) != type(None):
+    if not crop is None:
         
         #if (x,y,w,h) format, convert to other format
         if len(crop) == 4:
