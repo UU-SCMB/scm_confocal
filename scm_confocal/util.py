@@ -1512,7 +1512,7 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
                           cmap_range=None,draw_bar=True,barsize=None,scale=1,
                           loc=2,convert=None,font='arialbd.ttf',fontsize=16,
                           fontbaseline=0,fontpad=2,barcolor=(255,255,255),
-                          barthickness=16,barpad=10,box=False,
+                          barthickness=14,barpad=10,box=False,
                           boxcolor=(0,0,0),boxopacity=255,boxpad=10,save=True,
                           show_figure=True):
     """
@@ -1540,14 +1540,23 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
             cmap_range = [(np.amin(im),np.amax(im)) for im in exportim]
         else:
             cmap_range = (np.amin(exportim),np.amax(exportim))
-    elif cmap_range == 'auto':
+    elif cmap_range == 'automatic' or cmap_range == 'auto':
         if multichannel:
-            cmap_range = [(np.percentile(im,1),np.percentile(im,99)) \
+            cmap_range = [(np.percentile(im,10),np.percentile(im,99)) \
                           for im in exportim]
         else:
             cmap_range = (np.percentile(exportim,1),np.percentile(exportim,99))
     elif multichannel:
-        cmap_range = [(np.amin(im),np.amax(im)) if cmr is None else cmr \
+        for i,(cmr,im) in enumerate(zip(cmap_range,exportim)):
+            if cmr is None:#use full range
+                cmap_range[i] = (np.amin(im),np.amax(im)) 
+            elif cmr == 'automatic' or cmr == 'auto':#autoscale
+                cmap_range[i] = (np.percentile(im,10),
+                                 np.percentile(im,99))
+            else:#assume it is already a correct range
+                continue
+   
+    cmap_range = [(np.amin(im),np.amax(im)) if cmr is None else cmr \
                       for cmr,im in zip(cmap_range,exportim)]
     
     #list of possible custom maps
@@ -1561,6 +1570,7 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
             raise ValueError('lenth of `cmap` does not match number of '+
                              'channels')
         if len(cmap_range) != len(exportim) or len(cmap_range[0]) != 2:
+            print(cmap_range)
             raise ValueError('lenth of `cmap_range` does not match number of '+
                              'channels')
         #get custom maps if necessary
@@ -1587,7 +1597,7 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
         plt.tight_layout()
         
         #check if alternative form of cropping is used
-        if type(crop) != type(None) and len(crop) == 4:
+        if not crop is None and len(crop) == 4:
             altcrop = True
         else:
             altcrop = False
@@ -1643,7 +1653,7 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
             unit = convert
     
     #(optionally) crop
-    if type(crop) != type(None):
+    if not crop is None:
         
         #if (x,y,w,h) format, convert to other format
         if len(crop) == 4:
