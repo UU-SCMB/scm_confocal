@@ -1,5 +1,110 @@
 import numpy as np
 
+def align_stack(images,startim=0,threshold=0,binning=1,smooth=0,upsample=1,
+                startoffset=(0,0),trim=True,blocksize=None,
+                show_process_im=False):
+    """
+    Cross correlation alignment of image stack. Based around
+    skimage.feature.register_translation which enables sub-pixel precise
+    translation of images.
+    
+    When preprocessing (smoothing and/or binning and/or thresholding) is used,
+    a copy of the data is created and used for determining the image shift, but
+    the original (unprocessed) data is corrected for image shift and returned.
+    
+    order of preprocessing is first thresholding, then binning, then smoothing
+
+    Parameters
+    ----------
+    images : 3d numpy array
+        the dataset which will be aligned along the first dimension (e.g. z)
+    startim : int
+        starting index that acts as reference for rest of stack
+    threshold : float
+        any pixel value below threshold is set to 0 before alignment 
+    binning : int
+        factor to bin pixels in (x,y)
+    smooth : float
+        size of gaussian kernal for smoothing prior to calculating the 
+        translation
+    upsample : int
+        precision of translation in units of 1/pixel
+    startoffset : tuple of floats (y,x)
+        shift to apply to the starting image before alignment
+    
+    Returns
+    -------
+    images : numpy.array
+        the image data with translation and (optional) trimming applied
+    shifts : list of (y,x) tuples
+        image shift values for each image in the dataset
+    """
+    from skimage.registration import phase_cross_correlation
+    from scipy.ndimage import shift
+
+    n = len(images)
+    imshift = np.zeros((n,2))
+    
+    #check if stack is at least two images
+    if n == 1:
+        print('stack depth is 1, skipping alignment step')
+        return (images,imshift)
+    
+    #check if starting image is within range
+    if startim not in range(n):
+        print('startim out of range, starting at 0')
+        startim = 0
+    
+    #apply offset to the first image if desired
+    if startoffset != (0,0):
+        images[startim] = shift(images[startim],startoffset,mode='constant',cval=0)
+    
+    #make a copy of data for preprocessing only if needed to avoid clogging memory
+    if smooth == 0 and binning == 1 and not threshold > 0:
+        alignim = images
+    else:
+        alignim = images.copy()
+    
+    #bin, smooth and threshold data
+    if threshold > 0:
+        alignim[alignim < threshold] = 0
+    if binning!= 1:
+        alignim = bin_stack(alignim,n=(1,binning,binning),quiet=True,blocksize=blocksize)
+    if smooth != 0:
+        from skimage.filters import gaussian
+        alignim = [gaussian(im,smooth) for im in alignim]
+    
+    if show_process_im:
+        import matplotlib.pyplot as plt
+        plt.figure()
+        plt.imshow(alignim[n//2])
+    
+    #start going backwards from startim to first image
+    for i in reversed(range(0,startim)):
+        print('\raligning image {:3d} of {:3d}'.format(i,n-1),end='',flush=True)
+        dy,dx = phase_cross_correlation(alignim[i+1],alignim[i],upsample_factor=upsample)[0]
+        imshift[i] = imshift[i+1] + [binning*dy, binning*dx]
+        images[i] = shift(images[i],imshift[i],mode='constant',cval=0)
+    
+    #then continue from startim to end
+    for i in range(startim+1,n):
+        print('\raligning image {:3d} of {:3d}'.format(i,n-1),end='',flush=True)
+        dy,dx = phase_cross_correlation(alignim[i-1],alignim[i],upsample_factor=upsample)[0]
+        imshift[i] = imshift[i-1] + [binning*dy, binning*dx]
+        images[i] = shift(images[i],imshift[i],mode='constant',cval=0)
+    print('')
+    
+    imshift[startim] = startoffset
+    
+    #trim down the edges of the dataset to only area which is always in view
+    if trim:
+        images = images[:,
+            int(max(max(imshift[:,0]),0)):int(min(min(imshift[:,0]),0))-1,
+            int(max(max(imshift[:,1]),0)):int(min(min(imshift[:,1]),0))-1
+            ]
+    
+    return (images,imshift)
+
 def bin_stack(images,n=1,blocksize=None,quiet=False,dtype=np.uint8):
     """
     bins numpy ndarrays in arbitrary dimensions by a factor n. Prior to
