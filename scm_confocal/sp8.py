@@ -783,8 +783,8 @@ class sp8_image(sp8_lif):
             parameter. The default is `0`.
         filename : string or `None`, optional
             Filename + extension to use for the export file. The default is the
-            filename sans extension of the original TEM file, with 
-            '_exported.png' appended.
+            filename sans extension of the original .lif file, with 
+            image name and '_exported.png' appended.
         crop : tuple or `None`, optional 
             range describing a area of the original image (before rescaling the
             resolution) to crop out for the export image. Can have two forms:
@@ -827,11 +827,14 @@ class sp8_image(sp8_lif):
             the resolution along the x-axis (i.e. image width in pixels) to use
             for the exported image. The default is `None`, which uses the size 
             of the original image (after optional cropping using `crop`).
-        cmap_range : tuple of form (min,max), optional
+        cmap_range : tuple of form (min,max) or None or `'automatic'`, optional
             sets the scaling of the colormap. The minimum and maximum 
             values to map the colormap to, values outside of this range will
             be colored according to the min and max value of the colormap. The 
-            default is to take the lowest and highest value in the image.
+            default is  `None`, which is to take the lowest and highest value 
+            in the image. Alternatively `'automatic'` may be specified which 
+            scales between the 10th and 99th percentile. For multichannel data
+            a list of cmap_range options per channel may be provided.
         draw_bar : boolean, optional
             whether to draw a scalebar on the image, such that this function 
             may be used just to apply a colormap. The default is `True`.
@@ -921,25 +924,12 @@ class sp8_image(sp8_lif):
                 raise ValueError('cannot set multiple channels for single '
                                  'channel data')
         
-        #get dimensionality of the image to calculate which frame to get
-        dims = self.lifimage.dims
-        
-        #get image (single channel) or list of images (multichannel)
+        #get the actual image using the load_frame function, make it an array
         if multichannel:
-            exportim = [
-                np.array(self.lifimage.get_frame(
-                    z=frame%dims.z,
-                    t=frame//dims.z,
-                    c=ch
-                    ))
-                for ch in channel
-            ]
+            exportim = [np.array(im) \
+                        for im in self.load_frame(frame,channel=channel)]
         else:
-            exportim = np.array(self.lifimage.get_frame(
-                z=frame%dims.z,
-                t=frame//dims.z,
-                c=channel
-            ))
+            exportim = np.array(self.load_frame(frame,channel=channel))
         
         #call main export_with_scalebar function with correct pixelsize etc
         from .util import _export_with_scalebar
@@ -1539,11 +1529,14 @@ class sp8_series:
             the resolution along the x-axis (i.e. image width in pixels) to use
             for the exported image. The default is `None`, which uses the size 
             of the original image (after optional cropping using `crop`).
-        cmap_range : tuple of form (min,max), optional
+        cmap_range : tuple of form (min,max) or None or `'automatic'`, optional
             sets the scaling of the colormap. The minimum and maximum 
             values to map the colormap to, values outside of this range will
             be colored according to the min and max value of the colormap. The 
-            default is to take the lowest and highest value in the image.
+            default is  `None`, which is to take the lowest and highest value 
+            in the image. Alternatively `'automatic'` may be specified which 
+            scales between the 10th and 99th percentile. For multichannel data
+            a list of cmap_range options per channel may be provided.
         draw_bar : boolean, optional
             whether to draw a scalebar on the image, such that this function 
             may be used just to apply a colormap. The default is `True`.
@@ -1647,7 +1640,7 @@ class sp8_series:
         
         #call main export_with_scalebar function with correct pixelsize etc
         from .util import _export_with_scalebar
-        return s_export_with_scalebar(exportim, pixelsize, unit, filename, 
+        return _export_with_scalebar(exportim, pixelsize, unit, filename, 
                               multichannel, **kwargs)
 
 def _DimID_to_str(dim):

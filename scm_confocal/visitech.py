@@ -619,11 +619,14 @@ class visitech_series:
             the resolution along the x-axis (i.e. image width in pixels) to use
             for the exported image. The default is `None`, which uses the size 
             of the original image (after optional cropping using `crop`).
-        cmap_range : tuple of form (min,max), optional
+        cmap_range : tuple of form (min,max) or None or `'automatic'`, optional
             sets the scaling of the colormap. The minimum and maximum 
             values to map the colormap to, values outside of this range will
             be colored according to the min and max value of the colormap. The 
-            default is to take the lowest and highest value in the image.
+            default is  `None`, which is to take the lowest and highest value 
+            in the image. Alternatively `'automatic'` may be specified which 
+            scales between the 10th and 99th percentile. For multichannel data
+            a list of cmap_range options per channel may be provided.
         draw_bar : boolean, optional
             whether to draw a scalebar on the image, such that this function 
             may be used just to apply a colormap. The default is `True`.
@@ -1452,11 +1455,14 @@ class visitech_faststack:
             the resolution along the x-axis (i.e. image width in pixels) to use
             for the exported image. The default is `None`, which uses the size 
             of the original image (after optional cropping using `crop`).
-        cmap_range : tuple of form (min,max), optional
+        cmap_range : tuple of form (min,max) or None or `'automatic'`, optional
             sets the scaling of the colormap. The minimum and maximum 
             values to map the colormap to, values outside of this range will
             be colored according to the min and max value of the colormap. The 
-            default is to take the lowest and highest value in the image.
+            default is  `None`, which is to take the lowest and highest value 
+            in the image. Alternatively `'automatic'` may be specified which 
+            scales between the 10th and 99th percentile. For multichannel data
+            a list of cmap_range options per channel may be provided.
         draw_bar : boolean, optional
             whether to draw a scalebar on the image, such that this function 
             may be used just to apply a colormap. The default is `True`.
