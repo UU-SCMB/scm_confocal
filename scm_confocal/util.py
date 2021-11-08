@@ -1639,45 +1639,17 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
     else:
         shape = exportim.shape
     
-    #default colormap scaling, for multichannel check length
-    if cmap_range is None:
-        if multichannel:
-            cmap_range = [(np.amin(im),np.amax(im)) for im in exportim]
-        else:
-            cmap_range = (np.amin(exportim),np.amax(exportim))
-    elif cmap_range == 'automatic' or cmap_range == 'auto':
-        if multichannel:
-            cmap_range = [(np.percentile(im,10),np.percentile(im,99)) \
-                          for im in exportim]
-        else:
-            cmap_range = (np.percentile(exportim,1),np.percentile(exportim,99))
-    elif multichannel:
-        for i,(cmr,im) in enumerate(zip(cmap_range,exportim)):
-            if cmr is None:#use full range
-                cmap_range[i] = (np.amin(im),np.amax(im)) 
-            elif cmr == 'automatic' or cmr == 'auto':#autoscale
-                cmap_range[i] = (np.percentile(im,10),
-                                 np.percentile(im,99))
-            else:#assume it is already a correct range
-                continue
-   
-    cmap_range = [(np.amin(im),np.amax(im)) if cmr is None else cmr \
-                      for cmr,im in zip(cmap_range,exportim)]
-    
     #list of possible custom maps
     pure_maps = ['pure_reds', 'pure_greens', 'pure_blues', 'pure_yellows', 
                                   'pure_cyans', 'pure_purples','pure_greys']
     pure_maps += [m+'_r' for m in pure_maps]
     
-    #check if cmap and cmap_range match number of channels, get custom maps
+    #check if cmaps match number of channels, get custom maps
     if multichannel:
         if not isinstance(cmap,list) or len(cmap) != len(exportim):
             raise ValueError('lenth of `cmap` does not match number of '+
                              'channels')
-        if len(cmap_range) != len(exportim) or len(cmap_range[0]) != 2:
-            print(cmap_range)
-            raise ValueError('lenth of `cmap_range` does not match number of '+
-                             'channels')
+            
         #get custom maps if necessary
         for i,mp in enumerate(cmap):
             if mp in pure_maps:
@@ -1693,10 +1665,12 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
     if show_figure:
         fig,ax = plt.subplots(1,1)
         if multichannel:
-            for i,(im,mp,rng) in enumerate(zip(exportim,cmap,cmap_range)):
-                ax.imshow(im,cmap=mp,vmin=rng[0],vmax=rng[1],alpha=1/(i+1))
+            for i,(im,mp) in enumerate(zip(exportim,cmap)):
+                ax.imshow(im,cmap=mp,vmin=np.amin(im),vmax=np.amax(im),
+                          alpha=1/(i+1))
         else:
-            ax.imshow(exportim,cmap=cmap,vmin=cmap_range[0],vmax=cmap_range[1])
+            ax.imshow(exportim,cmap=cmap,vmin=np.amin(exportim),
+                      vmax=np.amax(exportim))
         plt.title('original image')
         plt.axis('off')
         plt.tight_layout()
@@ -1804,6 +1778,39 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
             exportim = cv2.resize(exportim, (int(nx),int(ny)), 
                                   interpolation=cv2.INTER_AREA)
      
+    #default colormap scaling, for multichannel check length
+    if cmap_range is None:
+        if multichannel:
+            cmap_range = [(np.amin(im),np.amax(im)) for im in exportim]
+        else:
+            cmap_range = (np.amin(exportim),np.amax(exportim))
+    elif cmap_range == 'automatic' or cmap_range == 'auto':
+        if multichannel:
+            cmap_range = [(np.percentile(im,1),np.percentile(im,99.9)) \
+                          for im in exportim]
+        else:
+            cmap_range = (np.percentile(exportim,1),np.percentile(exportim,99.9))
+    elif multichannel:
+        #check if single 2-tuple was given for all channels to share
+        if len(cmap_range)==2 and \
+            all(type(cm)==int or type(cm)==float for cm in cmap_range):
+            cmap_range = [cmap_range,cmap_range]
+        #check length
+        if len(cmap_range) != len(exportim):
+            raise ValueError('lenth of `cmap_range` does not match number of '
+                             'channels')
+        for i,(cmr,im) in enumerate(zip(cmap_range,exportim)):
+            if cmr is None:#use full range
+                cmap_range[i] = (np.amin(im),np.amax(im)) 
+            elif cmr == 'automatic' or cmr == 'auto':#autoscale
+                cmap_range[i] = (np.percentile(im,1),
+                                 np.percentile(im,99.9))
+            else:#else check if it is already a correct range
+                if len(cmr) != 2:
+                    raise ValueError('`cmap_range` must be `None`, `"auto"` or'
+                                     'a tuple of `(min,max)` values, or a list'
+                                     'with such an entry per channel')
+                
     #normalize to (0,1), apply colormap, rescale to 8 bit integer
     if multichannel:
         colored = []
