@@ -691,7 +691,8 @@ def subtract_background(images, val=0, percentile=False):
 
     return images
 
-def plot_stack_histogram(images,bin_edges=range(0,256),newfig=True,legendname=None,title='intensity histogram'):
+def plot_stack_histogram(images,bin_edges=range(0,256),newfig=True,
+                         legendname=None,title='intensity histogram',**kwargs):
     """
     manually flattens list of images to list of pixel values and plots
     histogram. Can combine multiple calls with newfig and legendname
@@ -725,7 +726,8 @@ def plot_stack_histogram(images,bin_edges=range(0,256),newfig=True,legendname=No
     else:
         fig = plt.gcf()
     
-    plt.hist(np.ravel(images),log=(False,True),bins=bin_edges,label=legendname)
+    plt.hist(np.ravel(images),log=(False,True),bins=bin_edges,label=legendname,
+             **kwargs)
     
     if not legendname == None:
         plt.legend()
