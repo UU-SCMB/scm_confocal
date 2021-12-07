@@ -64,6 +64,13 @@ class sp8_lif:
                 raise FileNotFoundError(
                     f"No such file or directory: '{filename}'"
                 )
+        
+        #get metadata for images-like items only (there may be config-items)
+        self.image_xml_list = []
+        for item in self.liffile.xml_root.findall('.//Children/Element'):
+            if len(item.findall("./Data/Image")) > 0:
+                self.image_xml_list.append(item)
+        
         #for convenience print contents of file
         if not quiet:
             print(self)
@@ -198,6 +205,7 @@ class sp8_image(sp8_lif):
         #inherit parent attribs and initialize readlif.LifImage class
         super().__init__(filename,quiet=True)
         self.image = image
+        self.metadata = self.image_xml_list[self.image]
         self.lifimage = self.liffile.get_image(self.image)
         
         #note if it is single or multichannel
@@ -271,22 +279,6 @@ class sp8_image(sp8_lif):
         The format is: `<lif file name (without file extension)>_<image name>`
         """
         return self.filename.rpartition('.')[0]+'_'+self.name
-      
-    def get_metadata(self):
-        """
-        parse the .lif xml data for the current image
-        
-        Returns
-        -------
-        `xml.etree.ElementTree` instance for the current image
-        """
-        if hasattr(self,'metadata'):
-            return self.metadata
-        else:
-            self.metadata = \
-                self.liffile.xml_root.find('.//Children'
-                                           ).findall('Element')[self.image]
-            return self.metadata
         
     def get_channels(self):
         """
@@ -299,9 +291,8 @@ class sp8_image(sp8_lif):
         if hasattr(self,'metadata_channels'):
             return self.metadata_channels
         else:   
-            root = self.get_metadata()
-            self.metadata_channels = [dict(dim.attrib) \
-                                      for dim in root.find('.//Channels')]
+            self.metadata_channels = \
+                [dict(dim.attrib) for dim in self.metadata.find('.//Channels')]
         return self.metadata_channels
     
     def get_detector_settings(self):
@@ -313,7 +304,7 @@ class sp8_image(sp8_lif):
         dictionary or (in case of multichannel data) a list thereof
         """
         #get detector data
-        detectors = self.get_metadata().findall('.//Detector')
+        detectors = self.metadata.findall('.//Detector')
         detectors = [d.attrib for d in detectors]
         
         #select only active detectors
@@ -358,7 +349,7 @@ class sp8_image(sp8_lif):
         if hasattr(self,'metadata_dimensions'):
             return self.metadata_dimensions
         else:    
-            root = self.get_metadata()
+            root = self.metadata
             self.metadata_dimensions = [dict(dim.attrib) \
                                         for dim in root.find('.//Dimensions')]
         return self.metadata_dimensions
@@ -499,7 +490,7 @@ class sp8_image(sp8_lif):
     
     def get_stage_position(self):
         """Returns base (z,y,x) position of the stage in micrometer"""
-        md = self.get_metadata()
+        md = self.metadata
         atlasdata = dict(md.find('.//ATLConfocalSettingDefinition').attrib)
         return (
             float(atlasdata['ZPosition'])*1e6,
@@ -761,7 +752,7 @@ class sp8_image(sp8_lif):
         print('\n -------------------------------------------- ')
         print('|                  METADATA                  |')
         print(' -------------------------------------------- ')
-        recursive_print(self.get_metadata(),'|')
+        recursive_print(self.metadata,'|')
         print(' -------------------------------------------- ')
     
     def export_with_scalebar(self,frame=0,channel=0,filename=None,
