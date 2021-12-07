@@ -1,5 +1,110 @@
 import numpy as np
 
+def align_stack(images,startim=0,threshold=0,binning=1,smooth=0,upsample=1,
+                startoffset=(0,0),trim=True,blocksize=None,
+                show_process_im=False):
+    """
+    Cross correlation alignment of image stack. Based around
+    skimage.feature.register_translation which enables sub-pixel precise
+    translation of images.
+    
+    When preprocessing (smoothing and/or binning and/or thresholding) is used,
+    a copy of the data is created and used for determining the image shift, but
+    the original (unprocessed) data is corrected for image shift and returned.
+    
+    order of preprocessing is first thresholding, then binning, then smoothing
+
+    Parameters
+    ----------
+    images : 3d numpy array
+        the dataset which will be aligned along the first dimension (e.g. z)
+    startim : int
+        starting index that acts as reference for rest of stack
+    threshold : float
+        any pixel value below threshold is set to 0 before alignment 
+    binning : int
+        factor to bin pixels in (x,y)
+    smooth : float
+        size of gaussian kernal for smoothing prior to calculating the 
+        translation
+    upsample : int
+        precision of translation in units of 1/pixel
+    startoffset : tuple of floats (y,x)
+        shift to apply to the starting image before alignment
+    
+    Returns
+    -------
+    images : numpy.array
+        the image data with translation and (optional) trimming applied
+    shifts : list of (y,x) tuples
+        image shift values for each image in the dataset
+    """
+    from skimage.registration import phase_cross_correlation
+    from scipy.ndimage import shift
+
+    n = len(images)
+    imshift = np.zeros((n,2))
+    
+    #check if stack is at least two images
+    if n == 1:
+        print('stack depth is 1, skipping alignment step')
+        return (images,imshift)
+    
+    #check if starting image is within range
+    if startim not in range(n):
+        print('startim out of range, starting at 0')
+        startim = 0
+    
+    #apply offset to the first image if desired
+    if startoffset != (0,0):
+        images[startim] = shift(images[startim],startoffset,mode='constant',cval=0)
+    
+    #make a copy of data for preprocessing only if needed to avoid clogging memory
+    if smooth == 0 and binning == 1 and not threshold > 0:
+        alignim = images
+    else:
+        alignim = images.copy()
+    
+    #bin, smooth and threshold data
+    if threshold > 0:
+        alignim[alignim < threshold] = 0
+    if binning!= 1:
+        alignim = bin_stack(alignim,n=(1,binning,binning),quiet=True,blocksize=blocksize)
+    if smooth != 0:
+        from skimage.filters import gaussian
+        alignim = [gaussian(im,smooth) for im in alignim]
+    
+    if show_process_im:
+        import matplotlib.pyplot as plt
+        plt.figure()
+        plt.imshow(alignim[n//2])
+    
+    #start going backwards from startim to first image
+    for i in reversed(range(0,startim)):
+        print('\raligning image {:3d} of {:3d}'.format(i,n-1),end='',flush=True)
+        dy,dx = phase_cross_correlation(alignim[i+1],alignim[i],upsample_factor=upsample)[0]
+        imshift[i] = imshift[i+1] + [binning*dy, binning*dx]
+        images[i] = shift(images[i],imshift[i],mode='constant',cval=0)
+    
+    #then continue from startim to end
+    for i in range(startim+1,n):
+        print('\raligning image {:3d} of {:3d}'.format(i,n-1),end='',flush=True)
+        dy,dx = phase_cross_correlation(alignim[i-1],alignim[i],upsample_factor=upsample)[0]
+        imshift[i] = imshift[i-1] + [binning*dy, binning*dx]
+        images[i] = shift(images[i],imshift[i],mode='constant',cval=0)
+    print('')
+    
+    imshift[startim] = startoffset
+    
+    #trim down the edges of the dataset to only area which is always in view
+    if trim:
+        images = images[:,
+            int(max(max(imshift[:,0]),0)):int(min(min(imshift[:,0]),0))-1,
+            int(max(max(imshift[:,1]),0)):int(min(min(imshift[:,1]),0))-1
+            ]
+    
+    return (images,imshift)
+
 def bin_stack(images,n=1,blocksize=None,quiet=False,dtype=np.uint8):
     """
     bins numpy ndarrays in arbitrary dimensions by a factor n. Prior to
@@ -586,7 +691,8 @@ def subtract_background(images, val=0, percentile=False):
 
     return images
 
-def plot_stack_histogram(images,bin_edges=range(0,256),newfig=True,legendname=None,title='intensity histogram'):
+def plot_stack_histogram(images,bin_edges=range(0,256),newfig=True,
+                         legendname=None,title='intensity histogram',**kwargs):
     """
     manually flattens list of images to list of pixel values and plots
     histogram. Can combine multiple calls with newfig and legendname
@@ -620,7 +726,8 @@ def plot_stack_histogram(images,bin_edges=range(0,256),newfig=True,legendname=No
     else:
         fig = plt.gcf()
     
-    plt.hist(np.ravel(images),log=(False,True),bins=bin_edges,label=legendname)
+    plt.hist(np.ravel(images),log=(False,True),bins=bin_edges,label=legendname,
+             **kwargs)
     
     if not legendname == None:
         plt.legend()
@@ -1510,11 +1617,11 @@ def _get_pure_cmap(name):
 def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
                           crop=None,resolution=None,cmap='inferno',
                           cmap_range=None,draw_bar=True,barsize=None,scale=1,
-                          loc=2,convert=None,font='arialbd.ttf',fontsize=16,
-                          fontbaseline=0,fontpad=2,barcolor=(255,255,255),
-                          barthickness=14,barpad=10,box=False,
-                          boxcolor=(0,0,0),boxopacity=255,boxpad=10,save=True,
-                          show_figure=True):
+                          loc=2,convert=None,barcolor=(255,255,255),
+                          barthickness=14,barpad=10,draw_text=True,text=None,
+                          font='arialbd.ttf',fontsize=16,fontbaseline=0,
+                          fontpad=2,draw_box=False,boxcolor=(0,0,0),
+                          boxopacity=255,boxpad=10,save=True,show_figure=True):
     """
     see top level export_with_scalebar functions for docs
     """
@@ -1523,7 +1630,7 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
     from matplotlib import cm
     from matplotlib.colors import Normalize
     import cv2
-    if draw_bar:
+    if draw_bar or draw_text:
         from PIL import ImageFont, ImageDraw, Image
     
     #get imshape, for multichannel check shapes are all the same
@@ -1534,45 +1641,17 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
     else:
         shape = exportim.shape
     
-    #default colormap scaling, for multichannel check length
-    if cmap_range is None:
-        if multichannel:
-            cmap_range = [(np.amin(im),np.amax(im)) for im in exportim]
-        else:
-            cmap_range = (np.amin(exportim),np.amax(exportim))
-    elif cmap_range == 'automatic' or cmap_range == 'auto':
-        if multichannel:
-            cmap_range = [(np.percentile(im,10),np.percentile(im,99)) \
-                          for im in exportim]
-        else:
-            cmap_range = (np.percentile(exportim,1),np.percentile(exportim,99))
-    elif multichannel:
-        for i,(cmr,im) in enumerate(zip(cmap_range,exportim)):
-            if cmr is None:#use full range
-                cmap_range[i] = (np.amin(im),np.amax(im)) 
-            elif cmr == 'automatic' or cmr == 'auto':#autoscale
-                cmap_range[i] = (np.percentile(im,10),
-                                 np.percentile(im,99))
-            else:#assume it is already a correct range
-                continue
-   
-    cmap_range = [(np.amin(im),np.amax(im)) if cmr is None else cmr \
-                      for cmr,im in zip(cmap_range,exportim)]
-    
     #list of possible custom maps
     pure_maps = ['pure_reds', 'pure_greens', 'pure_blues', 'pure_yellows', 
                                   'pure_cyans', 'pure_purples','pure_greys']
     pure_maps += [m+'_r' for m in pure_maps]
     
-    #check if cmap and cmap_range match number of channels, get custom maps
+    #check if cmaps match number of channels, get custom maps
     if multichannel:
         if not isinstance(cmap,list) or len(cmap) != len(exportim):
             raise ValueError('lenth of `cmap` does not match number of '+
                              'channels')
-        if len(cmap_range) != len(exportim) or len(cmap_range[0]) != 2:
-            print(cmap_range)
-            raise ValueError('lenth of `cmap_range` does not match number of '+
-                             'channels')
+            
         #get custom maps if necessary
         for i,mp in enumerate(cmap):
             if mp in pure_maps:
@@ -1588,10 +1667,12 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
     if show_figure:
         fig,ax = plt.subplots(1,1)
         if multichannel:
-            for i,(im,mp,rng) in enumerate(zip(exportim,cmap,cmap_range)):
-                ax.imshow(im,cmap=mp,vmin=rng[0],vmax=rng[1],alpha=1/(i+1))
+            for i,(im,mp) in enumerate(zip(exportim,cmap)):
+                ax.imshow(im,cmap=mp,vmin=np.amin(im),vmax=np.amax(im),
+                          alpha=1/(i+1))
         else:
-            ax.imshow(exportim,cmap=cmap,vmin=cmap_range[0],vmax=cmap_range[1])
+            ax.imshow(exportim,cmap=cmap,vmin=np.amin(exportim),
+                      vmax=np.amax(exportim))
         plt.title('original image')
         plt.axis('off')
         plt.tight_layout()
@@ -1631,26 +1712,25 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
         ax.callbacks.connect("ylim_changed", _on_lim_change)
         plt.show(block=False)
     
-    if draw_bar:
-        #set default unit to µm
-        if type(convert) == type(None):
-            convert = 'µm'
-        #always use mu for micrometer
-        elif convert == 'um':
-            convert = 'µm'
+    #set default unit to µm
+    if convert is None:
+        convert = 'µm'
+    #always use mu for micrometer
+    elif convert == 'um':
+        convert = 'µm'
+    
+    #convert unit if needed
+    if convert != unit:
         
-        #convert unit if needed
-        if convert != unit:
-            
-            #check input against list of possible units
-            units = ['pm','nm','µm','mm','m']
-            if not unit in units:
-                raise ValueError('"'+str(unit)+'" is not a valid unit')
-            
-            #factor 10**3 for every step from list, use indices to calculate
-            pixelsize = \
-                pixelsize*10**(3*(units.index(unit)-units.index(convert)))
-            unit = convert
+        #check input against list of possible units
+        units = ['pm','nm','µm','mm','m']
+        if not unit in units:
+            raise ValueError('"'+str(unit)+'" is not a valid unit')
+        
+        #factor 10**3 for every step from list, use indices to calculate
+        pixelsize = \
+            pixelsize*10**(3*(units.index(unit)-units.index(convert)))
+        unit = convert
     
     #(optionally) crop
     if not crop is None:
@@ -1671,7 +1751,7 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
             *shape,shape[0]*pixelsize,shape[1]*pixelsize)+unit)
     
     #set default scalebar to original scalebar or calculate len
-    if type(barsize) == type(None):
+    if barsize is None:
         #take 15% of image width and round to nearest in list of 'nice' vals
         barsize = scale*0.15*shape[1]*pixelsize
         lst = [
@@ -1680,7 +1760,7 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
             400, 500, 1000, 2000, 2500, 3000, 4000, 5000, 6000, 8000, 10000
         ]
         barsize = lst[min(range(len(lst)), key=lambda i: abs(lst[i]-barsize))]
-    
+        
     #determine len of scalebar on im
     barsize_px = barsize/pixelsize
     
@@ -1700,6 +1780,39 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
             exportim = cv2.resize(exportim, (int(nx),int(ny)), 
                                   interpolation=cv2.INTER_AREA)
      
+    #default colormap scaling, for multichannel check length
+    if cmap_range is None:
+        if multichannel:
+            cmap_range = [(np.amin(im),np.amax(im)) for im in exportim]
+        else:
+            cmap_range = (np.amin(exportim),np.amax(exportim))
+    elif cmap_range == 'automatic' or cmap_range == 'auto':
+        if multichannel:
+            cmap_range = [(np.percentile(im,1),np.percentile(im,99.9)) \
+                          for im in exportim]
+        else:
+            cmap_range = (np.percentile(exportim,1),np.percentile(exportim,99.9))
+    elif multichannel:
+        #check if single 2-tuple was given for all channels to share
+        if len(cmap_range)==2 and \
+            all(type(cm)==int or type(cm)==float for cm in cmap_range):
+            cmap_range = [cmap_range,cmap_range]
+        #check length
+        if len(cmap_range) != len(exportim):
+            raise ValueError('lenth of `cmap_range` does not match number of '
+                             'channels')
+        for i,(cmr,im) in enumerate(zip(cmap_range,exportim)):
+            if cmr is None:#use full range
+                cmap_range[i] = (np.amin(im),np.amax(im)) 
+            elif cmr == 'automatic' or cmr == 'auto':#autoscale
+                cmap_range[i] = (np.percentile(im,1),
+                                 np.percentile(im,99.9))
+            else:#else check if it is already a correct range
+                if len(cmr) != 2:
+                    raise ValueError('`cmap_range` must be `None`, `"auto"` or'
+                                     'a tuple of `(min,max)` values, or a list'
+                                     'with such an entry per channel')
+                
     #normalize to (0,1), apply colormap, rescale to 8 bit integer
     if multichannel:
         colored = []
@@ -1718,52 +1831,77 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
         norm = Normalize(vmin=cmap_range[0],vmax=cmap_range[1])
         exportim = (cm.get_cmap(cmap)(norm(exportim))*255).astype(np.uint8)
     
-    #can skip this whole part when not actually drawing the scalebar
-    if draw_bar:
+    #can skip this whole part when not actually drawing the scalebar/text
+    if draw_bar or draw_text:
+        
         #adjust general scaling for all sizes relative to 1024 pixels
         scale = scale*resolution/1024
-        
-        #set up sizes
-        barthickness = barthickness*scale
         boxpad = boxpad*scale
-        barpad = barpad*scale
-        fontpad = fontpad*scale
-        fontsize = 2*fontsize*scale
-        fontbaseline = fontbaseline*scale
         
-        #format string for correct number of decimals
-        if round(barsize)==barsize:
-            text = str(int(barsize))+' '+unit
+        #set up sizes for bar
+        if draw_bar:
+            barthickness = barthickness*scale
+            barpad = barpad*scale
         else:
-            for i in range(1,4):
-                if round(barsize,i)==barsize:
-                    text = ('{:.'+str(i)+'f} ').format(barsize)+unit
-                    break
-                elif i==3:
-                    text = '{:.3f} '.format(round(barsize,3))+unit
+            barthickness = 0
+            barpad = 0
+            barsize_px = 0
         
-        #get size of text
-        font = ImageFont.truetype(font,size=int(fontsize))
-        textsize = ImageDraw.Draw(Image.fromarray(exportim)).textsize(
-                                                                text,font=font)
-        offset = font.getoffset(text)
-        textsize = (textsize[0]+offset[0],textsize[1]+offset[1]+fontbaseline)    
+        #set up sizes for text
+        if draw_text:
+            fontpad = fontpad*scale
+            fontsize = 2*fontsize*scale
+            fontbaseline = fontbaseline*scale
+            
+            #get default text (the size of the scalebar)
+            if text is None:
+                #for int give no decimals
+                if round(barsize)==barsize:
+                    text = str(int(barsize))+' '+unit
+                #otherwise format string for correct number of decimals
+                else:
+                    for i in range(1,4):
+                        if round(barsize,i)==barsize:
+                            text = ('{:.'+str(i)+'f} ').format(barsize)+unit
+                            break
+                        elif i==3:
+                            text = '{:.3f} '.format(round(barsize,3))+unit
+            
+            #get size of text
+            font = ImageFont.truetype(font,size=int(fontsize))
+            textsize = ImageDraw.Draw(Image.fromarray(exportim)).textsize(
+                                                                    text,font=font)
+            offset = font.getoffset(text)
+            textsize = (textsize[0]+offset[0],textsize[1]+offset[1]+fontbaseline)    
+            
+            #correct baseline for mu in case of micrometer
+            if 'µ' in text:
+                textsize = (textsize[0],textsize[1]-6*scale)
+            
+        #when not drawing the text, set text size and padding to 0
+        else:
+            textsize = (0,0)
+            fontpad = 0
         
-        #correct baseline for mu in case of micrometer
-        if unit=='µm':
-            textsize = (textsize[0],textsize[1]-6*scale)
+        #determine box height with appropriate paddings
+        if draw_text and draw_bar:#both
+            boxheight = barpad + barthickness + 2*fontpad + textsize[1]
+            boxwidth = max([2*barpad+barsize_px,2*fontpad+textsize[0]])
+        elif draw_bar:#bar only
+            boxheight = 2*barpad + barthickness
+            boxwidth = 2*barpad+barsize_px
+        else:#text only
+            boxheight = 2*fontpad + textsize[1]
+            boxwidth = 2*fontpad + textsize[0]
         
-        #determine box size
-        boxheight = barpad + barthickness + 2*fontpad + textsize[1]
-        
-        #determine box position based on loc
+        #determine box/bar/text position based on loc
         #top left
         if loc == 0:
             x = boxpad
             y = boxpad
         #top right
         elif loc == 1:
-            x = nx - boxpad - 2*barpad - max([barsize_px,textsize[0]])
+            x = nx - boxpad - boxwidth
             y = boxpad
         #bottom left
         elif loc == 2:
@@ -1771,18 +1909,17 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
             y = ny - boxpad - boxheight
         #bottom right
         elif loc == 3:
-            x = nx - boxpad - 2*barpad - max([barsize_px,textsize[0]])
+            x = nx - boxpad - boxwidth
             y = ny - boxpad - boxheight
         else:
             raise ValueError("loc must be 0, 1, 2 or 3 for top left, top "
                              "right, bottom left or bottom right "
                              "respectively.")
         
-        #put semitransparent box
-        if box:
+        #put semitransparent box behind bar / text
+        if draw_box:
             #get rectangle from im
-            w,h = 2*barpad+max([barsize_px,textsize[0]]),boxheight
-            subim = exportim[int(y):int(y+h), int(x):int(x+w)]
+            subim = exportim[int(y):int(y+boxheight), int(x):int(x+boxwidth)]
             
             #add alpha channel 255 and create box
             boxcolor = boxcolor + (255,)
@@ -1790,38 +1927,42 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
                 np.array(boxcolor,dtype=np.uint8)
             
             #add box to im with opacity as weight, and put back in im
-            exportim[int(y):int(y+h), int(x):int(x+w)] = \
+            exportim[int(y):int(y+boxheight), int(x):int(x+boxwidth)] = \
                 cv2.addWeighted(subim, 1-boxopacity/255, boxarray, 
                                 boxopacity/255, 0)
     
-        #calculate positions for bar and text (horizontally centered in box)
-        barx = (2*x + 2*barpad + max([barsize_px,textsize[0]]))/2 \
-            - barsize_px/2
-        bary = y+boxheight-barpad-barthickness
-        textx = (2*x + 2*barpad + max([barsize_px,textsize[0]]))/2 \
-            - textsize[0]/2
-        texty = y + fontpad
+        if draw_bar:
+            #calculate positions for bar
+            barx = (2*x + boxwidth)/2 \
+                - barsize_px/2
+            bary = y+boxheight-barpad-barthickness
+            
+            #draw scalebar
+            exportim = cv2.rectangle(
+                exportim,
+                (int(barx),int(bary)),
+                (int(barx+barsize_px),int(bary+barthickness)),
+                barcolor+(255,),
+                -1
+            )
         
-        #draw scalebar
-        exportim = cv2.rectangle(
-            exportim,
-            (int(barx),int(bary)),
-            (int(barx+barsize_px),int(bary+barthickness)),
-            barcolor+(255,),
-            -1
-        )
+        if draw_text:
+            #calculate position for text (horizontally centered in box)
+            textx = (2*x + boxwidth)/2 \
+                - textsize[0]/2
+            texty = y + fontpad
         
-        #draw text
-        exportim = Image.fromarray(exportim)
-        draw = ImageDraw.Draw(exportim)
-        draw.text(
-            (textx,texty),
-            text,
-            fill=barcolor,
-            font=font
-        )
-        exportim = np.array(exportim)
-    
+            #draw text
+            exportim = Image.fromarray(exportim)
+            draw = ImageDraw.Draw(exportim)
+            draw.text(
+                (textx,texty),
+                text,
+                fill=barcolor,
+                font=font
+            )
+            exportim = np.array(exportim)
+        
     #show result
     if show_figure:
         plt.figure()

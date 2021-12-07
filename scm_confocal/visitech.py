@@ -592,7 +592,11 @@ class visitech_series:
             optional rescaling using `resolution`).
             
             The default is `None` which takes the entire image.
-        cmap : str or callable, optional
+        resolution : int, optional
+            the resolution along the x-axis (i.e. image width in pixels) to use
+            for the exported image. The default is `None`, which uses the size 
+            of the original image (after optional cropping using `crop`).
+        cmap : str or callable or list of str or list of callable, optional
             name of a named Matplotlib colormap used to color the data. see the 
             [Matplotlib documentation](
                 https://matplotlib.org/stable/tutorials/colors/colormaps.html)
@@ -615,10 +619,9 @@ class visitech_series:
             or [LinearSegmentedColormap](https://matplotlib.org/stable/api/_as_gen/matplotlib.colors.LinearSegmentedColormap.html#matplotlib.colors.LinearSegmentedColormap)
             object from the Matplotlib.colors module. For more information on 
             creating colormaps, see the Matplotlib documentation linked above.
-        resolution : int, optional
-            the resolution along the x-axis (i.e. image width in pixels) to use
-            for the exported image. The default is `None`, which uses the size 
-            of the original image (after optional cropping using `crop`).
+            
+            For multichannel data, a list of colormaps *must* be provided, with
+            a separate colormap for each channel.
         cmap_range : tuple of form (min,max) or None or `'automatic'`, optional
             sets the scaling of the colormap. The minimum and maximum 
             values to map the colormap to, values outside of this range will
@@ -629,7 +632,9 @@ class visitech_series:
             a list of cmap_range options per channel may be provided.
         draw_bar : boolean, optional
             whether to draw a scalebar on the image, such that this function 
-            may be used just to apply a colormap. The default is `True`.
+            may be used to put other text on the image or just to apply a 
+            colormap (by setting `draw_bar=False` and `draw_text=False`). The 
+            default is `True`.
         barsize : float or `None`, optional
             size (in data units matching the original scale bar, e.g. nm) of 
             the scale bar to use. The default `None`, wich takes the desired 
@@ -652,19 +657,6 @@ class visitech_series:
             Unit that will be used for the scale bar, the value will be 
             automatically converted if this unit differs from the pixel size
             unit. The default is `None`, which uses micrometers.
-        font : str, optional
-            filename of an installed TrueType font ('.ttf' file) to use for the
-            text on the scalebar. The default is `'arialbd.ttf'`.
-        fontsize : int, optional
-            base font size to use for the scale bar text. The default is 16. 
-            Note that this size will be re-scaled according to `resolution` and
-            `scale`.
-        fontbaseline : int, optional
-            vertical offset for the baseline of the scale bar text in printer
-             points. The default is 0.
-        fontpad : int, optional
-            minimum size in printer points of the space/padding between the 
-            text and the bar and surrounding box. The default is 2.
         barcolor : tuple of ints, optional
             RGB color to use for the scalebar and text, given
             as a tuple of form (R,G,B) where R, G B and A are values between 0 
@@ -676,7 +668,28 @@ class visitech_series:
         barpad : int, optional
             size in printer points of the padding between the scale bar and the
             surrounding box. The default is 10.
-        box : bool, optional
+        draw_text : bool, optional
+            whether to draw the text specified in `text` on the image, the text
+            is place above the scale bar if `draw_bar=True`. The default is 
+            `True`.
+        text : str, optional
+            the text to draw on the image (above the scale bar if 
+            `draw_bar=True`). The default is `None`, which gives the size and 
+            unit of the scale bar (e.g. `'10 µm'`).
+        font : str, optional
+            filename of an installed TrueType font ('.ttf' file) to use for the
+            text on the scalebar. The default is `'arialbd.ttf'`.
+        fontsize : int, optional
+            base font size to use for the scale bar text. The default is 16. 
+            Note that this size will be re-scaled according to `resolution` and
+            `scale`.
+        fontbaseline : int, optional
+            vertical offset for the baseline of the scale bar text in printer
+            points. The default is 0.
+        fontpad : int, optional
+            minimum size in printer points of the space/padding between the 
+            text and the bar and surrounding box. The default is 2.
+        draw_box : bool, optional
             Whether to put a colored box behind the scalebar and text to 
             enhance contrast on busy images. The default is `False`.
         boxcolor : tuple of ints, optional
@@ -690,6 +703,10 @@ class visitech_series:
         boxpad : int, optional
             size of the space/padding around the box (with respect to the sides
             of the image) in printer points. The default is 10.
+        save : bool, optional
+            whether to save the image as file. The default is True.
+        show_figure : bool, optional
+            whether to open matplotlib figure windows. The default is True.
             
         Returns
         -------
@@ -1428,7 +1445,11 @@ class visitech_faststack:
             optional rescaling using `resolution`).
             
             The default is `None` which takes the entire image.
-        cmap : str or callable, optional
+        resolution : int, optional
+            the resolution along the x-axis (i.e. image width in pixels) to use
+            for the exported image. The default is `None`, which uses the size 
+            of the original image (after optional cropping using `crop`).
+        cmap : str or callable or list of str or list of callable, optional
             name of a named Matplotlib colormap used to color the data. see the 
             [Matplotlib documentation](
                 https://matplotlib.org/stable/tutorials/colors/colormaps.html)
@@ -1451,10 +1472,9 @@ class visitech_faststack:
             or [LinearSegmentedColormap](https://matplotlib.org/stable/api/_as_gen/matplotlib.colors.LinearSegmentedColormap.html#matplotlib.colors.LinearSegmentedColormap)
             object from the Matplotlib.colors module. For more information on 
             creating colormaps, see the Matplotlib documentation linked above.
-        resolution : int, optional
-            the resolution along the x-axis (i.e. image width in pixels) to use
-            for the exported image. The default is `None`, which uses the size 
-            of the original image (after optional cropping using `crop`).
+            
+            For multichannel data, a list of colormaps *must* be provided, with
+            a separate colormap for each channel.
         cmap_range : tuple of form (min,max) or None or `'automatic'`, optional
             sets the scaling of the colormap. The minimum and maximum 
             values to map the colormap to, values outside of this range will
@@ -1465,7 +1485,9 @@ class visitech_faststack:
             a list of cmap_range options per channel may be provided.
         draw_bar : boolean, optional
             whether to draw a scalebar on the image, such that this function 
-            may be used just to apply a colormap. The default is `True`.
+            may be used to put other text on the image or just to apply a 
+            colormap (by setting `draw_bar=False` and `draw_text=False`). The 
+            default is `True`.
         barsize : float or `None`, optional
             size (in data units matching the original scale bar, e.g. nm) of 
             the scale bar to use. The default `None`, wich takes the desired 
@@ -1488,19 +1510,6 @@ class visitech_faststack:
             Unit that will be used for the scale bar, the value will be 
             automatically converted if this unit differs from the pixel size
             unit. The default is `None`, which uses micrometers.
-        font : str, optional
-            filename of an installed TrueType font ('.ttf' file) to use for the
-            text on the scalebar. The default is `'arialbd.ttf'`.
-        fontsize : int, optional
-            base font size to use for the scale bar text. The default is 16. 
-            Note that this size will be re-scaled according to `resolution` and
-            `scale`.
-        fontbaseline : int, optional
-            vertical offset for the baseline of the scale bar text in printer
-             points. The default is 0.
-        fontpad : int, optional
-            minimum size in printer points of the space/padding between the 
-            text and the bar and surrounding box. The default is 2.
         barcolor : tuple of ints, optional
             RGB color to use for the scalebar and text, given
             as a tuple of form (R,G,B) where R, G B and A are values between 0 
@@ -1512,7 +1521,28 @@ class visitech_faststack:
         barpad : int, optional
             size in printer points of the padding between the scale bar and the
             surrounding box. The default is 10.
-        box : bool, optional
+        draw_text : bool, optional
+            whether to draw the text specified in `text` on the image, the text
+            is place above the scale bar if `draw_bar=True`. The default is 
+            `True`.
+        text : str, optional
+            the text to draw on the image (above the scale bar if 
+            `draw_bar=True`). The default is `None`, which gives the size and 
+            unit of the scale bar (e.g. `'10 µm'`).
+        font : str, optional
+            filename of an installed TrueType font ('.ttf' file) to use for the
+            text on the scalebar. The default is `'arialbd.ttf'`.
+        fontsize : int, optional
+            base font size to use for the scale bar text. The default is 16. 
+            Note that this size will be re-scaled according to `resolution` and
+            `scale`.
+        fontbaseline : int, optional
+            vertical offset for the baseline of the scale bar text in printer
+            points. The default is 0.
+        fontpad : int, optional
+            minimum size in printer points of the space/padding between the 
+            text and the bar and surrounding box. The default is 2.
+        draw_box : bool, optional
             Whether to put a colored box behind the scalebar and text to 
             enhance contrast on busy images. The default is `False`.
         boxcolor : tuple of ints, optional
@@ -1526,6 +1556,10 @@ class visitech_faststack:
         boxpad : int, optional
             size of the space/padding around the box (with respect to the sides
             of the image) in printer points. The default is 10.
+        save : bool, optional
+            whether to save the image as file. The default is True.
+        show_figure : bool, optional
+            whether to open matplotlib figure windows. The default is True.
             
         Returns
         -------

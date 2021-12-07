@@ -64,6 +64,13 @@ class sp8_lif:
                 raise FileNotFoundError(
                     f"No such file or directory: '{filename}'"
                 )
+        
+        #get metadata for images-like items only (there may be config-items)
+        self.image_xml_list = []
+        for item in self.liffile.xml_root.findall('.//Children/Element'):
+            if len(item.findall("./Data/Image")) > 0:
+                self.image_xml_list.append(item)
+        
         #for convenience print contents of file
         if not quiet:
             print(self)
@@ -198,6 +205,7 @@ class sp8_image(sp8_lif):
         #inherit parent attribs and initialize readlif.LifImage class
         super().__init__(filename,quiet=True)
         self.image = image
+        self.metadata = self.image_xml_list[self.image]
         self.lifimage = self.liffile.get_image(self.image)
         
         #note if it is single or multichannel
@@ -271,22 +279,6 @@ class sp8_image(sp8_lif):
         The format is: `<lif file name (without file extension)>_<image name>`
         """
         return self.filename.rpartition('.')[0]+'_'+self.name
-      
-    def get_metadata(self):
-        """
-        parse the .lif xml data for the current image
-        
-        Returns
-        -------
-        `xml.etree.ElementTree` instance for the current image
-        """
-        if hasattr(self,'metadata'):
-            return self.metadata
-        else:
-            self.metadata = \
-                self.liffile.xml_root.find('.//Children'
-                                           ).findall('Element')[self.image]
-            return self.metadata
         
     def get_channels(self):
         """
@@ -299,9 +291,8 @@ class sp8_image(sp8_lif):
         if hasattr(self,'metadata_channels'):
             return self.metadata_channels
         else:   
-            root = self.get_metadata()
-            self.metadata_channels = [dict(dim.attrib) \
-                                      for dim in root.find('.//Channels')]
+            self.metadata_channels = \
+                [dict(dim.attrib) for dim in self.metadata.find('.//Channels')]
         return self.metadata_channels
     
     def get_detector_settings(self):
@@ -313,7 +304,7 @@ class sp8_image(sp8_lif):
         dictionary or (in case of multichannel data) a list thereof
         """
         #get detector data
-        detectors = self.get_metadata().findall('.//Detector')
+        detectors = self.metadata.findall('.//Detector')
         detectors = [d.attrib for d in detectors]
         
         #select only active detectors
@@ -358,7 +349,7 @@ class sp8_image(sp8_lif):
         if hasattr(self,'metadata_dimensions'):
             return self.metadata_dimensions
         else:    
-            root = self.get_metadata()
+            root = self.metadata
             self.metadata_dimensions = [dict(dim.attrib) \
                                         for dim in root.find('.//Dimensions')]
         return self.metadata_dimensions
@@ -499,7 +490,7 @@ class sp8_image(sp8_lif):
     
     def get_stage_position(self):
         """Returns base (z,y,x) position of the stage in micrometer"""
-        md = self.get_metadata()
+        md = self.metadata
         atlasdata = dict(md.find('.//ATLConfocalSettingDefinition').attrib)
         return (
             float(atlasdata['ZPosition'])*1e6,
@@ -761,10 +752,11 @@ class sp8_image(sp8_lif):
         print('\n -------------------------------------------- ')
         print('|                  METADATA                  |')
         print(' -------------------------------------------- ')
-        recursive_print(self.get_metadata(),'|')
+        recursive_print(self.metadata,'|')
         print(' -------------------------------------------- ')
     
-    def export_with_scalebar(self,frame=0,channel=0,filename=None,**kwargs):
+    def export_with_scalebar(self,frame=0,channel=0,filename=None,
+                             preprocess=None,**kwargs):
         """
         saves an exported image of the confocal slice with a scalebar in one of
         the four corners, where barsize is the scalebar size in data units 
@@ -797,6 +789,10 @@ class sp8_image(sp8_lif):
             optional rescaling using `resolution`).
             
             The default is `None` which takes the entire image.
+        resolution : int, optional
+            the resolution along the x-axis (i.e. image width in pixels) to use
+            for the exported image. The default is `None`, which uses the size 
+            of the original image (after optional cropping using `crop`).
         cmap : str or callable or list of str or list of callable, optional
             name of a named Matplotlib colormap used to color the data. see the 
             [Matplotlib documentation](
@@ -823,10 +819,6 @@ class sp8_image(sp8_lif):
             
             For multichannel data, a list of colormaps *must* be provided, with
             a separate colormap for each channel.
-        resolution : int, optional
-            the resolution along the x-axis (i.e. image width in pixels) to use
-            for the exported image. The default is `None`, which uses the size 
-            of the original image (after optional cropping using `crop`).
         cmap_range : tuple of form (min,max) or None or `'automatic'`, optional
             sets the scaling of the colormap. The minimum and maximum 
             values to map the colormap to, values outside of this range will
@@ -837,7 +829,9 @@ class sp8_image(sp8_lif):
             a list of cmap_range options per channel may be provided.
         draw_bar : boolean, optional
             whether to draw a scalebar on the image, such that this function 
-            may be used just to apply a colormap. The default is `True`.
+            may be used to put other text on the image or just to apply a 
+            colormap (by setting `draw_bar=False` and `draw_text=False`). The 
+            default is `True`.
         barsize : float or `None`, optional
             size (in data units matching the original scale bar, e.g. nm) of 
             the scale bar to use. The default `None`, wich takes the desired 
@@ -860,19 +854,6 @@ class sp8_image(sp8_lif):
             Unit that will be used for the scale bar, the value will be 
             automatically converted if this unit differs from the pixel size
             unit. The default is `None`, which uses micrometers.
-        font : str, optional
-            filename of an installed TrueType font ('.ttf' file) to use for the
-            text on the scalebar. The default is `'arialbd.ttf'`.
-        fontsize : int, optional
-            base font size to use for the scale bar text. The default is 16. 
-            Note that this size will be re-scaled according to `resolution` and
-            `scale`.
-        fontbaseline : int, optional
-            vertical offset for the baseline of the scale bar text in printer
-             points. The default is 0.
-        fontpad : int, optional
-            minimum size in printer points of the space/padding between the 
-            text and the bar and surrounding box. The default is 2.
         barcolor : tuple of ints, optional
             RGB color to use for the scalebar and text, given
             as a tuple of form (R,G,B) where R, G B and A are values between 0 
@@ -884,7 +865,28 @@ class sp8_image(sp8_lif):
         barpad : int, optional
             size in printer points of the padding between the scale bar and the
             surrounding box. The default is 10.
-        box : bool, optional
+        draw_text : bool, optional
+            whether to draw the text specified in `text` on the image, the text
+            is place above the scale bar if `draw_bar=True`. The default is 
+            `True`.
+        text : str, optional
+            the text to draw on the image (above the scale bar if 
+            `draw_bar=True`). The default is `None`, which gives the size and 
+            unit of the scale bar (e.g. `'10 µm'`).
+        font : str, optional
+            filename of an installed TrueType font ('.ttf' file) to use for the
+            text on the scalebar. The default is `'arialbd.ttf'`.
+        fontsize : int, optional
+            base font size to use for the scale bar text. The default is 16. 
+            Note that this size will be re-scaled according to `resolution` and
+            `scale`.
+        fontbaseline : int, optional
+            vertical offset for the baseline of the scale bar text in printer
+            points. The default is 0.
+        fontpad : int, optional
+            minimum size in printer points of the space/padding between the 
+            text and the bar and surrounding box. The default is 2.
+        draw_box : bool, optional
             Whether to put a colored box behind the scalebar and text to 
             enhance contrast on busy images. The default is `False`.
         boxcolor : tuple of ints, optional
@@ -898,6 +900,10 @@ class sp8_image(sp8_lif):
         boxpad : int, optional
             size of the space/padding around the box (with respect to the sides
             of the image) in printer points. The default is 10.
+        save : bool, optional
+            whether to save the image as file. The default is True.
+        show_figure : bool, optional
+            whether to open matplotlib figure windows. The default is True.
             
         Returns
         -------
@@ -924,12 +930,16 @@ class sp8_image(sp8_lif):
                 raise ValueError('cannot set multiple channels for single '
                                  'channel data')
         
+        if preprocess is None:
+            preprocess = lambda im: im
+        
         #get the actual image using the load_frame function, make it an array
         if multichannel:
-            exportim = [np.array(im) \
+            exportim = [preprocess(np.array(im)) \
                         for im in self.load_frame(frame,channel=channel)]
         else:
-            exportim = np.array(self.load_frame(frame,channel=channel))
+            exportim = preprocess(np.array(self.load_frame(frame,
+                                                           channel=channel)))
         
         #call main export_with_scalebar function with correct pixelsize etc
         from .util import _export_with_scalebar
@@ -1499,6 +1509,10 @@ class sp8_series:
             optional rescaling using `resolution`).
             
             The default is `None` which takes the entire image.
+        resolution : int, optional
+            the resolution along the x-axis (i.e. image width in pixels) to use
+            for the exported image. The default is `None`, which uses the size 
+            of the original image (after optional cropping using `crop`).
         cmap : str or callable or list of str or list of callable, optional
             name of a named Matplotlib colormap used to color the data. see the 
             [Matplotlib documentation](
@@ -1525,10 +1539,6 @@ class sp8_series:
             
             For multichannel data, a list of colormaps *must* be provided, with
             a separate colormap for each channel.
-        resolution : int, optional
-            the resolution along the x-axis (i.e. image width in pixels) to use
-            for the exported image. The default is `None`, which uses the size 
-            of the original image (after optional cropping using `crop`).
         cmap_range : tuple of form (min,max) or None or `'automatic'`, optional
             sets the scaling of the colormap. The minimum and maximum 
             values to map the colormap to, values outside of this range will
@@ -1539,7 +1549,9 @@ class sp8_series:
             a list of cmap_range options per channel may be provided.
         draw_bar : boolean, optional
             whether to draw a scalebar on the image, such that this function 
-            may be used just to apply a colormap. The default is `True`.
+            may be used to put other text on the image or just to apply a 
+            colormap (by setting `draw_bar=False` and `draw_text=False`). The 
+            default is `True`.
         barsize : float or `None`, optional
             size (in data units matching the original scale bar, e.g. nm) of 
             the scale bar to use. The default `None`, wich takes the desired 
@@ -1562,19 +1574,6 @@ class sp8_series:
             Unit that will be used for the scale bar, the value will be 
             automatically converted if this unit differs from the pixel size
             unit. The default is `None`, which uses micrometers.
-        font : str, optional
-            filename of an installed TrueType font ('.ttf' file) to use for the
-            text on the scalebar. The default is `'arialbd.ttf'`.
-        fontsize : int, optional
-            base font size to use for the scale bar text. The default is 16. 
-            Note that this size will be re-scaled according to `resolution` and
-            `scale`.
-        fontbaseline : int, optional
-            vertical offset for the baseline of the scale bar text in printer
-             points. The default is 0.
-        fontpad : int, optional
-            minimum size in printer points of the space/padding between the 
-            text and the bar and surrounding box. The default is 2.
         barcolor : tuple of ints, optional
             RGB color to use for the scalebar and text, given
             as a tuple of form (R,G,B) where R, G B and A are values between 0 
@@ -1586,7 +1585,28 @@ class sp8_series:
         barpad : int, optional
             size in printer points of the padding between the scale bar and the
             surrounding box. The default is 10.
-        box : bool, optional
+        draw_text : bool, optional
+            whether to draw the text specified in `text` on the image, the text
+            is place above the scale bar if `draw_bar=True`. The default is 
+            `True`.
+        text : str, optional
+            the text to draw on the image (above the scale bar if 
+            `draw_bar=True`). The default is `None`, which gives the size and 
+            unit of the scale bar (e.g. `'10 µm'`).
+        font : str, optional
+            filename of an installed TrueType font ('.ttf' file) to use for the
+            text on the scalebar. The default is `'arialbd.ttf'`.
+        fontsize : int, optional
+            base font size to use for the scale bar text. The default is 16. 
+            Note that this size will be re-scaled according to `resolution` and
+            `scale`.
+        fontbaseline : int, optional
+            vertical offset for the baseline of the scale bar text in printer
+            points. The default is 0.
+        fontpad : int, optional
+            minimum size in printer points of the space/padding between the 
+            text and the bar and surrounding box. The default is 2.
+        draw_box : bool, optional
             Whether to put a colored box behind the scalebar and text to 
             enhance contrast on busy images. The default is `False`.
         boxcolor : tuple of ints, optional
@@ -1600,7 +1620,10 @@ class sp8_series:
         boxpad : int, optional
             size of the space/padding around the box (with respect to the sides
             of the image) in printer points. The default is 10.
-            
+        save : bool, optional
+            whether to save the image as file. The default is True.
+        show_figure : bool, optional
+            whether to open matplotlib figure windows. The default is True.
             
         Returns
         -------
