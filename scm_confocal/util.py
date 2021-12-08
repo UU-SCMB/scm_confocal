@@ -1753,7 +1753,7 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
     #set default scalebar to original scalebar or calculate len
     if barsize is None:
         #take 15% of image width and round to nearest in list of 'nice' vals
-        barsize = scale*0.15*shape[1]*pixelsize
+        barsize = scale*0.12*shape[1]*pixelsize
         lst = [
             0.01, 0.02, 0.025, 0.03, 0.04, 0.05, 0.1, 0.2, 0.25, 0.3, 0.4, 0.5,
             1, 2, 2.5, 3, 4, 5, 10, 20, 25, 30, 40, 50, 100, 200, 250, 300,
