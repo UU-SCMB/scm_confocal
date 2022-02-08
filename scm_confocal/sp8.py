@@ -634,7 +634,7 @@ class sp8_image(sp8_lif):
         #dimensions = self.get_dimensions()
         #order = [_DimID_to_str(dim['DimID']) for dim in reversed(dimensions)]
         #order = ['channel'] + order
-        order = ['mosaic','channel','time','z-axis','y-axis','x-axis']
+        order = ['channel','mosaic','time','z-axis','y-axis','x-axis']
         
         #store slicing
         self._stack_dim_range = dim_range
@@ -673,14 +673,14 @@ class sp8_image(sp8_lif):
         msteps = np.array(range(self.dims.m))[dim_range['mosaic']]
         
         #determine shape and init array
-        newshape = (len(msteps),len(channels),len(times),len(zsteps),ny,nx)
+        newshape = (len(channels),len(msteps),len(times),len(zsteps),ny,nx)
         data = np.empty(newshape,
                         dtype=np.uint8 if self.lifimage.bit_depth[0] == 8 
                         else np.uint16)
 
         #loop over indices and load
-        for i,m in enumerate(msteps):
-            for j,c in enumerate(channels):
+        for i,c in enumerate(channels):
+            for j,m in enumerate(msteps):
                 for k,t in enumerate(times):
                     for l,z in enumerate(zsteps):
                         data[i,j,k,l,:,:] = self.lifimage.get_frame(z,t,c,m)
