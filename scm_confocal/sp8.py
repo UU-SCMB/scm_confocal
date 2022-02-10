@@ -53,7 +53,8 @@ class sp8_lif:
         try:
             if filename is None:
                 filename = glob.glob('*.lif')[0]
-            
+            elif type(filename)==int:
+                filename = glob.glob('*.lif')[filename]
             self.liffile = LifFile(filename)
             self.filename = filename
         except FileNotFoundError:
