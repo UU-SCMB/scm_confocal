@@ -105,7 +105,7 @@ def align_stack(images,startim=0,threshold=0,binning=1,smooth=0,upsample=1,
     
     return (images,imshift)
 
-def bin_stack(images,n=1,blocksize=None,quiet=False,dtype=np.uint8):
+def bin_stack(images,n=1,blocksize=None,quiet=False,dtype=None):
     """
     bins numpy ndarrays in arbitrary dimensions by a factor n. Prior to
     binning, elements from the end are deleted until the length is a
@@ -155,7 +155,10 @@ def bin_stack(images,n=1,blocksize=None,quiet=False,dtype=np.uint8):
         if not quiet:
             print('no binning used')
         return images
-
+    
+    if dtype is None:
+        dtype = np.array(images).dtype
+    
     #define new shapes
     oldshape = np.shape(images)
     trimmedshape = tuple([int(oldshape[d] - oldshape[d] % n[d]) for d in range(dims)])
