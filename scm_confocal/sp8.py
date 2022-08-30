@@ -53,7 +53,8 @@ class sp8_lif:
         try:
             if filename is None:
                 filename = glob.glob('*.lif')[0]
-            
+            elif type(filename)==int:
+                filename = glob.glob('*.lif')[filename]
             self.liffile = LifFile(filename)
             self.filename = filename
         except FileNotFoundError:
@@ -247,17 +248,25 @@ class sp8_image(sp8_lif):
             return self.load_frame(key)
     
     def __iter__(self):
-        """initialize iterator"""
+        """initialize iterator for next function"""
         self._iter_n = 0
         return self
 
     def __next__(self):
         "make iterable where it returns one image at a time"
+        #make sure __iter__ has been called
+        if not hasattr(self,'_iter_n'):
+            self.__iter__()
+        
+        #increment iterator before return call
         self._iter_n += 1
-        if self._iter_n >= len(self):
+        
+        #check end condition or return using __getitem__
+        if self._iter_n > len(self):
             raise StopIteration
         else:
-            return self[self._iter_n]
+            return self[self._iter_n-1]
+
             
     def __repr__(self):
         """returns string representing the object in the interpreter"""
