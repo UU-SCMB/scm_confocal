@@ -30,9 +30,9 @@ pip install --upgrade git+https://github.com/UU-SCMB/scm_confocal
 The classes in this package typically require specific exporting formats from the confocal, and differ in specific implementation details because of this. I have attempted to be consistent in naming functions but each class has its own peculiarities based on personal need.
 
 ### SP8
-Data from the SP8 can be saved as the native `.lif` files and imported using the [sp8_lif](https://UU-SCMB.github.io/scm_confocal/#scm_confocal.sp8_lif) class, which is essentially a wrapper around the [readlif](https://github.com/nimne/readlif) library. This supports most (but not all) functions of the sp8, most notably lacking support for dirext xz imaging.
+Data from the SP8 can be saved as the native `.lif` files and imported using the [sp8_lif](https://UU-SCMB.github.io/scm_confocal/#scm_confocal.sp8_lif) class, which is essentially a wrapper around the [readlif](https://github.com/nimne/readlif) library. This supports most (but not all) functions of the sp8, but development is ongoing.
 
-Alternatively, data can be exported using the Leica LAS software (the microscope operation software), with the check marks for use RAW data checked, and these can be loaded using [sp8_series](https://UU-SCMB.github.io/scm_confocal/#scm_confocal.sp8_series) with support for all functions of the sp8. In principle data exported in color (so with a LUT applied) is accepted but not ideal and will return a warning for this reason.
+Alternatively, data can be exported using the Leica LAS software (the microscope operation software), with the check marks for use RAW data checked, and these can be loaded using [sp8_series](https://UU-SCMB.github.io/scm_confocal/#scm_confocal.sp8_series) with support for all functions of the sp8, provided that a full series is stored in its own folder together with a metadata folder. In principle data exported in color (so with a LUT applied) is accepted but not ideal and will return a warning for this reason.
 
 ### Visitech Infinity
 Two classes are available:
