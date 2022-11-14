@@ -1693,10 +1693,20 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
         plt.tight_layout()
         
         #check if alternative form of cropping is used
-        if not crop is None and len(crop) == 4:
-            altcrop = True
-        else:
-            altcrop = False
+        altcrop = False
+        if not crop is None:
+            from matplotlib.patches import Rectangle
+            if len(crop) == 4:
+                crp = [c if c>=0 else s+c for s,c 
+                       in zip(exportim.shape,crop[:2])] + list(crop[2:])
+                altcrop = True
+                x,y,w,h = crp
+            else:
+                crp = [[cc if cc>0 else s+cc for cc in c]\
+                       for s,c in zip(exportim.shape,crop)]
+                x,y = crp[0][0],crp[0][1]
+                w,h = crp[1][0]-crp[0][0], crp[1][1]-crp[0][1]
+            ax.add_patch(Rectangle((x,y),w,h,ec='r',fc='none'))
         
         #print current axes limits for easy cropping
         def _on_lim_change(call):
