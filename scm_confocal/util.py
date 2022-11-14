@@ -1799,11 +1799,11 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
         barsize_px = barsize_px/shape[1]*resolution
         if multichannel:
             exportim = [cv2.resize(im, (int(nx),int(ny)), 
-                                   interpolation=cv2.INTER_AREA
+                                   interpolation=cv2.INTER_NEAREST_EXACT
                                    ) for im in exportim]
         else:
             exportim = cv2.resize(exportim, (int(nx),int(ny)), 
-                                  interpolation=cv2.INTER_AREA)
+                                  interpolation=cv2.INTER_NEAREST_EXACT)
      
     #default colormap scaling, for multichannel check length
     if cmap_range is None:
