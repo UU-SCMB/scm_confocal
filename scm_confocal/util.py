@@ -1618,16 +1618,28 @@ def _get_pure_cmap(name):
     return cmap
 
 def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
-                          crop=None,resolution=None,cmap='inferno',
-                          cmap_range=None,draw_bar=True,barsize=None,scale=1,
-                          loc=2,convert=None,barcolor=(255,255,255),
-                          barthickness=14,barpad=10,draw_text=True,text=None,
-                          font='arialbd.ttf',fontsize=16,fontbaseline=0,
-                          fontpad=2,draw_box=False,boxcolor=(0,0,0),
-                          boxopacity=255,boxpad=10,save=True,show_figure=True):
+        crop=None,resolution=None,cmap='inferno',cmap_range=None,draw_bar=True,
+        barsize=None,scale=1,loc=2,convert=None,barcolor=(255,255,255),
+        barthickness=14,barpad=10,draw_text=True,text=None,font='arialbd.ttf',
+        fontsize=16,fontbaseline=0,fontpad=2,draw_box=False,boxcolor=(0,0,0),
+        boxopacity=255,boxpad=10,save=True,show_figure=True,
+        store_settings=False):
     """
     see top level export_with_scalebar functions for docs
     """
+    #store all settings from locals before anything is changed or loaded
+    if store_settings:
+        items = locals()
+        [items.pop(item) for item in ['exportim','pixelsize','unit',
+                                      'multichannel']]
+        
+        with open(filename.rpartition('.')[0]+'_settings.txt','w') as f:
+            for key,val in items.items():
+                if type(val)==str:
+                    f.write(key+" = '"+val+"',\n")
+                else:
+                    f.write(key+" = "+str(val)+",\n")
+    
     #imports
     import matplotlib.pyplot as plt
     from matplotlib import cm
@@ -1681,10 +1693,20 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
         plt.tight_layout()
         
         #check if alternative form of cropping is used
-        if not crop is None and len(crop) == 4:
-            altcrop = True
-        else:
-            altcrop = False
+        altcrop = False
+        if not crop is None:
+            from matplotlib.patches import Rectangle
+            if len(crop) == 4:
+                crp = [c if c>=0 else s+c for s,c 
+                       in zip(exportim.shape,crop[:2])] + list(crop[2:])
+                altcrop = True
+                x,y,w,h = crp
+            else:
+                crp = [[cc if cc>0 else s+cc for cc in c]\
+                       for s,c in zip(exportim.shape,crop)]
+                x,y = crp[0][0],crp[0][1]
+                w,h = crp[1][0]-crp[0][0], crp[1][1]-crp[0][1]
+            ax.add_patch(Rectangle((x,y),w,h,ec='r',fc='none'))
         
         #print current axes limits for easy cropping
         def _on_lim_change(call):
@@ -1755,7 +1777,7 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
     
     #set default scalebar to original scalebar or calculate len
     if barsize is None:
-        #take 15% of image width and round to nearest in list of 'nice' vals
+        #take 12% of image width and round to nearest in list of 'nice' vals
         barsize = scale*0.12*shape[1]*pixelsize
         lst = [
             0.01, 0.02, 0.025, 0.03, 0.04, 0.05, 0.1, 0.2, 0.25, 0.3, 0.4, 0.5,
@@ -1768,7 +1790,7 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
     barsize_px = barsize/pixelsize
     
     #set default resolution or scale image and correct barsize_px
-    if type(resolution) == type(None):
+    if resolution is None:
         ny,nx = shape
         resolution = nx
     else:
@@ -1777,11 +1799,11 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
         barsize_px = barsize_px/shape[1]*resolution
         if multichannel:
             exportim = [cv2.resize(im, (int(nx),int(ny)), 
-                                   interpolation=cv2.INTER_AREA
+                                   interpolation=cv2.INTER_NEAREST_EXACT
                                    ) for im in exportim]
         else:
             exportim = cv2.resize(exportim, (int(nx),int(ny)), 
-                                  interpolation=cv2.INTER_AREA)
+                                  interpolation=cv2.INTER_NEAREST_EXACT)
      
     #default colormap scaling, for multichannel check length
     if cmap_range is None:
@@ -1936,8 +1958,7 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
     
         if draw_bar:
             #calculate positions for bar
-            barx = (2*x + boxwidth)/2 \
-                - barsize_px/2
+            barx = (2*x + boxwidth)/2 - barsize_px/2
             bary = y+boxheight-barpad-barthickness
             
             #draw scalebar

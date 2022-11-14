@@ -996,6 +996,7 @@ class sp8_series:
             self._is_multichannel = False
         else:
             self._is_multichannel = True
+            
         
     def __len__(self):
         """define length as number of images (where multiple channels do not) 
@@ -1467,6 +1468,27 @@ class sp8_series:
         unit = dimension['Unit']
         
         return size/(n-1),unit
+    
+    def get_pixelsize(self):
+        """
+        shorthand for `get_dimension_stepsize()` to get the pixel/voxel size
+        converted to micrometer, along whatever spatial dimensions are present 
+        in the data. Is given as (z,y,x) where dimensions not present in the 
+        data are skipped.
+        
+        Returns
+        -------
+        pixelsize : tuple of float
+            physical size in µm of the pixels/voxels along (z,y,x)
+        """
+        
+        pixelsize = []
+        for d in ['z-axis','y-axis','x-axis']:
+            try:
+                pixelsize.append(self.get_dimension_stepsize(d)[0]*1e6)
+            except ValueError:
+                pass
+        return tuple(pixelsize)
     
     def get_series_name(self):
         """
