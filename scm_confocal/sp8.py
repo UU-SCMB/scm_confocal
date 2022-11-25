@@ -2,6 +2,7 @@
 import glob
 import numpy as np
 import os
+from warnings import warn
 
 class sp8_lif:
     """
@@ -640,30 +641,31 @@ class sp8_image(sp8_lif):
             in the data with labels from the metadata of the microscope.
         """
         #determine get the varied dimensions
-        #dimensions = self.get_dimensions()
-        #order = [_DimID_to_str(dim['DimID']) for dim in reversed(dimensions)]
+        dimensions = self.get_dimensions()
+        dataorder = [_DimID_to_str(dim['DimID']) \
+                     for dim in reversed(dimensions)]
         #order = ['channel'] + order
         order = ['channel','mosaic','time','z-axis','y-axis','x-axis']
         
-        #store slicing
-        self._stack_dim_range = dim_range
+        #remove None items and store as attribute
+        self._stack_dim_range = \
+            {k:v for k,v in dim_range.items() if v!=slice(None)}
 
-        #give a warning that only whole xy images are loaded
-        if 'x-axis' in dim_range or 'y-axis' in dim_range:
-            print("[WARNING] confocal.sp8_series.load_stack: Loading only"+
-                  " part of the data along dimensions 'x-axis' and/or "+
-                  "'y-axis' not implemented. Data will be loaded fully "+
-                  "into memory before discarding values outside of the "+
-                  "slice range specified for the x-axis and/or y-axis. "+
-                  "Other axes for which a range is specified will still "+
-                  "be treated normally, avoiding unneccesary memory use.")
+        #if slicing tiff give a warning that only whole images are loaded
+        if dataorder[-1] in dim_range or dataorder[-2] in dim_range:
+            warn("Loading only part of the data along one of the main "
+                 f"image axes ('{dataorder[-1]}' and/or '{dataorder[-2]}') is "
+                 "not implemented. Data will be loaded fully into memory "
+                 "before discarding values outside of the slice range "
+                 "specified for the x-axis and/or y-axis. Other axes for "
+                 "which a range is specified will still be treated "
+                 "normally, avoiding unneccesary memory use.",stacklevel=2)
         
         #give warning for nonexistent dimensions
-        if len(dim_range.keys() - set(order)) > 0:
-            for dim in dim_range.keys() - set(order):
-                print("[WARNING] confocal.sp8_series.load_stack: "+
-                      "dimension '"+dim+"' not present in data, ignoring "+
-                      "this entry.")
+        if len(dim_range.keys() - set(dataorder)) > 0:
+            for dim in dim_range.keys() - set(dataorder):
+                warn("dimension '"+dim+"' not present in data, ignoring "
+                      "this entry.",stacklevel=2)
                 dim_range.pop(dim)
         
         #create a tuple with a slice objects for each dimension except x and y
@@ -1087,9 +1089,9 @@ class sp8_series:
             )
             data[0]*1
         except:
-            print('[WARNING] scm_confocal.load_data: could not import with '+
-                  'PIL, retrying with scikit-image. Make sure libtiff version'+
-                  ' >= 4.0.10 is installed')
+            warn('could not import with PIL, retrying with '
+                 'scikit-image. Make sure libtiff version >= 4.0.10 is '
+                 'installed',ImportWarning,stacklevel=2)
             try:
                 from skimage.io import imread
                 data = np.array(
@@ -1101,10 +1103,9 @@ class sp8_series:
 
         #check if images are 2D (i.e. greyscale)
         if data.ndim > 3:
-            print("[WARNING] sp8_series.load_data(): images do not have the "+
-                  "correct dimensionality, did you load colour images "+
-                  "perhaps? Continueing with average values of higher "+
-                  "dimensions")
+            warn("images do not have the correct dimensionality, did you load "
+                 "colour images perhaps? Continueing with average values of "
+                 "higher dimensions")
             data = np.mean(data,axis=tuple(range(3,data.ndim)),dtype=dtype)
 
         #optionally fix dtype of data
@@ -1185,14 +1186,8 @@ class sp8_series:
         """
 
         #load the metadata
-        try:
-            channels = self.metadata_channels
-        except AttributeError:
-            channels = sp8_series.get_metadata_channels(self)
-        try:
-            dimensions = self.metadata_dimensions
-        except AttributeError:
-            dimensions = sp8_series.get_metadata_dimensions(self)
+        channels = sp8_series.get_metadata_channels(self)
+        dimensions = sp8_series.get_metadata_dimensions(self)
         
         #determine what the new shape should be from dimensional metadata
         newshape = [int(dim['NumberOfElements']) \
@@ -1209,26 +1204,29 @@ class sp8_series:
         #load filenames
         filenames = self.filenames
 
+        #remove None items from dim_range
+        dim_range = {k:v for k,v in dim_range.items() if v!=slice(None)}
+
         #apply slicing to the list of filenames before loading images
         if len(dim_range) > 0:
-
+            
+            #store dim range as attribute
             self._stack_dim_range = dim_range
 
-            #give a warning that only whole xy images are loaded
-            if 'x-axis' in dim_range or 'y-axis' in dim_range:
-                print("[WARNING] confocal.sp8_series.load_stack: Loading only"+
-                      " part of the data along dimensions 'x-axis' and/or "+
-                      "'y-axis' not implemented. Data will be loaded fully "+
-                      "into memory before discarding values outside of the "+
-                      "slice range specified for the x-axis and/or y-axis. "+
-                      "Other axes for which a range is specified will still "+
-                      "be treated normally, avoiding unneccesary memory use.")
+            #if slicing tiff give a warning that only whole images are loaded
+            if order[-1] in dim_range or order[-2] in dim_range:
+                warn("Loading only part of the data along one of the main "
+                     f"image axes ('{order[-1]}' and/or '{order[-2]}') is not "
+                     "implemented. Data will be loaded fully into memory "
+                     "before discarding values outside of the slice range "
+                     "specified for the x-axis and/or y-axis. Other axes for "
+                     "which a range is specified will still be treated "
+                     "normally, avoiding unneccesary memory use.",stacklevel=2)
             
             #give warning for nonexistent dimensions
             if len(dim_range.keys() - set(order)) > 0:
                 for dim in dim_range.keys() - set(order):
-                    print("[WARNING] confocal.sp8_series.load_stack: "+
-                          "dimension '"+dim+"' not present in data, ignoring "+
+                    warn("dimension '"+dim+"' not present in data, ignoring "
                           "this entry.")
                     dim_range.pop(dim)
             
