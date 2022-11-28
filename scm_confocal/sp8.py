@@ -1206,12 +1206,12 @@ class sp8_series:
 
         #remove None items from dim_range
         dim_range = {k:v for k,v in dim_range.items() if v!=slice(None)}
+        
+        #store dim range as attribute
+        self._stack_dim_range = dim_range
 
         #apply slicing to the list of filenames before loading images
         if len(dim_range) > 0:
-            
-            #store dim range as attribute
-            self._stack_dim_range = dim_range
 
             #if slicing tiff give a warning that only whole images are loaded
             if order[-1] in dim_range or order[-2] in dim_range:
@@ -1430,7 +1430,7 @@ class sp8_series:
             except AttributeError:
                 raise AttributeError('data must be loaded with '+
                                   'sp8_series.load_stack() prior to '+
-                                  'calling visitech_faststack.get_timestamps()'
+                                  'calling sp8_series.get_timestamps()'
                                   +' with load_stack_indices=True')
 
             if dim in dim_range:
