@@ -1039,12 +1039,12 @@ class sp8_series:
     
     def __repr__(self):
         """represents class instance in interpreter"""
-        return f"scm_confocal.sp8_series('{self.get_series_name()}')"
+        return f"scm_confocal.sp8_series('{self.get_name()}')"
     
     def __str__(self):
         """for convenience print basic series info"""
         return "<scm_confocal.sp8_series()>\n" +\
-            f'name:\t{self.get_series_name()}\n' +\
+            f'name:\t{self.get_name()}\n' +\
             f'files:\t{len(self.filenames)}'
         
     def load_data(self, filenames=None, first=None, last=None, dtype=np.uint8):
@@ -1488,7 +1488,7 @@ class sp8_series:
                 pass
         return tuple(pixelsize)
     
-    def get_series_name(self):
+    def get_name(self):
         """
         Returns a string containing the filename (sans file extension) under 
         which the series is saved.
@@ -1499,11 +1499,18 @@ class sp8_series:
             name of the series
 
         """
-
         #find metadata file in subfolder, split off location and extension
         path = os.path.join(os.path.curdir, 'MetaData', '*.xml')
         path = sorted(glob.glob(path))[0]
-        return os.path.split(path)[1][:-4]
+        return os.path.split(path)[1].rsplit('.')[0]
+    
+    def get_series_name(self):
+        """
+        Deprecated, renamed to `get_name()`
+        """
+        warn('`sp8_series.get_series_name()` is deprecated, use `get_name` '
+             'instead',DeprecationWarning)
+        return self.get_name()
     
     def export_with_scalebar(self,frame=0,channel=0,filename=None,**kwargs):
         """
@@ -1663,7 +1670,7 @@ class sp8_series:
         
         #set default export filename
         if type(filename) != str:
-            filename = self.get_series_name()+'_scalebar.png'
+            filename = self.get_name()+'_scalebar.png'
         
         #check we're not overwriting the original file
         if filename in self.filenames:
