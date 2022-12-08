@@ -619,15 +619,16 @@ class sp8_image(sp8_lif):
         ----------
         dim_range : dict, optional
             dict, with keys corresponding to channel/dimension labels as above
-            and slice objects as values. This allows you to only load part of
-            the data along any of the dimensions, such as only loading one
-            channel of multichannel data or a particular z-range. An example
-            use for only taking time steps up to 5 and z-slice 20 to 30 would
-            be:
+            and int or slice objects as values. This allows you to only load 
+            part of the data along any of the dimensions, such as only loading 
+            one channel of multichannel data or a particular z-range. An 
+            example use for only taking time steps up to 5 and z-slice 20 to 30
+            would be:
             
                 dim_range={'time':slice(None,5), 'z-axis':slice(20,30)}.
                 
-            The default is {}.
+            When an int is given, only that slice along the dimension is taken
+            and the dimensionis squeezed out of the data. The default is {}.
         dtype : (numpy) datatype, optional
             type to scale data to. The default is None which uses the same bit
             depth as the original image (either 8- or 16-bit unsigned int).
@@ -644,7 +645,9 @@ class sp8_image(sp8_lif):
         dimensions = self.get_dimensions()
         dataorder = [_DimID_to_str(dim['DimID']) \
                      for dim in reversed(dimensions)]
-        #order = ['channel'] + order
+        if self.channels>1:
+            dataorder = ['channel']+dataorder
+            
         order = ['channel','mosaic','time','z-axis','y-axis','x-axis']
         
         #remove None items and store as attribute
@@ -667,6 +670,18 @@ class sp8_image(sp8_lif):
                 warn("dimension '"+dim+"' not present in data, ignoring "
                       "this entry.",stacklevel=2)
                 dim_range.pop(dim)
+        
+        #add dimensions which were not in dim metadata to squeeze list
+        squeezedims = []
+        for d in order:
+            if not d in dataorder:
+                squeezedims.append(d)
+        
+        #convert int values to slice and store which dimension these were
+        for dim,val in dim_range.items():
+            if isinstance(val, int):
+                dim_range[dim] = slice(val,val+1)
+                squeezedims.append(dim)
         
         #create a tuple with a slice objects for each dimension except x and y
         for dim in order[:-2]:
@@ -711,12 +726,11 @@ class sp8_image(sp8_lif):
                            [dim_range['y-axis']])
             data = data[slices]
         
-        #squeeze out dimensions with only one element
-        dim_order = []
-        for i,s in enumerate(data.shape):
-            if s > 1:
-                dim_order.append(order[i])
-        data = np.squeeze(data)
+        #squeeze unvaried dims and dims with integer dim ranges 
+        if squeezedims:
+            squeezedims = tuple(order.index(d) for d in squeezedims)
+            data = data.squeeze(axis=squeezedims)
+            [order.pop(d) for d in reversed(sorted(squeezedims))]#remove high to low
 
         # convert to requested dtype
         if dtype is not None and data.dtype != dtype:
@@ -725,7 +739,7 @@ class sp8_image(sp8_lif):
             data *= 255.0/data.max()
             data = data.astype(dtype)  
 
-        return data, tuple(dim_order)
+        return data, tuple(order)
     
     def print_medata(self):
         """ 
@@ -1159,15 +1173,16 @@ class sp8_series:
         ----------
         dim_range : dict, optional
             dict, with keys corresponding to channel/dimension labels as above
-            and slice objects as values. This allows you to only load part of
-            the data along any of the dimensions, such as only loading one
-            channel of multichannel data or a particular z-range. An example
-            use for only taking time steps up to 5 and z-slice 20 to 30 would
-            be:
+            and int or slice objects as values. This allows you to only load 
+            part of the data along any of the dimensions, such as only loading 
+            one channel of multichannel data or a particular z-range. An 
+            example use for only taking time steps up to 5 and z-slice 20 to 30
+            would be:
             
                 dim_range={'time':slice(None,5), 'z-axis':slice(20,30)}.
                 
-            The default is {}.
+            When an int is given, only that slice along the dimension is taken
+            and the dimensionis squeezed out of the data. The default is {}.
         dtype : (numpy) datatype, optional
             type to scale data to. The default is np.uint8.
 
@@ -1205,40 +1220,41 @@ class sp8_series:
         #store dim range as attribute
         self._stack_dim_range = dim_range
 
-        #apply slicing to the list of filenames before loading images
-        if len(dim_range) > 0:
-
-            #if slicing tiff give a warning that only whole images are loaded
-            if order[-1] in dim_range or order[-2] in dim_range:
-                warn("Loading only part of the data along one of the main "
-                     f"image axes ('{order[-1]}' and/or '{order[-2]}') is not "
-                     "implemented. Data will be loaded fully into memory "
-                     "before discarding values outside of the slice range "
-                     "specified for the x-axis and/or y-axis. Other axes for "
-                     "which a range is specified will still be treated "
-                     "normally, avoiding unneccesary memory use.",stacklevel=2)
-            
-            #give warning for nonexistent dimensions
-            if len(dim_range.keys() - set(order)) > 0:
-                for dim in dim_range.keys() - set(order):
-                    warn("dimension '"+dim+"' not present in data, ignoring "
-                          "this entry.")
-                    dim_range.pop(dim)
-            
-            #create a tuple of slice objects for each dimension except x and y
-            slices = []
-            for dim in order[:-2]:
-                if not dim in dim_range:
-                    dim_range[dim] = slice(None,None)
-                slices.append(dim_range[dim])
-            slices = tuple(slices)
-            
-            #reshape the filenames and apply slicing, then ravel back to flat
-            #list
-            filenames = np.reshape(filenames,newshape[:-2])[slices]
+        #if slicing tiff give a warning that only whole images are loaded
+        if order[-1] in dim_range or order[-2] in dim_range:
+            warn("Loading only part of the data along one of the main "
+                 f"image axes ('{order[-1]}' and/or '{order[-2]}') is not "
+                 "implemented. Data will be loaded fully into memory "
+                 "before discarding values outside of the slice range "
+                 "specified for the x-axis and/or y-axis. Other axes for "
+                 "which a range is specified will still be treated "
+                 "normally, avoiding unneccesary memory use.",stacklevel=2)
         
-        else:
-            filenames = np.reshape(filenames,newshape[:-2])
+        #give warning for nonexistent dimensions
+        if len(dim_range.keys() - set(order)) > 0:
+            for dim in dim_range.keys() - set(order):
+                warn("dimension '"+dim+"' not present in data, ignoring "
+                      "this entry.")
+                dim_range.pop(dim)
+        
+        #convert int values to slice and store which dimension it is
+        squeezedims = []
+        for dim,val in dim_range.items():
+            if isinstance(val, int):
+                dim_range[dim] = slice(val,val+1)
+                squeezedims.append(dim)
+        
+        #create a tuple of slice objects for each dimension except x and y
+        slices = []
+        for dim in order[:-2]:
+            if not dim in dim_range:
+                dim_range[dim] = slice(None,None)
+            slices.append(dim_range[dim])
+        slices = tuple(slices)
+        
+        #reshape the filenames and apply slicing, then ravel back to flat
+        #list
+        filenames = np.reshape(filenames,newshape[:-2])[slices]
             
         #change dim order if multiple channels, move to 0th axis
         for i,dim in enumerate(order):
@@ -1268,6 +1284,12 @@ class sp8_series:
             slices = tuple([slice(None)]*len(newshape[:-2]) + 
                            [dim_range['y-axis']])
             data = data[slices]
+        
+        #squeeze dims with integer dim ranges
+        if squeezedims:
+            squeezedims = tuple(order.index(d) for d in squeezedims)
+            data = data.squeeze(axis=squeezedims)
+            [order.pop(d) for d in reversed(sorted(squeezedims))]#pop in reverse
         
         return data, tuple(order)
     
@@ -1669,7 +1691,7 @@ class sp8_series:
         
         #check we're not overwriting the original file
         if filename in self.filenames:
-            raise ValueError('overwriting original file not recommended, '+
+            raise ValueError('overwriting original file not allowed, '+
                              'use a different filename for exporting.')
         
         #check if multichannel or not
