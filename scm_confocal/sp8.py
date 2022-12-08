@@ -766,8 +766,7 @@ class sp8_image(sp8_lif):
         recursive_print(self.metadata,'|')
         print(' -------------------------------------------- ')
     
-    def export_with_scalebar(self,frame=0,channel=0,filename=None,
-                             preprocess=None,**kwargs):
+    def export_with_scalebar(self,frame=0,channel=0,filename=None,**kwargs):
         """
         saves an exported image of the confocal slice with a scalebar in one of
         the four corners, where barsize is the scalebar size in data units 
@@ -941,16 +940,12 @@ class sp8_image(sp8_lif):
                 raise ValueError('cannot set multiple channels for single '
                                  'channel data')
         
-        if preprocess is None:
-            preprocess = lambda im: im
-        
         #get the actual image using the load_frame function, make it an array
         if multichannel:
-            exportim = [preprocess(np.array(im)) \
+            exportim = [np.array(im) \
                         for im in self.load_frame(frame,channel=channel)]
         else:
-            exportim = preprocess(np.array(self.load_frame(frame,
-                                                           channel=channel)))
+            exportim = np.array(self.load_frame(frame,channel=channel))
         
         #call main export_with_scalebar function with correct pixelsize etc
         from .util import _export_with_scalebar
