@@ -1699,9 +1699,13 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
     if show_figure:
         fig,ax = plt.subplots(1,1)
         if multichannel:
+            orim = np.zeros((*shape,4),dtype=np.uint16)
             for i,(im,mp) in enumerate(zip(exportim,cmap)):
-                ax.imshow(im,cmap=mp,vmin=np.amin(im),vmax=np.amax(im),
-                          alpha=1/(i+1))
+                orim += (cm.get_cmap(mp)(Normalize()(im))*255).astype(np.uint8)
+                #ax.imshow(im,cmap=mp,vmin=np.amin(im),vmax=np.amax(im),
+                #          alpha=1/(i+1))
+            orim[orim>255] = 255
+            ax.imshow(orim.astype(np.uint8))
         else:
             ax.imshow(exportim,cmap=cmap,vmin=np.amin(exportim),
                       vmax=np.amax(exportim))
