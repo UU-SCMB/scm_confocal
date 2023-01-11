@@ -569,7 +569,7 @@ class sp8_image(sp8_lif):
             return tuple([self.lifimage.get_plane(c=c,requested_dims=dimsdict)\
                           for c in channel])
     
-    def load_stack(self,dim_range={},dtype=None):
+    def load_stack(self,dim_range=None,dtype=None):
         """
         Similar to sp8_series.load_data(), but converts the 3D array of images
         automatically to a np.ndarray of the appropriate dimensionality.
@@ -647,13 +647,16 @@ class sp8_image(sp8_lif):
                      for dim in reversed(dimensions)]
         if self.channels>1:
             dataorder = ['channel']+dataorder
-            
         order = ['channel','mosaic','time','z-axis','y-axis','x-axis']
+        
+        #default dim range (as None to prevent mutable default arg)
+        if dim_range is None:
+            dim_range= {}
         
         #remove None items and store as attribute
         self._stack_dim_range = \
             {k:v for k,v in dim_range.items() if v!=slice(None)}
-
+        
         #if slicing tiff give a warning that only whole images are loaded
         if dataorder[-1] in dim_range or dataorder[-2] in dim_range:
             warn("Loading only part of the data along one of the main "
@@ -1125,7 +1128,7 @@ class sp8_series:
         self.data = data
         return data
     
-    def load_stack(self,dim_range={},dtype=np.uint8):
+    def load_stack(self,dim_range=None,dtype=np.uint8):
         """
         Similar to sp8_series.load_data(), but converts the 3D array of images
         automatically to a np.ndarray of the appropriate dimensionality.
@@ -1205,6 +1208,10 @@ class sp8_series:
         
         #create list of dimension labels
         order = [_DimID_to_str(dim['DimID']) for dim in reversed(dimensions)]
+        
+        #default dim range (as None to prevent mutable default arg)
+        if dim_range is None:
+            dim_range= {}
         
         #append channel (but before x and y) information for multichannel data
         if len(channels)>1:
