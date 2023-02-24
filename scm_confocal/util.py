@@ -550,13 +550,15 @@ def mean_square_displacement(features, pos_cols = ['x','y','z'], t_col='t (s)',
         
         import multiprocessing as mp
         from functools import partial
+        
+        if cores is None:
+            cores = mp.cpu_count()
+        
         print(f'processing MSD using {cores} cores...',end='',flush=True)
         
         curry = partial(_msd_particle_loop,itmin=itmin,itmax=itmax,linear=linear_sampling)
         dt_dr = np.empty((0,2))
         
-        if cores == None:
-            cores = mp.cpu_count()
         try:
             pool = mp.Pool(cores)
             result = pool.imap(curry,(features.loc[p].to_numpy() for p in particles))
@@ -1623,7 +1625,7 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
         barthickness=14,barpad=10,draw_text=True,text=None,font='arialbd.ttf',
         fontsize=16,fontbaseline=0,fontpad=2,draw_box=False,boxcolor=(0,0,0),
         boxopacity=255,boxpad=10,save=True,show_figure=True,
-        store_settings=False):
+        store_settings=False,preprocess=None):
     """
     see top level export_with_scalebar functions for docs
     """
@@ -1633,9 +1635,19 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
         [items.pop(item) for item in ['exportim','pixelsize','unit',
                                       'multichannel']]
         
+        #try and get source code for preprocess function instead of pointer
+        if not preprocess is None:
+            try:
+                from inspect import getsource
+                items['preprocess'] = ''.join(
+                    '\n\t'+s for s in getsource(preprocess).split('\n')[:-1]
+                )
+            except (ImportError,NameError):
+                pass
+        #store to disk
         with open(filename.rpartition('.')[0]+'_settings.txt','w') as f:
             for key,val in items.items():
-                if type(val)==str:
+                if isinstance(val,str):
                     f.write(key+" = '"+val+"',\n")
                 else:
                     f.write(key+" = "+str(val)+",\n")
@@ -1655,6 +1667,13 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
             raise ValueError('shapes of channels do not match')
     else:
         shape = exportim.shape
+        
+    #preprocess using custom function if needed
+    if not preprocess is None:
+        if multichannel:
+            exportim = [preprocess(im) for im in exportim]
+        else:
+            exportim = preprocess(exportim)
     
     #list of possible custom maps
     pure_maps = ['pure_reds', 'pure_greens', 'pure_blues', 'pure_yellows', 
@@ -1682,9 +1701,13 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
     if show_figure:
         fig,ax = plt.subplots(1,1)
         if multichannel:
+            orim = np.zeros((*shape,4),dtype=np.uint16)
             for i,(im,mp) in enumerate(zip(exportim,cmap)):
-                ax.imshow(im,cmap=mp,vmin=np.amin(im),vmax=np.amax(im),
-                          alpha=1/(i+1))
+                orim += (cm.get_cmap(mp)(Normalize()(im))*255).astype(np.uint8)
+                #ax.imshow(im,cmap=mp,vmin=np.amin(im),vmax=np.amax(im),
+                #          alpha=1/(i+1))
+            orim[orim>255] = 255
+            ax.imshow(orim.astype(np.uint8))
         else:
             ax.imshow(exportim,cmap=cmap,vmin=np.amin(exportim),
                       vmax=np.amax(exportim))
@@ -1698,12 +1721,12 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
             from matplotlib.patches import Rectangle
             if len(crop) == 4:
                 crp = [c if c>=0 else s+c for s,c 
-                       in zip(exportim.shape,crop[:2])] + list(crop[2:])
+                       in zip(shape,crop[:2])] + list(crop[2:])
                 altcrop = True
                 x,y,w,h = crp
             else:
                 crp = [[cc if cc>0 else s+cc for cc in c]\
-                       for s,c in zip(exportim.shape,crop)]
+                       for s,c in zip(shape,crop)]
                 x,y = crp[0][0],crp[0][1]
                 w,h = crp[1][0]-crp[0][0], crp[1][1]-crp[0][1]
             ax.add_patch(Rectangle((x,y),w,h,ec='r',fc='none'))

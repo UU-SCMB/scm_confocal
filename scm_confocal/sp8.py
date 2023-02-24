@@ -2,6 +2,7 @@
 import glob
 import numpy as np
 import os
+from warnings import warn
 
 class sp8_lif:
     """
@@ -568,7 +569,7 @@ class sp8_image(sp8_lif):
             return tuple([self.lifimage.get_plane(c=c,requested_dims=dimsdict)\
                           for c in channel])
     
-    def load_stack(self,dim_range={},dtype=None):
+    def load_stack(self,dim_range=None,dtype=None):
         """
         Similar to sp8_series.load_data(), but converts the 3D array of images
         automatically to a np.ndarray of the appropriate dimensionality.
@@ -618,15 +619,16 @@ class sp8_image(sp8_lif):
         ----------
         dim_range : dict, optional
             dict, with keys corresponding to channel/dimension labels as above
-            and slice objects as values. This allows you to only load part of
-            the data along any of the dimensions, such as only loading one
-            channel of multichannel data or a particular z-range. An example
-            use for only taking time steps up to 5 and z-slice 20 to 30 would
-            be:
+            and int or slice objects as values. This allows you to only load 
+            part of the data along any of the dimensions, such as only loading 
+            one channel of multichannel data or a particular z-range. An 
+            example use for only taking time steps up to 5 and z-slice 20 to 30
+            would be:
             
                 dim_range={'time':slice(None,5), 'z-axis':slice(20,30)}.
                 
-            The default is {}.
+            When an int is given, only that slice along the dimension is taken
+            and the dimensionis squeezed out of the data. The default is {}.
         dtype : (numpy) datatype, optional
             type to scale data to. The default is None which uses the same bit
             depth as the original image (either 8- or 16-bit unsigned int).
@@ -640,31 +642,49 @@ class sp8_image(sp8_lif):
             in the data with labels from the metadata of the microscope.
         """
         #determine get the varied dimensions
-        #dimensions = self.get_dimensions()
-        #order = [_DimID_to_str(dim['DimID']) for dim in reversed(dimensions)]
-        #order = ['channel'] + order
+        dimensions = self.get_dimensions()
+        dataorder = [_DimID_to_str(dim['DimID']) \
+                     for dim in reversed(dimensions)]
+        if self.channels>1:
+            dataorder = ['channel']+dataorder
         order = ['channel','mosaic','time','z-axis','y-axis','x-axis']
         
-        #store slicing
-        self._stack_dim_range = dim_range
-
-        #give a warning that only whole xy images are loaded
-        if 'x-axis' in dim_range or 'y-axis' in dim_range:
-            print("[WARNING] confocal.sp8_series.load_stack: Loading only"+
-                  " part of the data along dimensions 'x-axis' and/or "+
-                  "'y-axis' not implemented. Data will be loaded fully "+
-                  "into memory before discarding values outside of the "+
-                  "slice range specified for the x-axis and/or y-axis. "+
-                  "Other axes for which a range is specified will still "+
-                  "be treated normally, avoiding unneccesary memory use.")
+        #default dim range (as None to prevent mutable default arg)
+        if dim_range is None:
+            dim_range= {}
+        
+        #remove None items and store as attribute
+        self._stack_dim_range = \
+            {k:v for k,v in dim_range.items() if v!=slice(None)}
+        
+        #if slicing tiff give a warning that only whole images are loaded
+        if dataorder[-1] in dim_range or dataorder[-2] in dim_range:
+            warn("Loading only part of the data along one of the main "
+                 f"image axes ('{dataorder[-1]}' and/or '{dataorder[-2]}') is "
+                 "not implemented. Data will be loaded fully into memory "
+                 "before discarding values outside of the slice range "
+                 "specified for the x-axis and/or y-axis. Other axes for "
+                 "which a range is specified will still be treated "
+                 "normally, avoiding unneccesary memory use.",stacklevel=2)
         
         #give warning for nonexistent dimensions
-        if len(dim_range.keys() - set(order)) > 0:
-            for dim in dim_range.keys() - set(order):
-                print("[WARNING] confocal.sp8_series.load_stack: "+
-                      "dimension '"+dim+"' not present in data, ignoring "+
-                      "this entry.")
+        if len(dim_range.keys() - set(dataorder)) > 0:
+            for dim in dim_range.keys() - set(dataorder):
+                warn("dimension '"+dim+"' not present in data, ignoring "
+                      "this entry.",stacklevel=2)
                 dim_range.pop(dim)
+        
+        #add dimensions which were not in dim metadata to squeeze list
+        squeezedims = []
+        for d in order:
+            if not d in dataorder:
+                squeezedims.append(d)
+        
+        #convert int values to slice and store which dimension these were
+        for dim,val in dim_range.items():
+            if isinstance(val, int):
+                dim_range[dim] = slice(val,val+1)
+                squeezedims.append(dim)
         
         #create a tuple with a slice objects for each dimension except x and y
         for dim in order[:-2]:
@@ -709,12 +729,11 @@ class sp8_image(sp8_lif):
                            [dim_range['y-axis']])
             data = data[slices]
         
-        #squeeze out dimensions with only one element
-        dim_order = []
-        for i,s in enumerate(data.shape):
-            if s > 1:
-                dim_order.append(order[i])
-        data = np.squeeze(data)
+        #squeeze unvaried dims and dims with integer dim ranges 
+        if squeezedims:
+            squeezedims = tuple(order.index(d) for d in squeezedims)
+            data = data.squeeze(axis=squeezedims)
+            [order.pop(d) for d in reversed(sorted(squeezedims))]#remove high to low
 
         # convert to requested dtype
         if dtype is not None and data.dtype != dtype:
@@ -723,7 +742,7 @@ class sp8_image(sp8_lif):
             data *= 255.0/data.max()
             data = data.astype(dtype)  
 
-        return data, tuple(dim_order)
+        return data, tuple(order)
     
     def print_medata(self):
         """ 
@@ -764,8 +783,7 @@ class sp8_image(sp8_lif):
         recursive_print(self.metadata,'|')
         print(' -------------------------------------------- ')
     
-    def export_with_scalebar(self,frame=0,channel=0,filename=None,
-                             preprocess=None,**kwargs):
+    def export_with_scalebar(self,frame=0,channel=0,filename=None,**kwargs):
         """
         saves an exported image of the confocal slice with a scalebar in one of
         the four corners, where barsize is the scalebar size in data units 
@@ -939,16 +957,12 @@ class sp8_image(sp8_lif):
                 raise ValueError('cannot set multiple channels for single '
                                  'channel data')
         
-        if preprocess is None:
-            preprocess = lambda im: im
-        
         #get the actual image using the load_frame function, make it an array
         if multichannel:
-            exportim = [preprocess(np.array(im)) \
+            exportim = [np.array(im) \
                         for im in self.load_frame(frame,channel=channel)]
         else:
-            exportim = preprocess(np.array(self.load_frame(frame,
-                                                           channel=channel)))
+            exportim = np.array(self.load_frame(frame,channel=channel))
         
         #call main export_with_scalebar function with correct pixelsize etc
         from .util import _export_with_scalebar
@@ -1037,12 +1051,12 @@ class sp8_series:
     
     def __repr__(self):
         """represents class instance in interpreter"""
-        return f"scm_confocal.sp8_series('{self.get_series_name()}')"
+        return f"scm_confocal.sp8_series('{self.get_name()}')"
     
     def __str__(self):
         """for convenience print basic series info"""
         return "<scm_confocal.sp8_series()>\n" +\
-            f'name:\t{self.get_series_name()}\n' +\
+            f'name:\t{self.get_name()}\n' +\
             f'files:\t{len(self.filenames)}'
         
     def load_data(self, filenames=None, first=None, last=None, dtype=np.uint8):
@@ -1087,9 +1101,9 @@ class sp8_series:
             )
             data[0]*1
         except:
-            print('[WARNING] scm_confocal.load_data: could not import with '+
-                  'PIL, retrying with scikit-image. Make sure libtiff version'+
-                  ' >= 4.0.10 is installed')
+            warn('could not import with PIL, retrying with '
+                 'scikit-image. Make sure libtiff version >= 4.0.10 is '
+                 'installed',ImportWarning,stacklevel=2)
             try:
                 from skimage.io import imread
                 data = np.array(
@@ -1101,10 +1115,9 @@ class sp8_series:
 
         #check if images are 2D (i.e. greyscale)
         if data.ndim > 3:
-            print("[WARNING] sp8_series.load_data(): images do not have the "+
-                  "correct dimensionality, did you load colour images "+
-                  "perhaps? Continueing with average values of higher "+
-                  "dimensions")
+            warn("images do not have the correct dimensionality, did you load "
+                 "colour images perhaps? Continueing with average values of "
+                 "higher dimensions")
             data = np.mean(data,axis=tuple(range(3,data.ndim)),dtype=dtype)
 
         #optionally fix dtype of data
@@ -1115,7 +1128,7 @@ class sp8_series:
         self.data = data
         return data
     
-    def load_stack(self,dim_range={},dtype=np.uint8):
+    def load_stack(self,dim_range=None,dtype=np.uint8):
         """
         Similar to sp8_series.load_data(), but converts the 3D array of images
         automatically to a np.ndarray of the appropriate dimensionality.
@@ -1163,15 +1176,16 @@ class sp8_series:
         ----------
         dim_range : dict, optional
             dict, with keys corresponding to channel/dimension labels as above
-            and slice objects as values. This allows you to only load part of
-            the data along any of the dimensions, such as only loading one
-            channel of multichannel data or a particular z-range. An example
-            use for only taking time steps up to 5 and z-slice 20 to 30 would
-            be:
+            and int or slice objects as values. This allows you to only load 
+            part of the data along any of the dimensions, such as only loading 
+            one channel of multichannel data or a particular z-range. An 
+            example use for only taking time steps up to 5 and z-slice 20 to 30
+            would be:
             
                 dim_range={'time':slice(None,5), 'z-axis':slice(20,30)}.
                 
-            The default is {}.
+            When an int is given, only that slice along the dimension is taken
+            and the dimensionis squeezed out of the data. The default is {}.
         dtype : (numpy) datatype, optional
             type to scale data to. The default is np.uint8.
 
@@ -1185,14 +1199,8 @@ class sp8_series:
         """
 
         #load the metadata
-        try:
-            channels = self.metadata_channels
-        except AttributeError:
-            channels = sp8_series.get_metadata_channels(self)
-        try:
-            dimensions = self.metadata_dimensions
-        except AttributeError:
-            dimensions = sp8_series.get_metadata_dimensions(self)
+        channels = sp8_series.get_metadata_channels(self)
+        dimensions = sp8_series.get_metadata_dimensions(self)
         
         #determine what the new shape should be from dimensional metadata
         newshape = [int(dim['NumberOfElements']) \
@@ -1200,6 +1208,10 @@ class sp8_series:
         
         #create list of dimension labels
         order = [_DimID_to_str(dim['DimID']) for dim in reversed(dimensions)]
+        
+        #default dim range (as None to prevent mutable default arg)
+        if dim_range is None:
+            dim_range= {}
         
         #append channel (but before x and y) information for multichannel data
         if len(channels)>1:
@@ -1209,43 +1221,47 @@ class sp8_series:
         #load filenames
         filenames = self.filenames
 
-        #apply slicing to the list of filenames before loading images
-        if len(dim_range) > 0:
-
-            self._stack_dim_range = dim_range
-
-            #give a warning that only whole xy images are loaded
-            if 'x-axis' in dim_range or 'y-axis' in dim_range:
-                print("[WARNING] confocal.sp8_series.load_stack: Loading only"+
-                      " part of the data along dimensions 'x-axis' and/or "+
-                      "'y-axis' not implemented. Data will be loaded fully "+
-                      "into memory before discarding values outside of the "+
-                      "slice range specified for the x-axis and/or y-axis. "+
-                      "Other axes for which a range is specified will still "+
-                      "be treated normally, avoiding unneccesary memory use.")
-            
-            #give warning for nonexistent dimensions
-            if len(dim_range.keys() - set(order)) > 0:
-                for dim in dim_range.keys() - set(order):
-                    print("[WARNING] confocal.sp8_series.load_stack: "+
-                          "dimension '"+dim+"' not present in data, ignoring "+
-                          "this entry.")
-                    dim_range.pop(dim)
-            
-            #create a tuple of slice objects for each dimension except x and y
-            slices = []
-            for dim in order[:-2]:
-                if not dim in dim_range:
-                    dim_range[dim] = slice(None,None)
-                slices.append(dim_range[dim])
-            slices = tuple(slices)
-            
-            #reshape the filenames and apply slicing, then ravel back to flat
-            #list
-            filenames = np.reshape(filenames,newshape[:-2])[slices]
+        #remove None items from dim_range
+        dim_range = {k:v for k,v in dim_range.items() if v!=slice(None)}
         
-        else:
-            filenames = np.reshape(filenames,newshape[:-2])
+        #store dim range as attribute
+        self._stack_dim_range = dim_range
+
+        #if slicing tiff give a warning that only whole images are loaded
+        if order[-1] in dim_range or order[-2] in dim_range:
+            warn("Loading only part of the data along one of the main "
+                 f"image axes ('{order[-1]}' and/or '{order[-2]}') is not "
+                 "implemented. Data will be loaded fully into memory "
+                 "before discarding values outside of the slice range "
+                 "specified for the x-axis and/or y-axis. Other axes for "
+                 "which a range is specified will still be treated "
+                 "normally, avoiding unneccesary memory use.",stacklevel=2)
+        
+        #give warning for nonexistent dimensions
+        if len(dim_range.keys() - set(order)) > 0:
+            for dim in dim_range.keys() - set(order):
+                warn("dimension '"+dim+"' not present in data, ignoring "
+                      "this entry.")
+                dim_range.pop(dim)
+        
+        #convert int values to slice and store which dimension it is
+        squeezedims = []
+        for dim,val in dim_range.items():
+            if isinstance(val, int):
+                dim_range[dim] = slice(val,val+1)
+                squeezedims.append(dim)
+        
+        #create a tuple of slice objects for each dimension except x and y
+        slices = []
+        for dim in order[:-2]:
+            if not dim in dim_range:
+                dim_range[dim] = slice(None,None)
+            slices.append(dim_range[dim])
+        slices = tuple(slices)
+        
+        #reshape the filenames and apply slicing, then ravel back to flat
+        #list
+        filenames = np.reshape(filenames,newshape[:-2])[slices]
             
         #change dim order if multiple channels, move to 0th axis
         for i,dim in enumerate(order):
@@ -1275,6 +1291,12 @@ class sp8_series:
             slices = tuple([slice(None)]*len(newshape[:-2]) + 
                            [dim_range['y-axis']])
             data = data[slices]
+        
+        #squeeze dims with integer dim ranges
+        if squeezedims:
+            squeezedims = tuple(order.index(d) for d in squeezedims)
+            data = data.squeeze(axis=squeezedims)
+            [order.pop(d) for d in reversed(sorted(squeezedims))]#pop in reverse
         
         return data, tuple(order)
     
@@ -1432,7 +1454,7 @@ class sp8_series:
             except AttributeError:
                 raise AttributeError('data must be loaded with '+
                                   'sp8_series.load_stack() prior to '+
-                                  'calling visitech_faststack.get_timestamps()'
+                                  'calling sp8_series.get_timestamps()'
                                   +' with load_stack_indices=True')
 
             if dim in dim_range:
@@ -1490,7 +1512,7 @@ class sp8_series:
                 pass
         return tuple(pixelsize)
     
-    def get_series_name(self):
+    def get_name(self):
         """
         Returns a string containing the filename (sans file extension) under 
         which the series is saved.
@@ -1501,11 +1523,18 @@ class sp8_series:
             name of the series
 
         """
-
         #find metadata file in subfolder, split off location and extension
         path = os.path.join(os.path.curdir, 'MetaData', '*.xml')
         path = sorted(glob.glob(path))[0]
-        return os.path.split(path)[1][:-4]
+        return os.path.split(path)[1].rsplit('.')[0]
+    
+    def get_series_name(self):
+        """
+        Deprecated, renamed to `get_name()`
+        """
+        warn('`sp8_series.get_series_name()` is deprecated, use `get_name` '
+             'instead',DeprecationWarning)
+        return self.get_name()
     
     def export_with_scalebar(self,frame=0,channel=0,filename=None,**kwargs):
         """
@@ -1665,11 +1694,11 @@ class sp8_series:
         
         #set default export filename
         if type(filename) != str:
-            filename = self.get_series_name()+'_scalebar.png'
+            filename = self.get_name()+'_scalebar.png'
         
         #check we're not overwriting the original file
         if filename in self.filenames:
-            raise ValueError('overwriting original file not recommended, '+
+            raise ValueError('overwriting original file not allowed, '+
                              'use a different filename for exporting.')
         
         #check if multichannel or not
