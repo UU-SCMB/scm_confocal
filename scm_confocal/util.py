@@ -550,13 +550,15 @@ def mean_square_displacement(features, pos_cols = ['x','y','z'], t_col='t (s)',
         
         import multiprocessing as mp
         from functools import partial
+        
+        if cores is None:
+            cores = mp.cpu_count()
+        
         print(f'processing MSD using {cores} cores...',end='',flush=True)
         
         curry = partial(_msd_particle_loop,itmin=itmin,itmax=itmax,linear=linear_sampling)
         dt_dr = np.empty((0,2))
         
-        if cores == None:
-            cores = mp.cpu_count()
         try:
             pool = mp.Pool(cores)
             result = pool.imap(curry,(features.loc[p].to_numpy() for p in particles))
