@@ -1660,6 +1660,13 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
     if draw_bar or draw_text:
         from PIL import ImageFont, ImageDraw, Image
     
+    #preprocess using custom function if needed
+    if not preprocess is None:
+        if multichannel:
+            exportim = [preprocess(im) for im in exportim]
+        else:
+            exportim = preprocess(exportim)
+    
     #get imshape, for multichannel check shapes are all the same
     if multichannel:
         shape = exportim[0].shape
@@ -1668,12 +1675,6 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
     else:
         shape = exportim.shape
         
-    #preprocess using custom function if needed
-    if not preprocess is None:
-        if multichannel:
-            exportim = [preprocess(im) for im in exportim]
-        else:
-            exportim = preprocess(exportim)
     
     #list of possible custom maps
     pure_maps = ['pure_reds', 'pure_greens', 'pure_blues', 'pure_yellows', 
