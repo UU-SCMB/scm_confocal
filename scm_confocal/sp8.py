@@ -498,7 +498,6 @@ class sp8_image(sp8_lif):
                 else:
                     pxz = float(dim['Length'])/(int(dim['NumberOfElements'])-1)
                 pixelsize.append(pxz*1e6)
-                print(dim['DimID'])
 
         return tuple(pixelsize)
     

@@ -1623,9 +1623,9 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
         crop=None,resolution=None,cmap='inferno',cmap_range=None,draw_bar=True,
         barsize=None,scale=1,loc=2,convert=None,barcolor=(255,255,255),
         barthickness=14,barpad=10,draw_text=True,text=None,font='arialbd.ttf',
-        fontsize=16,fontbaseline=0,fontpad=2,draw_box=False,boxcolor=(0,0,0),
-        boxopacity=255,boxpad=10,save=True,show_figure=True,
-        store_settings=False,preprocess=None):
+        fontsize=16,fontcolor=(255,255,255),fontbaseline=10,fontpad=10,
+        draw_box=False,boxcolor=(0,0,0),boxopacity=255,boxpad=10,save=True,
+        show_figure=True,store_settings=False,preprocess=None):
     """
     see top level export_with_scalebar functions for docs
     """
@@ -1656,9 +1656,7 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
     import matplotlib.pyplot as plt
     from matplotlib import cm
     from matplotlib.colors import Normalize
-    import cv2
-    if draw_bar or draw_text:
-        from PIL import ImageFont, ImageDraw, Image
+    from PIL import Image
     
     #preprocess using custom function if needed
     if not preprocess is None:
@@ -1708,7 +1706,7 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
                 #ax.imshow(im,cmap=mp,vmin=np.amin(im),vmax=np.amax(im),
                 #          alpha=1/(i+1))
             orim[orim>255] = 255
-            ax.imshow(orim.astype(np.uint8))
+            ax.imshow(orim.astype(np.uint8)[:,:,:3])
         else:
             ax.imshow(exportim,cmap=cmap,vmin=np.amin(exportim),
                       vmax=np.amax(exportim))
@@ -1761,8 +1759,8 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
         ax.callbacks.connect("ylim_changed", _on_lim_change)
         plt.show(block=False)
     
-    #optionally convert pixelsize
-    if not convert is None and (draw_bar or draw_text):
+    #convert pixelsize
+    if draw_bar or draw_text:
         pixelsize,unit = _convert_length(pixelsize, unit, convert)
     
     #(optionally) crop
@@ -1789,8 +1787,8 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
         barsize = scale*0.12*shape[1]*pixelsize
         lst = [
             0.01, 0.02, 0.025, 0.03, 0.04, 0.05, 0.1, 0.2, 0.25, 0.3, 0.4, 0.5,
-            1, 2, 2.5, 3, 4, 5, 10, 20, 25, 30, 40, 50, 100, 200, 250, 300,
-            400, 500, 1000, 2000, 2500, 3000, 4000, 5000, 6000, 8000, 10000
+            1, 2, 2, 3, 4, 5, 10, 20, 25, 30, 40, 50, 100, 200, 250, 300, 400, 
+            500, 1000, 2000, 2500, 3000, 4000, 5000, 6000, 8000, 10000
         ]
         barsize = lst[min(range(len(lst)), key=lambda i: abs(lst[i]-barsize))]
         
@@ -1806,12 +1804,19 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
         ny = int(shape[0]/shape[1]*nx)
         barsize_px = barsize_px/shape[1]*resolution
         if multichannel:
-            exportim = [cv2.resize(im, (int(nx),int(ny)), 
-                                   interpolation=cv2.INTER_NEAREST_EXACT
-                                   ) for im in exportim]
+            #convert to grayscale PIL.Image, resize, convert back to array
+            exportim = [
+                np.array(Image.fromarray(im).resize(
+                    (int(nx),int(ny)),
+                    resample=Image.Resampling.NEAREST
+                )) for im in exportim
+            ]
+            
         else:
-            exportim = cv2.resize(exportim, (int(nx),int(ny)), 
-                                  interpolation=cv2.INTER_NEAREST_EXACT)
+            exportim = np.array(Image.fromarray(exportim).resize(
+                (int(nx),int(ny)),
+                resample=Image.Resampling.NEAREST
+            ))
      
     #default colormap scaling, for multichannel check length
     if cmap_range is None:
@@ -1858,11 +1863,14 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
         for im in colored:
             exportim += im
         exportim[exportim>255] = 255
-        exportim = exportim.astype(np.uint8)
+        exportim = Image.fromarray(exportim.astype(np.uint8)[:,:,:3],'RGB')
 
     else:
         norm = Normalize(vmin=cmap_range[0],vmax=cmap_range[1])
-        exportim = (cm.get_cmap(cmap)(norm(exportim))*255).astype(np.uint8)
+        exportim = Image.fromarray(
+            (cm.get_cmap(cmap)(norm(exportim))*255)[:,:,:3].astype(np.uint8),
+            'RGB'
+        )
     
     #can skip this whole part when not actually drawing the scalebar/text
     if draw_bar or draw_text:
@@ -1875,13 +1883,11 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
         if draw_bar:
             barthickness = barthickness*scale
             barpad = barpad*scale
-        else:
-            barthickness = 0
-            barpad = 0
-            barsize_px = 0
+
         
         #set up sizes for text
         if draw_text:
+            
             fontpad = fontpad*scale
             fontsize = 2*fontsize*scale
             fontbaseline = fontbaseline*scale
@@ -1901,27 +1907,23 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
                             text = '{:.3f} '.format(round(barsize,3))+unit
             
             #get size of text
+            from PIL import ImageFont
             font = ImageFont.truetype(font,size=int(fontsize))
             textsize = font.getsize(text)
             offset = font.getoffset(text)
-            textsize = (textsize[0]+offset[0],textsize[1]+offset[1]+fontbaseline)    
+            textsize = (textsize[0]-offset[0],textsize[1]-offset[1]+fontbaseline)    
             
             #correct baseline for mu in case of micrometer
             if 'µ' in text:
                 textsize = (textsize[0],textsize[1]-6*scale)
-            
-        #when not drawing the text, set text size and padding to 0
-        else:
-            textsize = (0,0)
-            fontpad = 0
         
         #determine box height with appropriate paddings
         if draw_text and draw_bar:#both
-            boxheight = barpad + barthickness + 2*fontpad + textsize[1]
+            boxheight = barpad + barthickness + fontpad + textsize[1]
             boxwidth = max([2*barpad+barsize_px,2*fontpad+textsize[0]])
         elif draw_bar:#bar only
             boxheight = 2*barpad + barthickness
-            boxwidth = 2*barpad+barsize_px
+            boxwidth = 2*barpad + barsize_px
         else:#text only
             boxheight = 2*fontpad + textsize[1]
             boxwidth = 2*fontpad + textsize[0]
@@ -1948,51 +1950,60 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
                              "right, bottom left or bottom right "
                              "respectively.")
         
-        #put semitransparent box behind bar / text
+        #make draw object if needed, note that RGB Image with RGBA ImageDraw
+        #is needed to correctly handle transparency
+        if draw_box or draw_bar or draw_text:
+            from PIL import ImageDraw
+            draw = ImageDraw.Draw(exportim,'RGBA')
+        
+        #put box behind bar / text for enhanced contrast
         if draw_box:
-            #get rectangle from im
-            subim = exportim[int(y):int(y+boxheight), int(x):int(x+boxwidth)]
             
-            #add alpha channel 255 and create box
-            boxcolor = boxcolor + (255,)
-            boxarray = np.ones(subim.shape,dtype=np.uint8) * \
-                np.array(boxcolor,dtype=np.uint8)
+            if len(boxcolor) == 3:
+                boxcolor = (*boxcolor,boxopacity)
             
-            #add box to im with opacity as weight, and put back in im
-            exportim[int(y):int(y+boxheight), int(x):int(x+boxwidth)] = \
-                cv2.addWeighted(subim, 1-boxopacity/255, boxarray, 
-                                boxopacity/255, 0)
-    
+            draw.rectangle(
+                (int(x),int(y),int(x+boxwidth-1),int(y+boxheight-1)),
+                fill=boxcolor,
+                width=0,
+            )
+            
+        
+        #put on the actual scale bar
         if draw_bar:
+            
             #calculate positions for bar
             barx = (2*x + boxwidth)/2 - barsize_px/2
             bary = y+boxheight-barpad-barthickness
             
+            if len(barcolor) == 3:
+                barcolor = (*barcolor,255)
+            
             #draw scalebar
-            exportim = cv2.rectangle(
-                exportim,
-                (int(barx),int(bary)),
-                (int(barx+barsize_px),int(bary+barthickness)),
-                barcolor+(255,),
-                -1
+            draw.rectangle(
+                (int(barx), int(bary),
+                 int(barx+barsize_px-1), int(bary+barthickness-1)),
+                fill=barcolor,
+                width=0,
             )
         
+        #draw the text
         if draw_text:
+            
             #calculate position for text (horizontally centered in box)
-            textx = (2*x + boxwidth)/2 \
-                - textsize[0]/2
-            texty = y + fontpad
+            textx = (2*x + boxwidth)/2 - (textsize[0]+offset[0])/2
+            texty = y + fontpad-offset[1]
+        
+            if len(fontcolor) == 3:
+                barcolor = (*fontcolor,255)
         
             #draw text
-            exportim = Image.fromarray(exportim)
-            draw = ImageDraw.Draw(exportim)
             draw.text(
                 (textx,texty),
                 text,
-                fill=barcolor,
+                fill=fontcolor,
                 font=font
             )
-            exportim = np.array(exportim)
         
     #show result
     if show_figure:
@@ -2003,10 +2014,8 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
         plt.tight_layout()
         plt.show(block=False)
     
-    #convert to BGRA, save image
-    exportim = cv2.cvtColor(exportim, cv2.COLOR_RGBA2BGRA)
     if save:
-        cv2.imwrite(filename,exportim)
+        exportim.save(filename)
         print('Image saved as "'+filename+'"')
     
     return exportim
@@ -2017,7 +2026,7 @@ def _export_with_scalebar_color(exportim,pixelsize,unit,filename,crop=None,
         resolution=None,draw_bar=True,barsize=None,scale=1,loc=2,convert=None,
         barcolor=(255,255,255),barthickness=16,barpad=10,draw_text=True,
         text=None,font='arialbd.ttf',fontsize=16,fontcolor=(255,255,255),
-        fontbaseline=0,fontpad=10,draw_box=False,boxcolor=(0,0,0),
+        fontbaseline=10,fontpad=10,draw_box=False,boxcolor=(0,0,0),
         boxopacity=255,boxpad=10,save=True,show_figure=True,
         store_settings=False,preprocess=None):
     """
@@ -2115,8 +2124,8 @@ def _export_with_scalebar_color(exportim,pixelsize,unit,filename,crop=None,
         ax.callbacks.connect("ylim_changed", _on_lim_change)
         plt.show(block=False)
     
-    #optionally convert pixelsize
-    if not convert is None and (draw_bar or draw_text):
+    #convert pixelsize
+    if draw_bar or draw_text:
         pixelsize,unit = _convert_length(pixelsize, unit, convert)
     
     #(optionally) crop
