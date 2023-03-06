@@ -481,7 +481,8 @@ class sp8_image(sp8_lif):
         """
         shorthand for `get_dimension_stepsize()` to get the pixel/voxel size
         converted to micrometer, along whatever spatial dimensions are present 
-        in the data. Is given as (z,y,x) where dimensions not present in the 
+        in the data in order of slowest to fastest axis, i.e. typically (z,y,x)
+        but e.g. (y,z,x) for an xzy scan. 
         data are skipped.
         
         Returns
@@ -489,13 +490,16 @@ class sp8_image(sp8_lif):
         pixelsize : tuple of float
             physical size in µm of the pixels/voxels along (z,y,x)
         """
-        
         pixelsize = []
-        for d in ['z-axis','y-axis','x-axis']:
-            try:
-                pixelsize.append(self.get_dimension_stepsize(d)[0]*1e6)
-            except ValueError:
-                pass
+        for dim in self.get_dimensions()[::-1]:
+            if dim['DimID'] in ('1','2','3'):
+                if dim['NumberOfElements'] == '1':
+                    pxz = float(dim['Length'])
+                else:
+                    pxz = float(dim['Length'])/(int(dim['NumberOfElements'])-1)
+                pixelsize.append(pxz*1e6)
+                print(dim['DimID'])
+
         return tuple(pixelsize)
     
     def get_stage_position(self):
@@ -937,7 +941,8 @@ class sp8_image(sp8_lif):
         Y×X×4 numpy.array containing the BGRA pixel data
         """      
         #check if pixelsize already calculated, otherwise call get_pixelsize
-        pixelsize, unit = self.get_dimension_stepsize('x-axis')
+        pixelsize = self.get_pixelsize()[-1]
+        unit = 'um'
         
         #set default export filename
         if type(filename) != str:
