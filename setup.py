@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="scm_confocal",
-    version="1.5.4",
+    version="1.6.0",
     author="Maarten Bransen",
     author_email="m.bransen@uu.nl",
     license='GNU General Public License v3.0',
@@ -13,7 +13,6 @@ setup(
         "scipy>=1.6.0",
         "pillow>=6.2.1",
         "pims>=0.5",
-        "opencv-python>=3.0.0",
         "readlif>=0.6.5",
         "numba>=0.50.0",
     ],

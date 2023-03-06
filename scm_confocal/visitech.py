@@ -653,15 +653,15 @@ class visitech_series:
             Location of the scalebar on the image, where `0`, `1`, `2` and `3` 
             refer to the top left, top right, bottom left and bottom right 
             respectively. The default is `2`, which is the bottom left corner.
-        convert : str, one of [`pm`,`nm`,`um`,`µm`,`mm`,`m`], optional
+        convert : str, one of [`'fm'`,`'pm'`,`'Å'` or `A`,`'nm'`,`'µm'` or `'um'`,`'mm'`,`'cm'`,`'dm'`,`'m'`], optional
             Unit that will be used for the scale bar, the value will be 
             automatically converted if this unit differs from the pixel size
             unit. The default is `None`, which uses micrometers.
         barcolor : tuple of ints, optional
-            RGB color to use for the scalebar and text, given
-            as a tuple of form (R,G,B) where R, G B and A are values between 0 
-            and 255 for red, green and blue respectively. The default is 
-            `(255,255,255,255)`, which is a white scalebar and text.
+            RGB color to use for the scalebar and text, given as a tuple of 
+            form (R,G,B) or (R,G,B,A) where R, G B and A are values between 0 
+            and 255 for red, green, blue and alpha respectively. The default is
+            `(255,255,255)`, which gives a white scalebar.
         barthickness : int, optional
             thickness in printer points of the scale bar itself. The default is
             16.
@@ -683,20 +683,24 @@ class visitech_series:
             base font size to use for the scale bar text. The default is 16. 
             Note that this size will be re-scaled according to `resolution` and
             `scale`.
+        fontcolor : tuple of int, optional
+            (R,G,B) tuple where R, G and B are red, green and blue values from
+            0 to 255. The default is (255,255,255) giving white text.
         fontbaseline : int, optional
-            vertical offset for the baseline of the scale bar text in printer
-            points. The default is 0.
+            vertical offset for the baseline of the scale bar text in from the 
+            top of the scale bar in printer points. The default is 10.
         fontpad : int, optional
             minimum size in printer points of the space/padding between the 
-            text and the bar and surrounding box. The default is 2.
+            text and surrounding box. The default is 10.
         draw_box : bool, optional
             Whether to put a colored box behind the scalebar and text to 
             enhance contrast on busy images. The default is `False`.
         boxcolor : tuple of ints, optional
             RGB color to use for the box behind/around the scalebar and text,
-            given as a tuple of form (R,G,B) where R, G B and A are values 
-            between 0 and 255 for red, green and blue respectively. The default
-            is (0,0,0) which gives a black box.
+            given as a tuple of form (R,G,B) or (R,G,B,A) where R, G B and A 
+            are values between 0 and 255 for red, green and blue respectively. 
+            If no A is given, `boxopacity` is used. The default is (0,0,0) 
+            which gives a black box.
         boxopacity : int, optional
             value between 0 and 255 for the opacity/alpha of the box, useful
             for creating a semitransparent box. The default is 255.
@@ -1506,15 +1510,15 @@ class visitech_faststack:
             Location of the scalebar on the image, where `0`, `1`, `2` and `3` 
             refer to the top left, top right, bottom left and bottom right 
             respectively. The default is `2`, which is the bottom left corner.
-        convert : str, one of [`pm`,`nm`,`um`,`µm`,`mm`,`m`], optional
+        convert : str, one of [`'fm'`,`'pm'`,`'Å'` or `A`,`'nm'`,`'µm'` or `'um'`,`'mm'`,`'cm'`,`'dm'`,`'m'`], optional
             Unit that will be used for the scale bar, the value will be 
             automatically converted if this unit differs from the pixel size
             unit. The default is `None`, which uses micrometers.
         barcolor : tuple of ints, optional
-            RGB color to use for the scalebar and text, given
-            as a tuple of form (R,G,B) where R, G B and A are values between 0 
-            and 255 for red, green and blue respectively. The default is 
-            `(255,255,255,255)`, which is a white scalebar and text.
+            RGB color to use for the scalebar and text, given as a tuple of 
+            form (R,G,B) or (R,G,B,A) where R, G B and A are values between 0 
+            and 255 for red, green, blue and alpha respectively. The default is
+            `(255,255,255)`, which gives a white scalebar.
         barthickness : int, optional
             thickness in printer points of the scale bar itself. The default is
             16.
@@ -1536,20 +1540,24 @@ class visitech_faststack:
             base font size to use for the scale bar text. The default is 16. 
             Note that this size will be re-scaled according to `resolution` and
             `scale`.
+        fontcolor : tuple of int, optional
+            (R,G,B) tuple where R, G and B are red, green and blue values from
+            0 to 255. The default is (255,255,255) giving white text.
         fontbaseline : int, optional
-            vertical offset for the baseline of the scale bar text in printer
-            points. The default is 0.
+            vertical offset for the baseline of the scale bar text in from the 
+            top of the scale bar in printer points. The default is 10.
         fontpad : int, optional
             minimum size in printer points of the space/padding between the 
-            text and the bar and surrounding box. The default is 2.
+            text and surrounding box. The default is 10.
         draw_box : bool, optional
             Whether to put a colored box behind the scalebar and text to 
             enhance contrast on busy images. The default is `False`.
         boxcolor : tuple of ints, optional
             RGB color to use for the box behind/around the scalebar and text,
-            given as a tuple of form (R,G,B) where R, G B and A are values 
-            between 0 and 255 for red, green and blue respectively. The default
-            is (0,0,0) which gives a black box.
+            given as a tuple of form (R,G,B) or (R,G,B,A) where R, G B and A 
+            are values between 0 and 255 for red, green and blue respectively. 
+            If no A is given, `boxopacity` is used. The default is (0,0,0) 
+            which gives a black box.
         boxopacity : int, optional
             value between 0 and 255 for the opacity/alpha of the box, useful
             for creating a semitransparent box. The default is 255.
