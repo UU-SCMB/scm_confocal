@@ -108,6 +108,13 @@ class sp8_lif:
             s+=f"{i}: {im['name']}, {im['channels']} channels, {im['dims']}\n"
         return s[:-1]#strips last newline
     
+    def get_name(self):
+        """
+        shortcut for getting the name (filename sans extention) of the dataset 
+        for e.g. automatically generating filenames for stored results.
+        """
+        return self.filename.rpartition('.')[0]
+    
     def get_image(self,image=0):
         """
         returns an sp8_image instance containing relevant attributes and 
@@ -145,6 +152,23 @@ class sp8_lif:
         `readlif.LifImage` class instance
         """
         return self.liffile.get_image(self._image_name_to_int(image))
+    
+    def save_metadata(self,filename=None):
+        """
+        stores the xml metadata to a file
+
+        Parameters
+        ----------
+        filename : str, optional
+            filename to use. The default is the name of the Lif file with 
+            '_metadata.xml' appended.
+        """
+        if filename is None:
+            filename = self.get_name()+'_metadata.xml'
+        metadata = self.liffile.xml_header
+        metadata = metadata[metadata.find('<'):metadata.rfind('>')+1]
+        with open(filename,'w') as f:
+            f.write(metadata)
     
     def _image_name_to_int(self,image):
         """shortcut for converting image name to integer for accessing data"""
@@ -313,11 +337,8 @@ class sp8_image(sp8_lif):
         -------
         dictionary or (in case of multichannel data) a list thereof
         """
-        #get detector data
-        detectors = self.metadata.findall('.//Detector')
-        detectors = [d.attrib for d in detectors]
-        
-        #select only active detectors
+        #get detector data and select only active detectors
+        detectors = [d.attrib for d in self.metadata.findall('.//Detector')]
         detectors = [d for d in detectors if d['IsActive']=='1']
         
         #return list for multichannel or first active detector for single
@@ -326,6 +347,38 @@ class sp8_image(sp8_lif):
             return detectors
         else:
             return detectors[0]
+        
+    def get_laser_settings(self):
+        """
+        Parses the xml metadata for the laser settings.
+        
+        Returns
+        -------
+        dictionary with laser data
+        """
+        #get laser and laser line metadata
+        lasermd = [l.attrib for l in self.metadata.findall('.//Laser')]
+        filtermd = [w.attrib for w in self.metadata.findall('.//Wheel')]
+        linemd = [l.attrib for l in self.metadata.find('.//Aotf').findall('LaserLineSetting')]
+        linemd = [l for l in linemd if l['IsLineChecked']=='1']
+        
+        #init dictionary with the WLL
+        lasers = {'WLL':lasermd[0]}
+        lasers['WLL']['LaserLines'] = linemd
+        
+        #add sted lasers & laser lines if active
+        linemd = [l.attrib for l in self.metadata.findall('.//Aotf')[1].findall('LaserLineSetting')]
+        if self.metadata.find('.//ATLConfocalSettingDefinition'
+                              ).attrib['IsSTEDActive']=='1':
+            for l,li in zip(lasermd[1:],linemd):
+                if l['PowerState']=='On':
+                    stedbeamselection = [w for w in filtermd \
+                                         if w['FilterWheelName']=='STED Beam Selection'][0]
+                    if 'FilterSpectrumValue' in stedbeamselection:
+                        li['3DSTEDPercentage'] = stedbeamselection['FilterSpectrumValue']
+                    lasers[l['LaserName']] = l|li
+
+        return lasers
         
     def get_channel(self,chl):   
         """
@@ -494,9 +547,9 @@ class sp8_image(sp8_lif):
         for dim in self.get_dimensions()[::-1]:
             if dim['DimID'] in ('1','2','3'):
                 if dim['NumberOfElements'] == '1':
-                    pxz = float(dim['Length'])
+                    pxz = abs(float(dim['Length']))
                 else:
-                    pxz = float(dim['Length'])/(int(dim['NumberOfElements'])-1)
+                    pxz = abs(float(dim['Length'])/(int(dim['NumberOfElements'])-1))
                 pixelsize.append(pxz*1e6)
 
         return tuple(pixelsize)
@@ -785,6 +838,25 @@ class sp8_image(sp8_lif):
         print(' -------------------------------------------- ')
         recursive_print(self.metadata,'|')
         print(' -------------------------------------------- ')
+    
+    def save_metadata(self,filename=None):
+        """
+        stores the image xml metadata to a file
+
+        Parameters
+        ----------
+        filename : str, optional
+            filename to use. The default is the result of `get_name()`
+            '_metadata.xml' appended.
+        """
+        from xml.etree import ElementTree as et
+        
+        if filename is None:
+            filename = self.get_name()+'_metadata.xml'
+        metadata = et.tostring(self.metadata)
+        
+        with open(filename,'wb') as f:
+            f.write(metadata)
     
     def export_with_scalebar(self,frame=0,channel=0,filename=None,**kwargs):
         """
