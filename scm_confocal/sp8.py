@@ -494,9 +494,9 @@ class sp8_image(sp8_lif):
         for dim in self.get_dimensions()[::-1]:
             if dim['DimID'] in ('1','2','3'):
                 if dim['NumberOfElements'] == '1':
-                    pxz = float(dim['Length'])
+                    pxz = abs(float(dim['Length']))
                 else:
-                    pxz = float(dim['Length'])/(int(dim['NumberOfElements'])-1)
+                    pxz = abs(float(dim['Length'])/(int(dim['NumberOfElements'])-1))
                 pixelsize.append(pxz*1e6)
 
         return tuple(pixelsize)
