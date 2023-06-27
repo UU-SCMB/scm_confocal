@@ -810,6 +810,25 @@ class sp8_image(sp8_lif):
         recursive_print(self.metadata,'|')
         print(' -------------------------------------------- ')
     
+    def save_metadata(self,filename=None):
+        """
+        stores the image xml metadata to a file
+
+        Parameters
+        ----------
+        filename : str, optional
+            filename to use. The default is the result of `get_name()`
+            '_metadata.xml' appended.
+        """
+        from xml.etree import ElementTree as et
+        
+        if filename is None:
+            filename = self.get_name()+'_metadata.xml'
+        metadata = et.tostring(self.metadata)
+        
+        with open(filename,'wb') as f:
+            f.write(metadata)
+    
     def export_with_scalebar(self,frame=0,channel=0,filename=None,**kwargs):
         """
         saves an exported image of the confocal slice with a scalebar in one of
