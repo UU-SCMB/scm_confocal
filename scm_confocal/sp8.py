@@ -108,6 +108,13 @@ class sp8_lif:
             s+=f"{i}: {im['name']}, {im['channels']} channels, {im['dims']}\n"
         return s[:-1]#strips last newline
     
+    def get_name(self):
+        """
+        shortcut for getting the name (filename sans extention) of the dataset 
+        for e.g. automatically generating filenames for stored results.
+        """
+        return self.filename.rpartition('.')[0]
+    
     def get_image(self,image=0):
         """
         returns an sp8_image instance containing relevant attributes and 
@@ -145,6 +152,23 @@ class sp8_lif:
         `readlif.LifImage` class instance
         """
         return self.liffile.get_image(self._image_name_to_int(image))
+    
+    def save_metadata(self,filename=None):
+        """
+        stores the xml metadata to a file
+
+        Parameters
+        ----------
+        filename : str, optional
+            filename to use. The default is the name of the Lif file with 
+            '_metadata.xml' appended.
+        """
+        if filename is None:
+            filename = self.get_name()+'_metadata.xml'
+        metadata = self.liffile.xml_header
+        metadata = metadata[metadata.find('<'):metadata.rfind('>')+1]
+        with open(filename,'w') as f:
+            f.write(metadata)
     
     def _image_name_to_int(self,image):
         """shortcut for converting image name to integer for accessing data"""
