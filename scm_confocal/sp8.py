@@ -337,11 +337,8 @@ class sp8_image(sp8_lif):
         -------
         dictionary or (in case of multichannel data) a list thereof
         """
-        #get detector data
-        detectors = self.metadata.findall('.//Detector')
-        detectors = [d.attrib for d in detectors]
-        
-        #select only active detectors
+        #get detector data and select only active detectors
+        detectors = [d.attrib for d in self.metadata.findall('.//Detector')]
         detectors = [d for d in detectors if d['IsActive']=='1']
         
         #return list for multichannel or first active detector for single
@@ -350,6 +347,38 @@ class sp8_image(sp8_lif):
             return detectors
         else:
             return detectors[0]
+        
+    def get_laser_settings(self):
+        """
+        Parses the xml metadata for the laser settings.
+        
+        Returns
+        -------
+        dictionary with laser data
+        """
+        #get laser and laser line metadata
+        lasermd = [l.attrib for l in self.metadata.findall('.//Laser')]
+        filtermd = [w.attrib for w in self.metadata.findall('.//Wheel')]
+        linemd = [l.attrib for l in self.metadata.find('.//Aotf').findall('LaserLineSetting')]
+        linemd = [l for l in linemd if l['IsLineChecked']=='1']
+        
+        #init dictionary with the WLL
+        lasers = {'WLL':lasermd[0]}
+        lasers['WLL']['LaserLines'] = linemd
+        
+        #add sted lasers & laser lines if active
+        linemd = [l.attrib for l in self.metadata.findall('.//Aotf')[1].findall('LaserLineSetting')]
+        if self.metadata.find('.//ATLConfocalSettingDefinition'
+                              ).attrib['IsSTEDActive']=='1':
+            for l,li in zip(lasermd[1:],linemd):
+                if l['PowerState']=='On':
+                    stedbeamselection = [w for w in filtermd \
+                                         if w['FilterWheelName']=='STED Beam Selection'][0]
+                    if 'FilterSpectrumValue' in stedbeamselection:
+                        li['3DSTEDPercentage'] = stedbeamselection['FilterSpectrumValue']
+                    lasers[l['LaserName']] = l|li
+
+        return lasers
         
     def get_channel(self,chl):   
         """
