@@ -356,27 +356,37 @@ class sp8_image(sp8_lif):
         -------
         dictionary with laser data
         """
-        #get laser and laser line metadata
-        lasermd = [l.attrib for l in self.metadata.findall('.//Laser')]
-        filtermd = [w.attrib for w in self.metadata.findall('.//Wheel')]
-        linemd = [l.attrib for l in self.metadata.find('.//Aotf').findall('LaserLineSetting')]
-        linemd = [l for l in linemd if l['IsLineChecked']=='1']
+        #get metadata for each laser which is on
+        lasers = dict()
+        for laser in self.metadata.findall('.//Laser'):
+            laser = laser.attrib
+            name = laser['LaserName']
+            
+            if laser['PowerState'] == 'On':
+                
+                lasers[name] = laser
+                lsname = laser['LightSourceName']
+                
+                #get all laser lines corresponding to the same LightSource
+                aotfs = [
+                    l.attrib \
+                        for aotf in self.metadata.findall('.//Aotf') \
+                            for l in aotf.findall('LaserLineSetting') \
+                                if aotf.attrib['LightSourceName'] == lsname
+                ]
+                
+                lasers[name]['LaserLines'] = \
+                    [l for l in aotfs if l['IsLineChecked']=='1']
         
-        #init dictionary with the WLL
-        lasers = {'WLL':lasermd[0]}
-        lasers['WLL']['LaserLines'] = linemd
-        
-        #add sted lasers & laser lines if active
-        linemd = [l.attrib for l in self.metadata.findall('.//Aotf')[1].findall('LaserLineSetting')]
-        if self.metadata.find('.//ATLConfocalSettingDefinition'
-                              ).attrib['IsSTEDActive']=='1':
-            for l,li in zip(lasermd[1:],linemd):
-                if l['PowerState']=='On':
-                    stedbeamselection = [w for w in filtermd \
-                                         if w['FilterWheelName']=='STED Beam Selection'][0]
+                if lsname == 'STED':
+                    stedbeamselection = \
+                        [w.attrib for w in self.metadata.findall('.//Wheel') \
+                         if w.attrib['FilterWheelName']=='STED Beam Selection'][0]
                     if 'FilterSpectrumValue' in stedbeamselection:
-                        li['3DSTEDPercentage'] = stedbeamselection['FilterSpectrumValue']
-                    lasers[l['LaserName']] = l|li
+                        lasers[name]['3DSTEDPercentage'] = \
+                            stedbeamselection['FilterSpectrumValue']
+                    else:
+                        lasers[name]['3DSTEDPercentage'] = '0'
 
         return lasers
         
@@ -1615,6 +1625,54 @@ class sp8_series:
         warn('`sp8_series.get_series_name()` is deprecated, use `get_name` '
              'instead',DeprecationWarning)
         return self.get_name()
+    
+    def get_laser_settings(self):
+        """
+        Parses the xml metadata for the laser settings.
+        
+        Returns
+        -------
+        dictionary with laser data
+        """
+        #Fetch metadata from class instance or load if it was not loaded yet
+        try:
+            metadata = self.metadata
+        except AttributeError:
+            metadata = self.load_metadata()
+        
+        #get metadata for each laser which is on
+        lasers = dict()
+        for laser in metadata.findall('.//Laser'):
+            laser = laser.attrib
+            name = laser['LaserName']
+            
+            if laser['PowerState'] == 'On':
+                
+                lasers[name] = laser
+                lsname = laser['LightSourceName']
+                
+                #get all laser lines corresponding to the same LightSource
+                aotfs = [
+                    l.attrib \
+                        for aotf in metadata.findall('.//Aotf') \
+                            for l in aotf.findall('LaserLineSetting') \
+                                if aotf.attrib['LightSourceName'] == lsname
+                ]
+                
+                lasers[name]['LaserLines'] = \
+                    [l for l in aotfs if l['IsLineChecked']=='1']
+        
+                if lsname == 'STED':
+                    stedbeamselection = \
+                        [w.attrib for w in metadata.findall('.//Wheel') \
+                         if w.attrib['FilterWheelName']=='STED Beam Selection'][0]
+                    if 'FilterSpectrumValue' in stedbeamselection:
+                        lasers[name]['3DSTEDPercentage'] = \
+                            stedbeamselection['FilterSpectrumValue']
+                    else:
+                        lasers[name]['3DSTEDPercentage'] = '0'
+
+        return lasers
     
     def export_with_scalebar(self,frame=0,channel=0,filename=None,**kwargs):
         """
