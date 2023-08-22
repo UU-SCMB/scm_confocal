@@ -800,7 +800,7 @@ class sp8_image(sp8_lif):
 
         return data, tuple(order)
     
-    def print_medata(self):
+    def print_metadata(self):
         """ 
         Prints a somewhat formatted version of the full image metadata, the 
         xml hierarchy is indicated with prepended dashes.
