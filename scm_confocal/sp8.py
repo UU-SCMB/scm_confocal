@@ -715,6 +715,13 @@ class sp8_image(sp8_lif):
             dataorder = ['channel']+dataorder
         order = ['channel','mosaic','time','z-axis','y-axis','x-axis']
         
+        #check for imaging order
+        if not (dataorder[-1]=='x-axis' and dataorder[-2]=='y-axis'):
+            raise NotImplementedError('load_stack is only implemented for '
+                                      '(x-axis, y-axis) imaging but data has '
+                                      f'({dataorder[-1]}, {dataorder[-2]}) '
+                                      'imaging order')
+        
         #default dim range (as None to prevent mutable default arg)
         if dim_range is None:
             dim_range= {}
@@ -772,13 +779,14 @@ class sp8_image(sp8_lif):
         data = np.empty(newshape,
                         dtype=np.uint8 if self.lifimage.bit_depth[0] == 8 
                         else np.uint16)
-
+            
         #loop over indices and load
         for i,c in enumerate(channels):
             for j,m in enumerate(msteps):
                 for k,t in enumerate(times):
                     for l,z in enumerate(zsteps):
                         data[i,j,k,l,:,:] = self.lifimage.get_frame(z,t,c,m)
+
         
         #if ranges for x or y are chosen, remove those from the array now,
         #account (top to bottom) for trimming x ánd y, only x, or only y.
