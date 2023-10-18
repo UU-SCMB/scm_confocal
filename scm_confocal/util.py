@@ -1625,7 +1625,7 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
         barthickness=14,barpad=10,draw_text=True,text=None,font='arialbd.ttf',
         fontsize=16,fontcolor=(255,255,255),fontbaseline=10,fontpad=10,
         draw_box=False,boxcolor=(0,0,0),boxopacity=255,boxpad=10,save=True,
-        show_figure=True,store_settings=False,preprocess=None):
+        show_figure=True,store_settings=False,preprocess=None,pixel_aspect=None):
     """
     see top level export_with_scalebar functions for docs
     """
@@ -1706,10 +1706,10 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
                 #ax.imshow(im,cmap=mp,vmin=np.amin(im),vmax=np.amax(im),
                 #          alpha=1/(i+1))
             orim[orim>255] = 255
-            ax.imshow(orim.astype(np.uint8)[:,:,:3])
+            ax.imshow(orim.astype(np.uint8)[:,:,:3],aspect=pixel_aspect)
         else:
             ax.imshow(exportim,cmap=cmap,vmin=np.amin(exportim),
-                      vmax=np.amax(exportim))
+                      vmax=np.amax(exportim),aspect=pixel_aspect)
         plt.title('original image')
         plt.axis('off')
         plt.tight_layout()
@@ -1795,14 +1795,23 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
     #determine len of scalebar on im
     barsize_px = barsize/pixelsize
     
-    #set default resolution or scale image and correct barsize_px
-    if resolution is None:
+    #set x and y resolution based on resolution parameter and pixel aspect
+    if resolution is None and pixel_aspect is None:
         ny,nx = shape
-        resolution = nx
-    else:
+    elif pixel_aspect is None:
         nx = resolution
         ny = int(shape[0]/shape[1]*nx)
-        barsize_px = barsize_px/shape[1]*resolution
+    elif resolution is None:
+        nx = shape[1]
+        ny = int(shape[0]*pixel_aspect)
+    else:
+        nx = resolution
+        ny = int(shape[0]/shape[1]*nx*pixel_aspect)
+
+    #resize the image if necessary
+    if ny != shape[0] or nx != shape[1]:
+
+        barsize_px = barsize_px/shape[1]*nx
         if multichannel:
             #convert to grayscale PIL.Image, resize, convert back to array
             exportim = [
@@ -1876,7 +1885,7 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
     if draw_bar or draw_text:
         
         #adjust general scaling for all sizes relative to 1024 pixels
-        scale = scale*resolution/1024
+        scale = scale*nx/1024
         boxpad = boxpad*scale
         
         #set up sizes for bar
@@ -2173,7 +2182,7 @@ def _export_with_scalebar_color(exportim,pixelsize,unit,filename,crop=None,
     if draw_bar or draw_text:
         
         #adjust general scaling for all sizes relative to 1024 pixels
-        scale = scale*resolution/1024
+        scale = scale*nx/1024
         boxpad = boxpad*scale
         
         #set up sizes for bar
