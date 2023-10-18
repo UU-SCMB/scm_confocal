@@ -378,6 +378,12 @@ class sp8_image(sp8_lif):
                 lasers[name]['LaserLines'] = \
                     [l for l in aotfs if l['IsLineChecked']=='1']
         
+                #get shutter for same lsname
+                for shutter in self.metadata.find('.//ShutterList'):
+                    if shutter.attrib['LightSourceName'] == lsname:
+                        lasers[name]['Shutter'] = shutter.attrib
+                        break
+                    
                 if lsname == 'STED':
                     stedbeamselection = \
                         [w.attrib for w in self.metadata.findall('.//Wheel') \
@@ -387,6 +393,12 @@ class sp8_image(sp8_lif):
                             stedbeamselection['FilterSpectrumValue']
                     else:
                         lasers[name]['3DSTEDPercentage'] = '0'
+
+        #add shutter data
+        for shutter in self.metadata.find('.//ShutterList'):
+            name = shutter.attrib['LightSourceName']
+            if name in lasers:
+                lasers[name]['Shutter'] = shutter.attrib
 
         return lasers
         
