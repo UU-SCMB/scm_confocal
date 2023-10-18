@@ -665,8 +665,10 @@ class sp8_image(sp8_lif):
             array containing the pixel values of the selected plane.
         """
         dims = [_DimID_to_str(d['DimID']) for d in self.get_dimensions()]
+        #set default dims
         if display_dims is None:
             display_dims = dims[:2][::-1]
+        #check dimension inputs
         else:
             if len(display_dims)!=2:
                 raise ValueError('display_dims must specify 2 dimensions')
@@ -707,6 +709,7 @@ class sp8_image(sp8_lif):
                     raise TypeError('values in indices for any dimension other'
                                     'than the display_dims must be int')
         
+        #for now use load_stack, in the future we want a direct load function
         plane,loadorder = self.load_stack(dim_range=indices,quiet=True)
         if tuple(display_dims) == tuple(loadorder):
             return plane
