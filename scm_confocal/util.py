@@ -1857,6 +1857,10 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
         if cmap in pure_maps:
             cmap = _get_pure_cmap(cmap)
     
+    #convert pixelsize
+    if draw_bar or draw_text:
+        pixelsize,unit = _convert_length(pixelsize, unit, convert)
+    
     #draw original figure before changing exportim
     if show_figure:
         fig,ax = plt.subplots(1,1)
@@ -1927,10 +1931,6 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
         ax.callbacks.connect("xlim_changed", _on_lim_change)
         ax.callbacks.connect("ylim_changed", _on_lim_change)
         plt.show(block=False)
-    
-    #convert pixelsize
-    if draw_bar or draw_text:
-        pixelsize,unit = _convert_length(pixelsize, unit, convert)
     
     #(optionally) crop
     if not crop is None:
