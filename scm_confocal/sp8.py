@@ -670,6 +670,7 @@ class sp8_image(sp8_lif):
             display_dims = dims[:2][::-1]
         #check dimension inputs
         else:
+            display_dims = list(display_dims)
             if len(display_dims)!=2:
                 raise ValueError('display_dims must specify 2 dimensions')
             if isinstance(display_dims[0],int):
