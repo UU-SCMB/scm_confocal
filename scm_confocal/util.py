@@ -1,4 +1,5 @@
 import numpy as np
+from warnings import warn
 
 def align_stack(images,startim=0,threshold=0,binning=1,smooth=0,upsample=1,
                 startoffset=(0,0),trim=True,blocksize=None,
@@ -1620,14 +1621,174 @@ def _get_pure_cmap(name):
     return cmap
 
 def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
-        crop=None,resolution=None,cmap='inferno',cmap_range=None,draw_bar=True,
-        barsize=None,scale=1,loc=2,convert=None,barcolor=(255,255,255),
-        barthickness=14,barpad=10,draw_text=True,text=None,font='arialbd.ttf',
-        fontsize=16,fontcolor=(255,255,255),fontbaseline=10,fontpad=10,
-        draw_box=False,boxcolor=(0,0,0),boxopacity=255,boxpad=10,save=True,
-        show_figure=True,store_settings=False,preprocess=None,pixel_aspect=None):
+        crop=None,crop_unit='pixels',resolution=None,cmap='inferno',
+        cmap_range=None,draw_bar=True,barsize=None,scale=1,loc=2,convert=None,
+        barcolor=(255,255,255),barthickness=14,barpad=10,draw_text=True,
+        text=None,font='arialbd.ttf',fontsize=16,fontcolor=(255,255,255),
+        fontbaseline=10,fontpad=10,draw_box=False,boxcolor=(0,0,0),
+        boxopacity=255,boxpad=10,save=True,show_figure=True,
+        store_settings=False,preprocess=None,pixel_aspect=None):
     """
-    see top level export_with_scalebar functions for docs
+    for exporting a scale bar, generally to be called from top level microscope
+    classes.
+    
+    Parameters
+    ----------
+    exportim : 2D numpy.ndarray or list thereof
+        the image data of the image to export, or a list of arrays for multiple
+        image channels
+    pixelsize : float
+        physical size of the pixels in exportim
+    unit : str
+        unit of the pixelsize
+    filename : string
+        Filename + extension to use for the export file.
+    multichannel : bool
+        whether the data consists of multiple image channels
+    crop : tuple or `None`, optional 
+        range describing a area of the original image (before rescaling the
+        resolution) to crop out for the export image. Can have two forms:
+            
+        - `((xmin,ymin),(xmax,ymax))`, with the integer indices of the top
+        left and bottom right corners respectively.
+            
+        - `(xmin,ymin,w,h)` with the integer indices of the top left corner
+        and the width and heigth of the cropped image in pixels (prior to 
+        optional rescaling using `resolution`).
+        
+        The default is `None` which takes the entire image.
+    crop_unit : `'pixels'` or `'data'`, optional
+        sets the unit in which the width and height in `crop` are 
+        specified when using the (x,y,w,h) format, with `'pixels'` to give 
+        the size in pixels or `'data'` to specify the size in the physical 
+        unit used for the scalebar (after optional unit conversion via the 
+        `convert` parameter). Note that the position of the top left corner
+        is given in pixels. The `((xmin,ymin),(xmax,ymax))` format must be
+        always given in pixels, and `crop_unit` is ignored if `crop` is 
+        given in this format. The default is `'pixels'`.
+    resolution : int, optional
+        the resolution along the x-axis (i.e. image width in pixels) to use
+        for the exported image. The default is `None`, which uses the size 
+        of the original image (after optional cropping using `crop`).
+    cmap : str or callable or list of str or list of callable, optional
+        name of a named Matplotlib colormap used to color the data. see the 
+        [Matplotlib documentation](
+            https://matplotlib.org/stable/tutorials/colors/colormaps.html)
+        for more information. The default is `'inferno'`.
+        
+        In addition to the colormaps listed there, the following maps for 
+        linearly incrementing pure RGB channels are available, useful for 
+        e.g. displaying multichannel data with complementary colors (no 
+        overlap between between colormaps possible):
+        ```
+        ['pure_reds', 'pure_greens', 'pure_blues', 'pure_yellows', 
+         'pure_cyans', 'pure_purples','pure_greys']
+        ```
+        where for example `'pure_reds'` scales between RGB values `(0,0,0)`
+        and  `(255,0,0)`, and `'pure_cyans'` between `(0,0,0)` and 
+        `(0,255,255)`.
+        
+        Alternatively, a fully custom colormap may be used by entering a 
+        [ListedColormap](https://matplotlib.org/stable/api/_as_gen/matplotlib.colors.ListedColormap.html#matplotlib.colors.ListedColormap)
+        or [LinearSegmentedColormap](https://matplotlib.org/stable/api/_as_gen/matplotlib.colors.LinearSegmentedColormap.html#matplotlib.colors.LinearSegmentedColormap)
+        object from the Matplotlib.colors module. For more information on 
+        creating colormaps, see the Matplotlib documentation linked above.
+        
+        For multichannel data, a list of colormaps *must* be provided, with
+        a separate colormap for each channel.
+    cmap_range : tuple of form (min,max) or None or `'automatic'`, optional
+        sets the scaling of the colormap. The minimum and maximum 
+        values to map the colormap to, values outside of this range will
+        be colored according to the min and max value of the colormap. The 
+        default is  `None`, which is to take the lowest and highest value 
+        in the image. Alternatively `'automatic'` may be specified which 
+        scales between the 10th and 99th percentile. For multichannel data
+        a list of cmap_range options per channel may be provided.
+    draw_bar : boolean, optional
+        whether to draw a scalebar on the image, such that this function 
+        may be used to put other text on the image or just to apply a 
+        colormap (by setting `draw_bar=False` and `draw_text=False`). The 
+        default is `True`.
+    barsize : float or `None`, optional
+        size (in data units matching the original scale bar, e.g. nm) of 
+        the scale bar to use. The default `None`, wich takes the desired 
+        length for the current scale (ca. 15% of the width of the image for
+        `scale=1`) and round this to the nearest option from a list of 
+        "nice" values.
+    scale : float, optional
+        factor to change the size of the scalebar+text with respect to the
+        width of the image. Scale is chosen such, that at `scale=1` the
+        font size of the scale bar text is approximately 10 pt when 
+        the image is printed at half the width of the text in a typical A4
+        paper document (e.g. two images side-by-side). Note that this is 
+        with respect to the **output** image, so after optional cropping 
+        and/or up/down sampling has been applied. The default is `1`.
+    loc : int, one of [`0`,`1`,`2`,`3`], optional
+        Location of the scalebar on the image, where `0`, `1`, `2` and `3` 
+        refer to the top left, top right, bottom left and bottom right 
+        respectively. The default is `2`, which is the bottom left corner.
+    convert : str, one of [`'fm'`,`'pm'`,`'Å'` or `A`,`'nm'`,`'µm'` or `'um'`,`'mm'`,`'cm'`,`'dm'`,`'m'`], optional
+        Unit that will be used for the scale bar, the value will be 
+        automatically converted if this unit differs from the pixel size
+        unit. The default is `None`, which uses micrometers.
+    barcolor : tuple of ints, optional
+        RGB color to use for the scalebar and text, given as a tuple of 
+        form (R,G,B) or (R,G,B,A) where R, G B and A are values between 0 
+        and 255 for red, green, blue and alpha respectively. The default is
+        `(255,255,255)`, which gives a white scalebar.
+    barthickness : int, optional
+        thickness in printer points of the scale bar itself. The default is
+        16.
+    barpad : int, optional
+        size in printer points of the padding between the scale bar and the
+        surrounding box. The default is 10.
+    draw_text : bool, optional
+        whether to draw the text specified in `text` on the image, the text
+        is place above the scale bar if `draw_bar=True`. The default is 
+        `True`.
+    text : str, optional
+        the text to draw on the image (above the scale bar if 
+        `draw_bar=True`). The default is `None`, which gives the size and 
+        unit of the scale bar (e.g. `'10 µm'`).
+    font : str, optional
+        filename of an installed TrueType font ('.ttf' file) to use for the
+        text on the scalebar. The default is `'arialbd.ttf'`.
+    fontsize : int, optional
+        base font size to use for the scale bar text. The default is 16. 
+        Note that this size will be re-scaled according to `resolution` and
+        `scale`.
+    fontcolor : tuple of int, optional
+        (R,G,B) tuple where R, G and B are red, green and blue values from
+        0 to 255. The default is (255,255,255) giving white text.
+    fontbaseline : int, optional
+        vertical offset for the baseline of the scale bar text in from the 
+        top of the scale bar in printer points. The default is 10.
+    fontpad : int, optional
+        minimum size in printer points of the space/padding between the 
+        text and surrounding box. The default is 10.
+    draw_box : bool, optional
+        Whether to put a colored box behind the scalebar and text to 
+        enhance contrast on busy images. The default is `False`.
+    boxcolor : tuple of ints, optional
+        RGB color to use for the box behind/around the scalebar and text,
+        given as a tuple of form (R,G,B) or (R,G,B,A) where R, G B and A 
+        are values between 0 and 255 for red, green and blue respectively. 
+        If no A is given, `boxopacity` is used. The default is (0,0,0) 
+        which gives a black box.
+    boxopacity : int, optional
+        value between 0 and 255 for the opacity/alpha of the box, useful
+        for creating a semitransparent box. The default is 255.
+    boxpad : int, optional
+        size of the space/padding around the box (with respect to the sides
+        of the image) in printer points. The default is 10.
+    save : bool, optional
+        whether to save the image as file. The default is True.
+    show_figure : bool, optional
+        whether to open matplotlib figure windows. The default is True.
+        
+    Returns
+    -------
+    Y×X×4 numpy.array containing the BGRA pixel data
     """
     #store all settings from locals before anything is changed or loaded
     if store_settings:
@@ -1723,6 +1884,9 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
                        in zip(shape,crop[:2])] + list(crop[2:])
                 altcrop = True
                 x,y,w,h = crp
+                if crop_unit == 'data':
+                    w = w/pixelsize
+                    h = h/pixelsize
             else:
                 crp = [[cc if cc>0 else s+cc for cc in c]\
                        for s,c in zip(shape,crop)]
@@ -1736,13 +1900,18 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
             xmin,xmax = ax.get_xlim()
             ymax,ymin = ax.get_ylim()
             if altcrop:
-                croptext = 'current crop: ({:}, {:}, {:}, {:})'
-                croptext = croptext.format(
-                    int(xmin),
-                    int(ymin),
-                    int(xmax-xmin+1),
-                    int(ymax-ymin+1)
-                )
+                if crop_unit == 'data':
+                    croptext = 'current crop: ({:}, {:}, {:.4g} {}, {:.4g} {})'
+                    croptext = croptext.format(
+                        int(xmin),
+                        int(ymin),
+                        pixelsize*(xmax-xmin+1),unit,
+                        pixelsize*(ymax-ymin+1),unit
+                    )
+                else:
+                    croptext = 'current crop: ({:}, {:}, {:}, {:})'
+                    croptext = croptext.format(
+                        int(xmin),int(ymin),int(xmax-xmin+1),int(ymax-ymin+1))
             else:
                 croptext = 'current crop: (({:}, {:}), ({:}, {:}))'
                 croptext = croptext.format(
@@ -1768,7 +1937,17 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
         
         #if (x,y,w,h) format, convert to other format
         if len(crop) == 4:
-            crop = ((crop[0],crop[1]),(crop[0]+crop[2],crop[1]+crop[3]))
+            if crop_unit == 'pixels':#w and h specified in pixels
+                crop = ((crop[0],crop[1]),(crop[0]+crop[2],crop[1]+crop[3]))
+            elif crop_unit == 'data':#w and h specified in data units
+                crop = ((crop[0],crop[1]),(
+                    int(round(crop[0]+crop[2]/pixelsize)),
+                    int(round(crop[1]+crop[3]/pixelsize))
+                ))
+            else:
+                raise ValueError('`crop` must be "pixels" or "data"')
+        elif crop_unit == 'data':
+            warn('`crop_unit="data"` is only implemented for (x,y,w,h) format')
         
         #crop and update shape
         if multichannel:

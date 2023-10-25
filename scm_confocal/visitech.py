@@ -592,6 +592,15 @@ class visitech_series:
             optional rescaling using `resolution`).
             
             The default is `None` which takes the entire image.
+        crop_unit : `'pixels'` or `'data'`, optional
+            sets the unit in which the width and height in `crop` are 
+            specified when using the (x,y,w,h) format, with `'pixels'` to give 
+            the size in pixels or `'data'` to specify the size in the physical 
+            unit used for the scalebar (after optional unit conversion via the 
+            `convert` parameter). Note that the position of the top left corner
+            is given in pixels. The `((xmin,ymin),(xmax,ymax))` format must be
+            always given in pixels, and `crop_unit` is ignored if `crop` is 
+            given in this format. The default is `'pixels'`.
         resolution : int, optional
             the resolution along the x-axis (i.e. image width in pixels) to use
             for the exported image. The default is `None`, which uses the size 
@@ -1452,6 +1461,15 @@ class visitech_faststack:
             optional rescaling using `resolution`).
             
             The default is `None` which takes the entire image.
+        crop_unit : `'pixels'` or `'data'`, optional
+            sets the unit in which the width and height in `crop` are 
+            specified when using the (x,y,w,h) format, with `'pixels'` to give 
+            the size in pixels or `'data'` to specify the size in the physical 
+            unit used for the scalebar (after optional unit conversion via the 
+            `convert` parameter). Note that the position of the top left corner
+            is given in pixels. The `((xmin,ymin),(xmax,ymax))` format must be
+            always given in pixels, and `crop_unit` is ignored if `crop` is 
+            given in this format. The default is `'pixels'`.
         resolution : int, optional
             the resolution along the x-axis (i.e. image width in pixels) to use
             for the exported image. The default is `None`, which uses the size 
