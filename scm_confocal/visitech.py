@@ -592,6 +592,15 @@ class visitech_series:
             optional rescaling using `resolution`).
             
             The default is `None` which takes the entire image.
+        crop_unit : `'pixels'` or `'data'`, optional
+            sets the unit in which the width and height in `crop` are 
+            specified when using the (x,y,w,h) format, with `'pixels'` to give 
+            the size in pixels or `'data'` to specify the size in the physical 
+            unit used for the scalebar (after optional unit conversion via the 
+            `convert` parameter). Note that the position of the top left corner
+            is given in pixels. The `((xmin,ymin),(xmax,ymax))` format must be
+            always given in pixels, and `crop_unit` is ignored if `crop` is 
+            given in this format. The default is `'pixels'`.
         resolution : int, optional
             the resolution along the x-axis (i.e. image width in pixels) to use
             for the exported image. The default is `None`, which uses the size 
@@ -816,7 +825,8 @@ class visitech_faststack:
         return "<scm_confocal.visitech_series('{}',{},{},{})>".format(
             self.filename,self.zsize,self.zstep,self.backsteps)
     
-    def load_data(self,indices=slice(None,None,None),dtype=np.uint16):
+    def load_data(self,indices=slice(None,None,None),dtype=np.uint16,
+                  xslice=None,yslice=None):
         """
         load images from datafile into 3D numpy array
         
@@ -833,7 +843,14 @@ class visitech_faststack:
         if type(indices) == slice:
             indices = range(self.nf)[indices]
 
-        data = np.array(self.datafile[indices])
+        if xslice is None and yslice is None:
+            data = np.array(self.datafile[indices])
+        elif xslice is None:
+            data = np.array([self.datafile[i][yslice] for i in indices])
+        elif yslice is None:
+            data = np.array([self.datafile[i][:,xslice] for i in indices])
+        else:
+            data = np.array([self.datafile[i][yslice,xslice] for i in indices])
 
         if not data.dtype == dtype:
             print('rescaling data to type',dtype)
@@ -957,16 +974,6 @@ class visitech_faststack:
             elif val==slice(None):
                 dim_range.pop(key)
 
-        #warn for inefficient x and y trimming
-        if 'x-axis' in dim_range or 'y-axis' in dim_range:
-            print("[WARNING] scm_confocal.visitech_faststack.load_stack: "+
-                  "Loading only part of the data along dimensions 'x-axis' "+
-                  "and/or 'y-axis' not implemented. Data will be loaded fully"+
-                  " into memory before discarding values outside of the "+
-                  "slice range specified for the x-axis and/or y-axis. "+
-                  "Other axes for which a range is specified will still "+
-                  "be treated normally, avoiding unneccesary memory use.")
-
         #remove values outside of dim_range from indices
         if 'time' in dim_range:
             indices = indices[dim_range['time']]
@@ -983,17 +990,22 @@ class visitech_faststack:
         # self.get_timestamps(load_stack_indices=True)
         self._stack_indices = indices
 
+        #add None arguments for x and y range if not slicing those
+        if not 'y-axis' in dim_range:
+            dim_range['y-axis'] = None
+        if not 'x-axis' in dim_range:
+            dim_range['x-axis'] = None
+
         #load and reshape data
-        stack = self.load_data(indices=indices.ravel(),dtype=dtype)
+        stack = self.load_data(
+            indices=indices.ravel(),
+            dtype=dtype,
+            xslice=dim_range['x-axis'],
+            yslice=dim_range['y-axis'],
+        )
         shape = (indices.shape[0],indices.shape[1],stack.shape[1],
                  stack.shape[2])
         stack = stack.reshape(shape)
-
-        #trim x and y axis
-        if 'y-axis' in dim_range:
-            stack = stack[:,:,dim_range['y-axis']]
-        if 'x-axis' in dim_range:
-            stack = stack[:,:,:,dim_range['x-axis']]
 
         return stack
 
@@ -1449,6 +1461,15 @@ class visitech_faststack:
             optional rescaling using `resolution`).
             
             The default is `None` which takes the entire image.
+        crop_unit : `'pixels'` or `'data'`, optional
+            sets the unit in which the width and height in `crop` are 
+            specified when using the (x,y,w,h) format, with `'pixels'` to give 
+            the size in pixels or `'data'` to specify the size in the physical 
+            unit used for the scalebar (after optional unit conversion via the 
+            `convert` parameter). Note that the position of the top left corner
+            is given in pixels. The `((xmin,ymin),(xmax,ymax))` format must be
+            always given in pixels, and `crop_unit` is ignored if `crop` is 
+            given in this format. The default is `'pixels'`.
         resolution : int, optional
             the resolution along the x-axis (i.e. image width in pixels) to use
             for the exported image. The default is `None`, which uses the size 

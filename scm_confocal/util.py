@@ -1,12 +1,13 @@
 import numpy as np
+from warnings import warn
 
 def align_stack(images,startim=0,threshold=0,binning=1,smooth=0,upsample=1,
-                startoffset=(0,0),trim=True,blocksize=None,
-                show_process_im=False):
+                startoffset=None,cval=0,trim='valid',blocksize=None,
+                show_process_im=False,apply_shift=True):
     """
     Cross correlation alignment of image stack. Based around
-    skimage.feature.register_translation which enables sub-pixel precise
-    translation of images.
+    skimage.feature.phase_cross_correlation with enables sub-pixel precise 
+    determination of the image shift via efficient FFT cross correlation.
     
     When preprocessing (smoothing and/or binning and/or thresholding) is used,
     a copy of the data is created and used for determining the image shift, but
@@ -16,7 +17,7 @@ def align_stack(images,startim=0,threshold=0,binning=1,smooth=0,upsample=1,
 
     Parameters
     ----------
-    images : 3d numpy array
+    images : Nd numpy array
         the dataset which will be aligned along the first dimension (e.g. z)
     startim : int
         starting index that acts as reference for rest of stack
@@ -29,21 +30,47 @@ def align_stack(images,startim=0,threshold=0,binning=1,smooth=0,upsample=1,
         translation
     upsample : int
         precision of translation in units of 1/pixel
-    startoffset : tuple of floats (y,x)
+    startoffset : tuple of floats
         shift to apply to the starting image before alignment
+    cval : float, optional
+        fill value for unknown values outside of images when shifting. The 
+        default is 0
+    trim : one of ['valid','full','same']
+        if/how to trim the stack after shifting images. In case of `'valid'` 
+        the stack is trimmed down to the volume where all pixels were part of 
+        the input data, for `'full'` the stack is padded with cval such that
+        all pixels in the input are present in the output data and the shifting
+        is done in a separate step after calculating all image shifts, and for 
+        `'same'` the shape and position of the data is kept the same except for
+        the shift imposed by `startoffset`. Note that in case of `trim='full'`
+        the origin for shift and trim values is shifted to the top left corner
+        of the padded stack. The default is `'valid'`.
+    blocksize : int or tuple of ints, optional
+        see `scm_confocal.util.bin_stack`
+    show_process_im : bool, optional
+        whether the preprocessed input data is shown in a figure. The default 
+        is False.
+    apply_shift : bool, optional
+        if True, the shifted input data is returned. If False, the unchanged
+        input data is returned. This saves computation time if the image shifts
+        are to be used separately (e.g. to align a different detector channel).
+        The default is True
     
     Returns
     -------
     images : numpy.array
-        the image data with translation and (optional) trimming applied
-    shifts : list of (y,x) tuples
+        the image data with optionally translation and trimming applied
+    shifts : list of ([z],y,x) tuples
         image shift values for each image in the dataset
+    slices : list of slice
+        parameters for trimming
     """
     from skimage.registration import phase_cross_correlation
     from scipy.ndimage import shift
 
     n = len(images)
-    imshift = np.zeros((n,2))
+    ndims = len(images.shape)-1
+    imshift = np.zeros((n,ndims))
     
     #check if stack is at least two images
     if n == 1:
@@ -55,55 +82,111 @@ def align_stack(images,startim=0,threshold=0,binning=1,smooth=0,upsample=1,
         print('startim out of range, starting at 0')
         startim = 0
     
-    #apply offset to the first image if desired
-    if startoffset != (0,0):
-        images[startim] = shift(images[startim],startoffset,mode='constant',cval=0)
-    
-    #make a copy of data for preprocessing only if needed to avoid clogging memory
-    if smooth == 0 and binning == 1 and not threshold > 0:
-        alignim = images
-    else:
+    #make a copy of data for preprocessing
+    if apply_shift:
         alignim = images.copy()
+    else:
+        alignim = images
+    
+    #apply offset to the first image if desired
+    if startoffset != None:
+        if apply_shift:
+            images[startim] = shift(images[startim],startoffset,
+                                    mode='constant',cval=cval)
+        imshift[startim] = startoffset
     
     #bin, smooth and threshold data
     if threshold > 0:
         alignim[alignim < threshold] = 0
     if binning!= 1:
-        alignim = bin_stack(alignim,n=(1,binning,binning),quiet=True,blocksize=blocksize)
+        alignim = bin_stack(alignim,n=[1]+[binning]*ndims,
+                            quiet=True,blocksize=blocksize)
     if smooth != 0:
         from skimage.filters import gaussian
         alignim = [gaussian(im,smooth) for im in alignim]
     
     if show_process_im:
-        import matplotlib.pyplot as plt
-        plt.figure()
-        plt.imshow(alignim[n//2])
+        if ndims==2:
+            import matplotlib.pyplot as plt
+            plt.figure()
+            plt.imshow(alignim[n//2])
+        if ndims==3 or ndims==4:
+            from stackscroller import stackscroller
+            global scroller
+            scroller = stackscroller(alignim[n//2])
     
     #start going backwards from startim to first image
     for i in reversed(range(0,startim)):
-        print('\raligning image {:3d} of {:3d}'.format(i,n-1),end='',flush=True)
-        dy,dx = phase_cross_correlation(alignim[i+1],alignim[i],upsample_factor=upsample)[0]
-        imshift[i] = imshift[i+1] + [binning*dy, binning*dx]
-        images[i] = shift(images[i],imshift[i],mode='constant',cval=0)
+        print('\raligning image {:>{w}} of {:>{w}}'.format(i,n-1,w=len(str(n-1))),end='')
+        shifts = phase_cross_correlation(
+            alignim[i+1],
+            alignim[i],
+            upsample_factor=upsample,
+            normalization=None,
+            return_error=False
+        )
+        imshift[i] = imshift[i+1] + [binning*s for s in shifts]
+        if apply_shift and trim != 'full':
+            images[i] = shift(
+                images[i],
+                imshift[i],
+                mode='constant',
+                cval=cval
+            )
     
     #then continue from startim to end
     for i in range(startim+1,n):
-        print('\raligning image {:3d} of {:3d}'.format(i,n-1),end='',flush=True)
-        dy,dx = phase_cross_correlation(alignim[i-1],alignim[i],upsample_factor=upsample)[0]
-        imshift[i] = imshift[i-1] + [binning*dy, binning*dx]
-        images[i] = shift(images[i],imshift[i],mode='constant',cval=0)
+        print('\raligning image {:>{w}} of {:>{w}}'.format(i,n-1,w=len(str(n-1))),end='')
+        shifts = phase_cross_correlation(
+            alignim[i-1],
+            alignim[i],
+            upsample_factor=upsample,
+            normalization=None,
+            return_error=False
+        )
+        imshift[i] = imshift[i-1] + [binning*s for s in shifts]
+        if apply_shift and trim != 'full':
+            images[i] = shift(
+                images[i],
+                imshift[i],
+                mode='constant',
+                cval=cval
+            )
     print('')
     
-    imshift[startim] = startoffset
-    
     #trim down the edges of the dataset to only area which is always in view
-    if trim:
-        images = images[:,
-            int(max(max(imshift[:,0]),0)):int(min(min(imshift[:,0]),0))-1,
-            int(max(max(imshift[:,1]),0)):int(min(min(imshift[:,1]),0))-1
-            ]
+    if trim=='valid':
+        slices = tuple([slice(None)] + [slice(
+                int(max(imshift[:,d])) if int(max(imshift[:,d]))>0 else None,
+                int(min(imshift[:,d])) if int(min(imshift[:,d]))<0 else None,
+                None
+            ) for d in range(ndims)])
+        if apply_shift:
+            images = images[slices]
+        
+    #keep all data, pad with cval
+    elif trim=='full':
+        #shift imshift origin to (0,0[,0...]) and determine shape of new array
+        imshift -= np.amin(imshift,axis=0)
+        shape = [int(images[0].shape[d]+max(imshift[:,d])) for d in range(ndims)]
+        slices = tuple([slice(None)]+[slice(0,s) for s in shape])
+        #init new larger array and fill with shifted ims
+        if apply_shift:
+            newim = []
+            for i in range(n):
+                print('\rshifting image {:>{w}} of {:>{w}}'.format(
+                    i,n-1,w=len(str(n-1))),end='')
+                im = np.ones(shape)*cval
+                im[tuple([slice(0,s) for s in images[i].shape])] = images[i]
+                newim.append(shift(im,imshift[i],mode='constant',cval=cval))
+            images = np.array(newim)
+            print('')
+            
+    #keep original shape
+    elif trim=='same' or not trim:
+        slices = tuple([slice(None)]*(ndims+1))
     
-    return (images,imshift)
+    return (images,imshift,slices)
 
 def bin_stack(images,n=1,blocksize=None,quiet=False,dtype=None):
     """
@@ -1620,14 +1703,174 @@ def _get_pure_cmap(name):
     return cmap
 
 def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
-        crop=None,resolution=None,cmap='inferno',cmap_range=None,draw_bar=True,
-        barsize=None,scale=1,loc=2,convert=None,barcolor=(255,255,255),
-        barthickness=14,barpad=10,draw_text=True,text=None,font='arialbd.ttf',
-        fontsize=16,fontcolor=(255,255,255),fontbaseline=10,fontpad=10,
-        draw_box=False,boxcolor=(0,0,0),boxopacity=255,boxpad=10,save=True,
-        show_figure=True,store_settings=False,preprocess=None):
+        crop=None,crop_unit='pixels',resolution=None,cmap='inferno',
+        cmap_range=None,draw_bar=True,barsize=None,scale=1,loc=2,convert=None,
+        barcolor=(255,255,255),barthickness=14,barpad=10,draw_text=True,
+        text=None,font='arialbd.ttf',fontsize=16,fontcolor=(255,255,255),
+        fontbaseline=10,fontpad=10,draw_box=False,boxcolor=(0,0,0),
+        boxopacity=255,boxpad=10,save=True,show_figure=True,
+        store_settings=False,preprocess=None,pixel_aspect=None):
     """
-    see top level export_with_scalebar functions for docs
+    for exporting a scale bar, generally to be called from top level microscope
+    classes.
+    
+    Parameters
+    ----------
+    exportim : 2D numpy.ndarray or list thereof
+        the image data of the image to export, or a list of arrays for multiple
+        image channels
+    pixelsize : float
+        physical size of the pixels in exportim
+    unit : str
+        unit of the pixelsize
+    filename : string
+        Filename + extension to use for the export file.
+    multichannel : bool
+        whether the data consists of multiple image channels
+    crop : tuple or `None`, optional 
+        range describing a area of the original image (before rescaling the
+        resolution) to crop out for the export image. Can have two forms:
+            
+        - `((xmin,ymin),(xmax,ymax))`, with the integer indices of the top
+        left and bottom right corners respectively.
+            
+        - `(xmin,ymin,w,h)` with the integer indices of the top left corner
+        and the width and heigth of the cropped image in pixels (prior to 
+        optional rescaling using `resolution`).
+        
+        The default is `None` which takes the entire image.
+    crop_unit : `'pixels'` or `'data'`, optional
+        sets the unit in which the width and height in `crop` are 
+        specified when using the (x,y,w,h) format, with `'pixels'` to give 
+        the size in pixels or `'data'` to specify the size in the physical 
+        unit used for the scalebar (after optional unit conversion via the 
+        `convert` parameter). Note that the position of the top left corner
+        is given in pixels. The `((xmin,ymin),(xmax,ymax))` format must be
+        always given in pixels, and `crop_unit` is ignored if `crop` is 
+        given in this format. The default is `'pixels'`.
+    resolution : int, optional
+        the resolution along the x-axis (i.e. image width in pixels) to use
+        for the exported image. The default is `None`, which uses the size 
+        of the original image (after optional cropping using `crop`).
+    cmap : str or callable or list of str or list of callable, optional
+        name of a named Matplotlib colormap used to color the data. see the 
+        [Matplotlib documentation](
+            https://matplotlib.org/stable/tutorials/colors/colormaps.html)
+        for more information. The default is `'inferno'`.
+        
+        In addition to the colormaps listed there, the following maps for 
+        linearly incrementing pure RGB channels are available, useful for 
+        e.g. displaying multichannel data with complementary colors (no 
+        overlap between between colormaps possible):
+        ```
+        ['pure_reds', 'pure_greens', 'pure_blues', 'pure_yellows', 
+         'pure_cyans', 'pure_purples','pure_greys']
+        ```
+        where for example `'pure_reds'` scales between RGB values `(0,0,0)`
+        and  `(255,0,0)`, and `'pure_cyans'` between `(0,0,0)` and 
+        `(0,255,255)`.
+        
+        Alternatively, a fully custom colormap may be used by entering a 
+        [ListedColormap](https://matplotlib.org/stable/api/_as_gen/matplotlib.colors.ListedColormap.html#matplotlib.colors.ListedColormap)
+        or [LinearSegmentedColormap](https://matplotlib.org/stable/api/_as_gen/matplotlib.colors.LinearSegmentedColormap.html#matplotlib.colors.LinearSegmentedColormap)
+        object from the Matplotlib.colors module. For more information on 
+        creating colormaps, see the Matplotlib documentation linked above.
+        
+        For multichannel data, a list of colormaps *must* be provided, with
+        a separate colormap for each channel.
+    cmap_range : tuple of form (min,max) or None or `'automatic'`, optional
+        sets the scaling of the colormap. The minimum and maximum 
+        values to map the colormap to, values outside of this range will
+        be colored according to the min and max value of the colormap. The 
+        default is  `None`, which is to take the lowest and highest value 
+        in the image. Alternatively `'automatic'` may be specified which 
+        scales between the 10th and 99th percentile. For multichannel data
+        a list of cmap_range options per channel may be provided.
+    draw_bar : boolean, optional
+        whether to draw a scalebar on the image, such that this function 
+        may be used to put other text on the image or just to apply a 
+        colormap (by setting `draw_bar=False` and `draw_text=False`). The 
+        default is `True`.
+    barsize : float or `None`, optional
+        size (in data units matching the original scale bar, e.g. nm) of 
+        the scale bar to use. The default `None`, wich takes the desired 
+        length for the current scale (ca. 15% of the width of the image for
+        `scale=1`) and round this to the nearest option from a list of 
+        "nice" values.
+    scale : float, optional
+        factor to change the size of the scalebar+text with respect to the
+        width of the image. Scale is chosen such, that at `scale=1` the
+        font size of the scale bar text is approximately 10 pt when 
+        the image is printed at half the width of the text in a typical A4
+        paper document (e.g. two images side-by-side). Note that this is 
+        with respect to the **output** image, so after optional cropping 
+        and/or up/down sampling has been applied. The default is `1`.
+    loc : int, one of [`0`,`1`,`2`,`3`], optional
+        Location of the scalebar on the image, where `0`, `1`, `2` and `3` 
+        refer to the top left, top right, bottom left and bottom right 
+        respectively. The default is `2`, which is the bottom left corner.
+    convert : str, one of [`'fm'`,`'pm'`,`'Å'` or `A`,`'nm'`,`'µm'` or `'um'`,`'mm'`,`'cm'`,`'dm'`,`'m'`], optional
+        Unit that will be used for the scale bar, the value will be 
+        automatically converted if this unit differs from the pixel size
+        unit. The default is `None`, which uses micrometers.
+    barcolor : tuple of ints, optional
+        RGB color to use for the scalebar and text, given as a tuple of 
+        form (R,G,B) or (R,G,B,A) where R, G B and A are values between 0 
+        and 255 for red, green, blue and alpha respectively. The default is
+        `(255,255,255)`, which gives a white scalebar.
+    barthickness : int, optional
+        thickness in printer points of the scale bar itself. The default is
+        16.
+    barpad : int, optional
+        size in printer points of the padding between the scale bar and the
+        surrounding box. The default is 10.
+    draw_text : bool, optional
+        whether to draw the text specified in `text` on the image, the text
+        is place above the scale bar if `draw_bar=True`. The default is 
+        `True`.
+    text : str, optional
+        the text to draw on the image (above the scale bar if 
+        `draw_bar=True`). The default is `None`, which gives the size and 
+        unit of the scale bar (e.g. `'10 µm'`).
+    font : str, optional
+        filename of an installed TrueType font ('.ttf' file) to use for the
+        text on the scalebar. The default is `'arialbd.ttf'`.
+    fontsize : int, optional
+        base font size to use for the scale bar text. The default is 16. 
+        Note that this size will be re-scaled according to `resolution` and
+        `scale`.
+    fontcolor : tuple of int, optional
+        (R,G,B) tuple where R, G and B are red, green and blue values from
+        0 to 255. The default is (255,255,255) giving white text.
+    fontbaseline : int, optional
+        vertical offset for the baseline of the scale bar text in from the 
+        top of the scale bar in printer points. The default is 10.
+    fontpad : int, optional
+        minimum size in printer points of the space/padding between the 
+        text and surrounding box. The default is 10.
+    draw_box : bool, optional
+        Whether to put a colored box behind the scalebar and text to 
+        enhance contrast on busy images. The default is `False`.
+    boxcolor : tuple of ints, optional
+        RGB color to use for the box behind/around the scalebar and text,
+        given as a tuple of form (R,G,B) or (R,G,B,A) where R, G B and A 
+        are values between 0 and 255 for red, green and blue respectively. 
+        If no A is given, `boxopacity` is used. The default is (0,0,0) 
+        which gives a black box.
+    boxopacity : int, optional
+        value between 0 and 255 for the opacity/alpha of the box, useful
+        for creating a semitransparent box. The default is 255.
+    boxpad : int, optional
+        size of the space/padding around the box (with respect to the sides
+        of the image) in printer points. The default is 10.
+    save : bool, optional
+        whether to save the image as file. The default is True.
+    show_figure : bool, optional
+        whether to open matplotlib figure windows. The default is True.
+        
+    Returns
+    -------
+    Y×X×4 numpy.array containing the BGRA pixel data
     """
     #store all settings from locals before anything is changed or loaded
     if store_settings:
@@ -1696,6 +1939,10 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
         if cmap in pure_maps:
             cmap = _get_pure_cmap(cmap)
     
+    #convert pixelsize
+    if draw_bar or draw_text:
+        pixelsize,unit = _convert_length(pixelsize, unit, convert)
+    
     #draw original figure before changing exportim
     if show_figure:
         fig,ax = plt.subplots(1,1)
@@ -1706,10 +1953,10 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
                 #ax.imshow(im,cmap=mp,vmin=np.amin(im),vmax=np.amax(im),
                 #          alpha=1/(i+1))
             orim[orim>255] = 255
-            ax.imshow(orim.astype(np.uint8)[:,:,:3])
+            ax.imshow(orim.astype(np.uint8)[:,:,:3],aspect=pixel_aspect)
         else:
             ax.imshow(exportim,cmap=cmap,vmin=np.amin(exportim),
-                      vmax=np.amax(exportim))
+                      vmax=np.amax(exportim),aspect=pixel_aspect)
         plt.title('original image')
         plt.axis('off')
         plt.tight_layout()
@@ -1723,6 +1970,9 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
                        in zip(shape,crop[:2])] + list(crop[2:])
                 altcrop = True
                 x,y,w,h = crp
+                if crop_unit == 'data':
+                    w = w/pixelsize
+                    h = h/pixelsize
             else:
                 crp = [[cc if cc>0 else s+cc for cc in c]\
                        for s,c in zip(shape,crop)]
@@ -1736,13 +1986,18 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
             xmin,xmax = ax.get_xlim()
             ymax,ymin = ax.get_ylim()
             if altcrop:
-                croptext = 'current crop: ({:}, {:}, {:}, {:})'
-                croptext = croptext.format(
-                    int(xmin),
-                    int(ymin),
-                    int(xmax-xmin+1),
-                    int(ymax-ymin+1)
-                )
+                if crop_unit == 'data':
+                    croptext = 'current crop: ({:}, {:}, {:.4g} {}, {:.4g} {})'
+                    croptext = croptext.format(
+                        int(xmin),
+                        int(ymin),
+                        pixelsize*(xmax-xmin+1),unit,
+                        pixelsize*(ymax-ymin+1),unit
+                    )
+                else:
+                    croptext = 'current crop: ({:}, {:}, {:}, {:})'
+                    croptext = croptext.format(
+                        int(xmin),int(ymin),int(xmax-xmin+1),int(ymax-ymin+1))
             else:
                 croptext = 'current crop: (({:}, {:}), ({:}, {:}))'
                 croptext = croptext.format(
@@ -1759,16 +2014,22 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
         ax.callbacks.connect("ylim_changed", _on_lim_change)
         plt.show(block=False)
     
-    #convert pixelsize
-    if draw_bar or draw_text:
-        pixelsize,unit = _convert_length(pixelsize, unit, convert)
-    
     #(optionally) crop
     if not crop is None:
         
         #if (x,y,w,h) format, convert to other format
         if len(crop) == 4:
-            crop = ((crop[0],crop[1]),(crop[0]+crop[2],crop[1]+crop[3]))
+            if crop_unit == 'pixels':#w and h specified in pixels
+                crop = ((crop[0],crop[1]),(crop[0]+crop[2],crop[1]+crop[3]))
+            elif crop_unit == 'data':#w and h specified in data units
+                crop = ((crop[0],crop[1]),(
+                    int(round(crop[0]+crop[2]/pixelsize)),
+                    int(round(crop[1]+crop[3]/pixelsize))
+                ))
+            else:
+                raise ValueError('`crop` must be "pixels" or "data"')
+        elif crop_unit == 'data':
+            warn('`crop_unit="data"` is only implemented for (x,y,w,h) format')
         
         #crop and update shape
         if multichannel:
@@ -1795,20 +2056,37 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
     #determine len of scalebar on im
     barsize_px = barsize/pixelsize
     
-    #set default resolution or scale image and correct barsize_px
-    if resolution is None:
+    #set x and y resolution based on resolution parameter and pixel aspect
+    if resolution is None and pixel_aspect is None:
         ny,nx = shape
-        resolution = nx
-    else:
+    elif pixel_aspect is None:
         nx = resolution
         ny = int(shape[0]/shape[1]*nx)
-        barsize_px = barsize_px/shape[1]*resolution
+    elif resolution is None:
+        nx = shape[1]
+        ny = int(shape[0]*pixel_aspect)
+    else:
+        nx = resolution
+        ny = int(shape[0]/shape[1]*nx*pixel_aspect)
+
+    #resize the image if necessary
+    if ny != shape[0] or nx != shape[1]:
+
+        barsize_px = barsize_px/shape[1]*nx
+        
+        #if downsampling use bicubic for smoother result
+        if ny <= shape[0] and nx <= shape[1]:
+            resample_method = Image.Resampling.BICUBIC
+        #if upsampling preserve original pixel size appearence
+        else:
+            resample_method = Image.Resampling.NEAREST
+        
         if multichannel:
             #convert to grayscale PIL.Image, resize, convert back to array
             exportim = [
                 np.array(Image.fromarray(im).resize(
                     (int(nx),int(ny)),
-                    resample=Image.Resampling.NEAREST
+                    resample=resample_method
                 )) for im in exportim
             ]
             
@@ -1876,7 +2154,7 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
     if draw_bar or draw_text:
         
         #adjust general scaling for all sizes relative to 1024 pixels
-        scale = scale*resolution/1024
+        scale = scale*nx/1024
         boxpad = boxpad*scale
         
         #set up sizes for bar
@@ -2173,7 +2451,7 @@ def _export_with_scalebar_color(exportim,pixelsize,unit,filename,crop=None,
     if draw_bar or draw_text:
         
         #adjust general scaling for all sizes relative to 1024 pixels
-        scale = scale*resolution/1024
+        scale = scale*nx/1024
         boxpad = boxpad*scale
         
         #set up sizes for bar

@@ -378,6 +378,12 @@ class sp8_image(sp8_lif):
                 lasers[name]['LaserLines'] = \
                     [l for l in aotfs if l['IsLineChecked']=='1']
         
+                #get shutter for same lsname
+                for shutter in self.metadata.find('.//ShutterList'):
+                    if shutter.attrib['LightSourceName'] == lsname:
+                        lasers[name]['Shutter'] = shutter.attrib
+                        break
+                    
                 if lsname == 'STED':
                     stedbeamselection = \
                         [w.attrib for w in self.metadata.findall('.//Wheel') \
@@ -387,6 +393,12 @@ class sp8_image(sp8_lif):
                             stedbeamselection['FilterSpectrumValue']
                     else:
                         lasers[name]['3DSTEDPercentage'] = '0'
+
+        #add shutter data
+        for shutter in self.metadata.find('.//ShutterList'):
+            name = shutter.attrib['LightSourceName']
+            if name in lasers:
+                lasers[name]['Shutter'] = shutter.attrib
 
         return lasers
         
@@ -635,7 +647,80 @@ class sp8_image(sp8_lif):
             return tuple([self.lifimage.get_plane(c=c,requested_dims=dimsdict)\
                           for c in channel])
     
-    def load_stack(self,dim_range=None,dtype=None):
+    def load_plane(self,display_dims=None,indices=None):
+        """
+        load 2D plane / slice of arbitrary orientation from the data
+
+        Parameters
+        ----------
+        display_dims : tuple of length 2, optional
+            the 2 dimensions defining the 2D image plane to load. The default 
+            is the imaging plane (the two fastest axes, typically xy).
+        indices : dict, optional
+            index values for all other planes. The default is 0 for all dims.
+
+        Returns
+        -------
+        np.ndarray
+            array containing the pixel values of the selected plane.
+        """
+        dims = [_DimID_to_str(d['DimID']) for d in self.get_dimensions()]
+        #set default dims
+        if display_dims is None:
+            display_dims = dims[:2][::-1]
+        #check dimension inputs
+        else:
+            display_dims = list(display_dims)
+            if len(display_dims)!=2:
+                raise ValueError('display_dims must specify 2 dimensions')
+            if isinstance(display_dims[0],int):
+                display_dims[0] = _DimID_to_str(display_dims[0])
+            if isinstance(display_dims[1],int):
+                display_dims[1] = _DimID_to_str(display_dims[1])
+            if any(d not in dims for d in display_dims):
+                raise ValueError('requested display_dim not in dimensions')
+        
+        if self._is_multichannel:
+            dims = ['channel']+dims
+        
+        other_dims = [d for d in dims if d not in display_dims]
+        
+        if indices is None:
+            indices = dict()
+        
+        #replace int dims with str dims
+        for i in indices.keys():
+            if isinstance(i,int):
+                indices[_DimID_to_str(i)] = indices[i].pop()
+        
+        #check we're not slicing out display dims through indices
+        if display_dims[0] in indices \
+            and isinstance(indices[display_dims[0]],int):
+                raise ValueError('display_dims cannot have integer indices')
+        if display_dims[1] in indices \
+            and isinstance(indices[display_dims[1]],int):
+                raise ValueError('display_dims cannot have integer indices')
+            
+        #make any nonexisting index 0
+        for d in other_dims:
+            if d not in indices:
+                indices[d] = 0
+            else:
+                if not isinstance(indices[d], int):
+                    raise TypeError('values in indices for any dimension other'
+                                    'than the display_dims must be int')
+        
+        #for now use load_stack, in the future we want a direct load function
+        plane,loadorder = self.load_stack(dim_range=indices,quiet=True)
+        if tuple(display_dims) == tuple(loadorder):
+            return plane
+        elif tuple(display_dims) == tuple(loadorder[::-1]):
+            return plane.T
+        else:
+            raise RuntimeError('problem with dimorder')
+        
+    
+    def load_stack(self,dim_range=None,dtype=None,quiet=False):
         """
         Similar to sp8_series.load_data(), but converts the 3D array of images
         automatically to a np.ndarray of the appropriate dimensionality.
@@ -715,6 +800,13 @@ class sp8_image(sp8_lif):
             dataorder = ['channel']+dataorder
         order = ['channel','mosaic','time','z-axis','y-axis','x-axis']
         
+        #check for imaging order
+        if not (dataorder[-1]=='x-axis' and dataorder[-2]=='y-axis'):
+            raise NotImplementedError('load_stack is only implemented for '
+                                      '(x-axis, y-axis) imaging but data has '
+                                      f'({dataorder[-1]}, {dataorder[-2]}) '
+                                      'imaging order')
+        
         #default dim range (as None to prevent mutable default arg)
         if dim_range is None:
             dim_range= {}
@@ -724,7 +816,8 @@ class sp8_image(sp8_lif):
             {k:v for k,v in dim_range.items() if v!=slice(None)}
         
         #if slicing tiff give a warning that only whole images are loaded
-        if dataorder[-1] in dim_range or dataorder[-2] in dim_range:
+        if (not quiet) and \
+            (dataorder[-1] in dim_range or dataorder[-2] in dim_range):
             warn("Loading only part of the data along one of the main "
                  f"image axes ('{dataorder[-1]}' and/or '{dataorder[-2]}') is "
                  "not implemented. Data will be loaded fully into memory "
@@ -772,13 +865,14 @@ class sp8_image(sp8_lif):
         data = np.empty(newshape,
                         dtype=np.uint8 if self.lifimage.bit_depth[0] == 8 
                         else np.uint16)
-
+            
         #loop over indices and load
         for i,c in enumerate(channels):
             for j,m in enumerate(msteps):
                 for k,t in enumerate(times):
                     for l,z in enumerate(zsteps):
                         data[i,j,k,l,:,:] = self.lifimage.get_frame(z,t,c,m)
+
         
         #if ranges for x or y are chosen, remove those from the array now,
         #account (top to bottom) for trimming x ánd y, only x, or only y.
@@ -901,6 +995,15 @@ class sp8_image(sp8_lif):
             optional rescaling using `resolution`).
             
             The default is `None` which takes the entire image.
+        crop_unit : `'pixels'` or `'data'`, optional
+            sets the unit in which the width and height in `crop` are 
+            specified when using the (x,y,w,h) format, with `'pixels'` to give 
+            the size in pixels or `'data'` to specify the size in the physical 
+            unit used for the scalebar (after optional unit conversion via the 
+            `convert` parameter). Note that the position of the top left corner
+            is given in pixels. The `((xmin,ymin),(xmax,ymax))` format must be
+            always given in pixels, and `crop_unit` is ignored if `crop` is 
+            given in this format. The default is `'pixels'`.
         resolution : int, optional
             the resolution along the x-axis (i.e. image width in pixels) to use
             for the exported image. The default is `None`, which uses the size 
@@ -1707,6 +1810,15 @@ class sp8_series:
             optional rescaling using `resolution`).
             
             The default is `None` which takes the entire image.
+        crop_unit : `'pixels'` or `'data'`, optional
+            sets the unit in which the width and height in `crop` are 
+            specified when using the (x,y,w,h) format, with `'pixels'` to give 
+            the size in pixels or `'data'` to specify the size in the physical 
+            unit used for the scalebar (after optional unit conversion via the 
+            `convert` parameter). Note that the position of the top left corner
+            is given in pixels. The `((xmin,ymin),(xmax,ymax))` format must be
+            always given in pixels, and `crop_unit` is ignored if `crop` is 
+            given in this format. The default is `'pixels'`.
         resolution : int, optional
             the resolution along the x-axis (i.e. image width in pixels) to use
             for the exported image. The default is `None`, which uses the size 
