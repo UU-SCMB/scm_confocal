@@ -157,8 +157,8 @@ def align_stack(images,startim=0,threshold=0,binning=1,smooth=0,upsample=1,
     #trim down the edges of the dataset to only area which is always in view
     if trim=='valid':
         slices = tuple([slice(None)] + [slice(
-                int(max(imshift[:,d])) if max(imshift[:,d])>0 else None,
-                int(min(imshift[:,d])) if min(imshift[:,d])<0 else None,
+                int(max(imshift[:,d])) if int(max(imshift[:,d]))>0 else None,
+                int(min(imshift[:,d])) if int(min(imshift[:,d]))<0 else None,
                 None
             ) for d in range(ndims)])
         if apply_shift:
