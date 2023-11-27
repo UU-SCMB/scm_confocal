@@ -2,12 +2,12 @@ import numpy as np
 from warnings import warn
 
 def align_stack(images,startim=0,threshold=0,binning=1,smooth=0,upsample=1,
-                overlap_ratio=None,startoffset=None,cval=0,trim=True,
-                blocksize=None,show_process_im=False):
+                startoffset=None,cval=0,trim='valid',blocksize=None,
+                show_process_im=False,apply_shift=True):
     """
     Cross correlation alignment of image stack. Based around
-    skimage.feature.register_translation which enables sub-pixel precise
-    translation of images.
+    skimage.feature.phase_cross_correlation with enables sub-pixel precise 
+    determination of the image shift via efficient FFT cross correlation.
     
     When preprocessing (smoothing and/or binning and/or thresholding) is used,
     a copy of the data is created and used for determining the image shift, but
@@ -32,13 +32,38 @@ def align_stack(images,startim=0,threshold=0,binning=1,smooth=0,upsample=1,
         precision of translation in units of 1/pixel
     startoffset : tuple of floats
         shift to apply to the starting image before alignment
+    cval : float, optional
+        fill value for unknown values outside of images when shifting. The 
+        default is 0
+    trim : one of ['valid','full','same']
+        if/how to trim the stack after shifting images. In case of `'valid'` 
+        the stack is trimmed down to the volume where all pixels were part of 
+        the input data, for `'full'` the stack is padded with cval such that
+        all pixels in the input are present in the output data and the shifting
+        is done in a separate step after calculating all image shifts, and for 
+        `'same'` the shape and position of the data is kept the same except for
+        the shift imposed by `startoffset`. Note that in case of `trim='full'`
+        the origin for shift and trim values is shifted to the top left corner
+        of the padded stack. The default is `'valid'`.
+    blocksize : int or tuple of ints, optional
+        see `scm_confocal.util.bin_stack`
+    show_process_im : bool, optional
+        whether the preprocessed input data is shown in a figure. The default 
+        is False.
+    apply_shift : bool, optional
+        if True, the shifted input data is returned. If False, the unchanged
+        input data is returned. This saves computation time if the image shifts
+        are to be used separately (e.g. to align a different detector channel).
+        The default is True
     
     Returns
     -------
     images : numpy.array
-        the image data with translation and (optional) trimming applied
+        the image data with optionally translation and trimming applied
     shifts : list of ([z],y,x) tuples
         image shift values for each image in the dataset
+    slices : list of slice
+        parameters for trimming
     """
     from skimage.registration import phase_cross_correlation
     from scipy.ndimage import shift
@@ -58,18 +83,24 @@ def align_stack(images,startim=0,threshold=0,binning=1,smooth=0,upsample=1,
         startim = 0
     
     #make a copy of data for preprocessing
-    alignim = images.copy()
+    if apply_shift:
+        alignim = images.copy()
+    else:
+        alignim = images
     
     #apply offset to the first image if desired
     if startoffset != None:
-        images[startim] = shift(images[startim],startoffset,mode='constant',cval=cval)
+        if apply_shift:
+            images[startim] = shift(images[startim],startoffset,
+                                    mode='constant',cval=cval)
         imshift[startim] = startoffset
     
     #bin, smooth and threshold data
     if threshold > 0:
         alignim[alignim < threshold] = 0
     if binning!= 1:
-        alignim = bin_stack(alignim,n=[1]+[binning]*ndims,quiet=True,blocksize=blocksize)
+        alignim = bin_stack(alignim,n=[1]+[binning]*ndims,
+                            quiet=True,blocksize=blocksize)
     if smooth != 0:
         from skimage.filters import gaussian
         alignim = [gaussian(im,smooth) for im in alignim]
@@ -91,17 +122,17 @@ def align_stack(images,startim=0,threshold=0,binning=1,smooth=0,upsample=1,
             alignim[i+1],
             alignim[i],
             upsample_factor=upsample,
-            overlap_ratio=overlap_ratio,
             normalization=None,
             return_error=False
         )
         imshift[i] = imshift[i+1] + [binning*s for s in shifts]
-        images[i] = shift(
-            images[i],
-            imshift[i],
-            mode='constant',
-            cval=cval
-        )
+        if apply_shift and trim != 'full':
+            images[i] = shift(
+                images[i],
+                imshift[i],
+                mode='constant',
+                cval=cval
+            )
     
     #then continue from startim to end
     for i in range(startim+1,n):
@@ -110,30 +141,52 @@ def align_stack(images,startim=0,threshold=0,binning=1,smooth=0,upsample=1,
             alignim[i-1],
             alignim[i],
             upsample_factor=upsample,
-            overlap_ratio=overlap_ratio,
             normalization=None,
             return_error=False
         )
         imshift[i] = imshift[i-1] + [binning*s for s in shifts]
-        images[i] = shift(
-            images[i],
-            imshift[i],
-            mode='constant',
-            cval=cval
-        )
+        if apply_shift and trim != 'full':
+            images[i] = shift(
+                images[i],
+                imshift[i],
+                mode='constant',
+                cval=cval
+            )
     print('')
     
     #trim down the edges of the dataset to only area which is always in view
-    if trim:
-        slices = [slice(None)] + [slice(
+    if trim=='valid':
+        slices = tuple([slice(None)] + [slice(
                 int(max(imshift[:,d])) if max(imshift[:,d])>0 else None,
                 int(min(imshift[:,d])) if min(imshift[:,d])<0 else None,
                 None
-            ) for d in range(ndims)]
-        images = images[slices]
+            ) for d in range(ndims)])
+        if apply_shift:
+            images = images[slices]
+        
+    #keep all data, pad with cval
+    elif trim=='full':
+        #shift imshift origin to (0,0[,0...]) and determine shape of new array
+        imshift -= np.amin(imshift,axis=0)
+        shape = [int(images[0].shape[d]+max(imshift[:,d])) for d in range(ndims)]
+        slices = tuple([slice(None)]+[slice(0,s) for s in shape])
+        #init new larger array and fill with shifted ims
+        if apply_shift:
+            newim = []
+            for i in range(n):
+                print('\rshifting image {:>{w}} of {:>{w}}'.format(
+                    i,n-1,w=len(str(n-1))),end='')
+                im = np.ones(shape)*cval
+                im[tuple([slice(0,s) for s in images[i].shape])] = images[i]
+                newim.append(shift(im,imshift[i],mode='constant',cval=cval))
+            images = np.array(newim)
+            print('')
+            
+    #keep original shape
+    elif trim=='same' or not trim:
+        slices = tuple([slice(None)]*(ndims+1))
     
-    
-    return (images,imshift)
+    return (images,imshift,slices)
 
 def bin_stack(images,n=1,blocksize=None,quiet=False,dtype=None):
     """
