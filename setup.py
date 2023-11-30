@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="scm_confocal",
-    version="1.7.3",
+    version="1.7.4",
     author="Maarten Bransen",
     author_email="m.bransen@uu.nl",
     license='GNU General Public License v3.0',
