@@ -118,12 +118,11 @@ def align_stack(images,startim=0,threshold=0,binning=1,smooth=0,upsample=1,
     #start going backwards from startim to first image
     for i in reversed(range(0,startim)):
         print('\raligning image {:>{w}} of {:>{w}}'.format(i,n-1,w=len(str(n-1))),end='')
-        shifts = phase_cross_correlation(
+        shifts,*_ = phase_cross_correlation(
             alignim[i+1],
             alignim[i],
             upsample_factor=upsample,
             normalization=None,
-            return_error=False
         )
         imshift[i] = imshift[i+1] + [binning*s for s in shifts]
         if apply_shift and trim != 'full':
@@ -137,12 +136,11 @@ def align_stack(images,startim=0,threshold=0,binning=1,smooth=0,upsample=1,
     #then continue from startim to end
     for i in range(startim+1,n):
         print('\raligning image {:>{w}} of {:>{w}}'.format(i,n-1,w=len(str(n-1))),end='')
-        shifts = phase_cross_correlation(
+        shifts,*_ = phase_cross_correlation(
             alignim[i-1],
             alignim[i],
             upsample_factor=upsample,
             normalization=None,
-            return_error=False
         )
         imshift[i] = imshift[i-1] + [binning*s for s in shifts]
         if apply_shift and trim != 'full':
