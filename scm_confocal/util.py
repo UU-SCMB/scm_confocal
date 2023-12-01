@@ -2185,23 +2185,24 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
             #get size of text
             from PIL import ImageFont
             font = ImageFont.truetype(font,size=int(fontsize))
-            textsize = font.getsize(text)
-            offset = font.getoffset(text)
-            textsize = (textsize[0]-offset[0],textsize[1]-offset[1]+fontbaseline)    
+            text_bbox = font.getbbox(text)
+            offset = (text_bbox[0],text_bbox[1])
+            textsize = (text_bbox[2]-text_bbox[0],text_bbox[3]-text_bbox[1])
             
             #correct baseline for mu in case of micrometer
             if 'µ' in text:
-                textsize = (textsize[0],textsize[1]-6*scale)
+                bb = font.getbbox(text.replace('µ','u'))
+                textsize = (textsize[0],bb[3]-bb[1])
         
         #determine box height with appropriate paddings
         if draw_text and draw_bar:#both
-            boxheight = barpad + barthickness + fontpad + textsize[1]
+            boxheight = barpad + barthickness+fontpad+textsize[1]+fontbaseline
             boxwidth = max([2*barpad+barsize_px,2*fontpad+textsize[0]])
         elif draw_bar:#bar only
             boxheight = 2*barpad + barthickness
             boxwidth = 2*barpad + barsize_px
         else:#text only
-            boxheight = 2*fontpad + textsize[1]
+            boxheight = 2*fontpad + textsize[1] + fontbaseline
             boxwidth = 2*fontpad + textsize[0]
         
         #determine box/bar/text position based on loc
@@ -2249,8 +2250,8 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
         if draw_bar:
             
             #calculate positions for bar
-            barx = (2*x + boxwidth)/2 - barsize_px/2
-            bary = y+boxheight-barpad-barthickness
+            barx = x + boxwidth/2 - barsize_px/2
+            bary = y + boxheight-barpad-barthickness
             
             if len(barcolor) == 3:
                 barcolor = (*barcolor,255)
@@ -2267,8 +2268,16 @@ def _export_with_scalebar(exportim,pixelsize,unit,filename,multichannel,
         if draw_text:
             
             #calculate position for text (horizontally centered in box)
-            textx = (2*x + boxwidth)/2 - (textsize[0]+offset[0])/2
-            texty = y + fontpad-offset[1]
+            textx = x + boxwidth/2 - textsize[0]/2 - offset[0]
+            texty = y + fontpad - offset[1]
+            
+            # #for troubleshooting only draw text BB
+            # draw.rectangle([
+            #     textx+text_bbox[0],
+            #     texty+text_bbox[1],
+            #     textx+text_bbox[2],
+            #     texty+text_bbox[3]
+            # ])
         
             if len(fontcolor) == 3:
                 barcolor = (*fontcolor,255)
@@ -2463,6 +2472,7 @@ def _export_with_scalebar_color(exportim,pixelsize,unit,filename,crop=None,
         
         #set up sizes for text
         if draw_text:
+            
             fontpad = fontpad*scale
             fontsize = 2*fontsize*scale
             fontbaseline = fontbaseline*scale
@@ -2483,28 +2493,24 @@ def _export_with_scalebar_color(exportim,pixelsize,unit,filename,crop=None,
             
             #get size of text
             font = ImageFont.truetype(font,size=int(fontsize))
-            textsize = font.getsize(text)
-            offset = font.getoffset(text)
-            textsize = (textsize[0]-offset[0],textsize[1]-offset[1]+fontbaseline)    
+            text_bbox = font.getbbox(text)
+            offset = (text_bbox[0],text_bbox[1])
+            textsize = (text_bbox[2]-text_bbox[0],text_bbox[3]-text_bbox[1])
             
             #correct baseline for mu in case of micrometer
             if 'µ' in text:
-                textsize = (textsize[0],textsize[1]-6*scale)
-            
-        #when not drawing the text, set text size and padding to 0
-        else:
-            textsize = (0,0)
-            fontpad = 0
+                bb = font.getbbox(text.replace('µ','u'))
+                textsize = (textsize[0],bb[3]-bb[1])
         
         #determine box height with appropriate paddings
         if draw_text and draw_bar:#both
-            boxheight = barpad + barthickness + fontpad + textsize[1]
+            boxheight = barpad + barthickness+fontpad+textsize[1]+fontbaseline
             boxwidth = max([2*barpad+barsize_px,2*fontpad+textsize[0]])
         elif draw_bar:#bar only
             boxheight = 2*barpad + barthickness
             boxwidth = 2*barpad + barsize_px
         else:#text only
-            boxheight = 2*fontpad + textsize[1]
+            boxheight = 2*fontpad + textsize[1] + fontbaseline
             boxwidth = 2*fontpad + textsize[0]
         
         #determine box/bar/text position based on loc
@@ -2564,13 +2570,10 @@ def _export_with_scalebar_color(exportim,pixelsize,unit,filename,crop=None,
                 width=0,
             )
         
-        #draw the text
-        if draw_text:
-            
             #calculate position for text (horizontally centered in box)
-            textx = (2*x + boxwidth)/2 - (textsize[0]+offset[0])/2
-            texty = y + fontpad-offset[1]
-        
+            textx = x + boxwidth/2 - textsize[0]/2 - offset[0]
+            texty = y + fontpad - offset[1]
+
             if len(fontcolor) == 3:
                 barcolor = (*fontcolor,255)
         
