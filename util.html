@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.10.0" />
+<title>scm_confocal.util API documentation</title>
+<meta name="description" content="" />
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
+<link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js" integrity="sha256-Uv3H6lx7dJmRfRvH8TH6kJD1TSK1aFcwgx+mdg3epi8=" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => hljs.initHighlighting())</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>scm_confocal.util</code></h1>
+</header>
+<section id="section-intro">
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="scm_confocal.util.align_stack"><code class="name flex">
+<span>def <span class="ident">align_stack</span></span>(<span>images, startim=0, threshold=0, binning=1, smooth=0, upsample=1, startoffset=None, cval=0, trim='valid', blocksize=None, show_process_im=False, apply_shift=True)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Cross correlation alignment of image stack. Based around
+skimage.feature.phase_cross_correlation with enables sub-pixel precise
+determination of the image shift via efficient FFT cross correlation.</p>
+<p>When preprocessing (smoothing and/or binning and/or thresholding) is used,
+a copy of the data is created and used for determining the image shift, but
+the original (unprocessed) data is corrected for image shift and returned.</p>
+<p>order of preprocessing is first thresholding, then binning, then smoothing</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>images</code></strong> :&ensp;<code>Nd numpy array</code></dt>
+<dd>the dataset which will be aligned along the first dimension (e.g. z)</dd>
+<dt><strong><code>startim</code></strong> :&ensp;<code>int</code></dt>
+<dd>starting index that acts as reference for rest of stack</dd>
+<dt><strong><code>threshold</code></strong> :&ensp;<code>float</code></dt>
+<dd>any pixel value below threshold is set to 0 before alignment</dd>
+<dt><strong><code>binning</code></strong> :&ensp;<code>int</code></dt>
+<dd>factor to bin pixels in (x,y)</dd>
+<dt><strong><code>smooth</code></strong> :&ensp;<code>float</code></dt>
+<dd>size of gaussian kernal for smoothing prior to calculating the
+translation</dd>
+<dt><strong><code>upsample</code></strong> :&ensp;<code>int</code></dt>
+<dd>precision of translation in units of 1/pixel</dd>
+<dt><strong><code>startoffset</code></strong> :&ensp;<code>tuple</code> of <code>floats</code></dt>
+<dd>shift to apply to the starting image before alignment</dd>
+<dt><strong><code>cval</code></strong> :&ensp;<code>float</code>, optional</dt>
+<dd>fill value for unknown values outside of images when shifting. The
+default is 0</dd>
+<dt><strong><code>trim</code></strong> :&ensp;<code>one</code> of <code>['valid','full','same']</code></dt>
+<dd>if/how to trim the stack after shifting images. In case of <code>'valid'</code>
+the stack is trimmed down to the volume where all pixels were part of
+the input data, for <code>'full'</code> the stack is padded with cval such that
+all pixels in the input are present in the output data and the shifting
+is done in a separate step after calculating all image shifts, and for
+<code>'same'</code> the shape and position of the data is kept the same except for
+the shift imposed by <code>startoffset</code>. Note that in case of <code>trim='full'</code>
+the origin for shift and trim values is shifted to the top left corner
+of the padded stack. The default is <code>'valid'</code>.</dd>
+<dt><strong><code>blocksize</code></strong> :&ensp;<code>int</code> or <code>tuple</code> of <code>ints</code>, optional</dt>
+<dd>see <code><a title="scm_confocal.util.bin_stack" href="#scm_confocal.util.bin_stack">bin_stack()</a></code></dd>
+<dt><strong><code>show_process_im</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>whether the preprocessed input data is shown in a figure. The default
+is False.</dd>
+<dt><strong><code>apply_shift</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>if True, the shifted input data is returned. If False, the unchanged
+input data is returned. This saves computation time if the image shifts
+are to be used separately (e.g. to align a different detector channel).
+The default is True</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>images</code></strong> :&ensp;<code>numpy.array</code></dt>
+<dd>the image data with optionally translation and trimming applied</dd>
+<dt><strong><code>shifts</code></strong> :&ensp;<code>list</code> of <code>([z],y,x) tuples</code></dt>
+<dd>image shift values for each image in the dataset</dd>
+<dt><strong><code>slices</code></strong> :&ensp;<code>list</code> of <code>slice</code></dt>
+<dd>parameters for trimming</dd>
+</dl></div>
+</dd>
+<dt id="scm_confocal.util.average_nearest_neighbour_distance"><code class="name flex">
+<span>def <span class="ident">average_nearest_neighbour_distance</span></span>(<span>features, pos_cols=['x (um)', 'y (um)', 'z (um)'])</span>
+</code></dt>
+<dd>
+<div class="desc"><p>finds average distance of nearest neighbours from pandas array of
+coordinates.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>features</code></strong> :&ensp;<code>pandas DataFrame</code></dt>
+<dd>dataframe containing the particle coordinates</dd>
+<dt><strong><code>pos_cols</code></strong> :&ensp;<code>list</code> of <code>strings</code>, optional</dt>
+<dd>Names of columns to use for coordinates. The default is
+['x (um)','y (um)','z (um)'].</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>float</code></dt>
+<dd>average distance to the closest particle for all the pairs in the
+set</dd>
+</dl></div>
+</dd>
+<dt id="scm_confocal.util.bin_stack"><code class="name flex">
+<span>def <span class="ident">bin_stack</span></span>(<span>images, n=1, blocksize=None, quiet=False, dtype=None)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>bins numpy ndarrays in arbitrary dimensions by a factor n. Prior to
+binning, elements from the end are deleted until the length is a
+multiple of the bin factor. Executes averaging of bins in floating
+point precision, which is memory intensive for large stacks. Using
+smaller blocks reduces memory usage, but is less efficient.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>images</code></strong> :&ensp;<code>numpy.ndarray</code></dt>
+<dd>ndarray containing the data</dd>
+<dt><strong><code>n</code></strong> :&ensp;<code>int</code> or <code>tuple</code> of <code>int</code>, optional</dt>
+<dd>factor to bin with for all dimensions (int) or each dimension
+individually (tuple with one int per dimension). The default is 1.</dd>
+<dt><strong><code>blocksize</code></strong> :&ensp;<code>int</code>, optional</dt>
+<dd>number of (binned) slices to process at a time to conserve memory.
+The default is entire stack.</dd>
+<dt><strong><code>quiet</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>suppresses printed output when True. The default is False.</dd>
+<dt><strong><code>dtype</code></strong> :&ensp;<code>(numpy) datatype</code>, optional</dt>
+<dd>datatype to use for output. Averaging of the binned pixels always
+occurs in floating point precision. The default is np.uint8.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>images</code></strong> :&ensp;<code>numpy.ndarray</code></dt>
+<dd>binned stack</dd>
+</dl></div>
+</dd>
+<dt id="scm_confocal.util.fit_powerlaw"><code class="name flex">
+<span>def <span class="ident">fit_powerlaw</span></span>(<span>x, y, weights=None, **kwargs)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Linear regression in log space of the MSD to get diffusion constant, which
+is a powerlaw in linear space of the form A<em>x</em>*n</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>x</code></strong> :&ensp;<code>list</code> or <code>numpy.array</code></dt>
+<dd>x coordinates of data points to fit</dd>
+<dt><strong><code>y</code></strong> :&ensp;<code>list</code> or <code>numpy.array</code></dt>
+<dd>y coordinates of data points to fit</dd>
+<dt><strong><code>weights</code></strong> :&ensp;<code>list</code> or <code>numpy.array</code>, optional</dt>
+<dd>list of weights to use for each (x,y) coordinate. The default is
+None.</dd>
+</dl>
+<p>**kwargs :
+arguments passed to scipy.optimize.curve_fit</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>A</code></strong> :&ensp;<code>float</code></dt>
+<dd>constant A</dd>
+<dt><strong><code>n</code></strong> :&ensp;<code>float</code></dt>
+<dd>power n</dd>
+<dt><strong><code>sigmaA</code></strong> :&ensp;<code>float</code></dt>
+<dd>standard deviation in A</dd>
+<dt><strong><code>sigmaN</code></strong> :&ensp;<code>float</code></dt>
+<dd>standard deviation in n</dd>
+</dl></div>
+</dd>
+<dt id="scm_confocal.util.flatfield_correction_apply"><code class="name flex">
+<span>def <span class="ident">flatfield_correction_apply</span></span>(<span>images, corrim, dtype=None, check_overflow=True)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Apply a correction to all images in a dataset based on a mask /
+correction image such as provided by util.flatfield_correction_init.
+Pixel values are divided by the correction image, accounting for
+integer overflow by clipping to the max value of the (integer) dtype.</p>
+<p>Note that overflow checking is currently implemented using numpy masked
+arrays, which are extremely slow (up to 10x) when compared to normal
+numpy arrays. It can be bypassed using check_overflow for a memory and
+performance improvement.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>images</code></strong> :&ensp;<code>(sequence of) numpy.array</code></dt>
+<dd>the images to correct. he last two dimensions are taken as the 2D
+images, other dimensions are preserved. Must have 2 or more dims.</dd>
+<dt><strong><code>corrim</code></strong> :&ensp;<code>numpy.array</code></dt>
+<dd>The correction image to apply. Must have 2 or more dimensions, if
+there are more than 2 it must match <code>images</code> according to numpy
+broadcasting rules.</dd>
+<dt><strong><code>dtype</code></strong> :&ensp;<code>data type</code>, optional</dt>
+<dd>data type used for the output. The default is images.dtype.</dd>
+<dt><strong><code>check_overflow</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>Whether to check and avoid integer overflow. The default is True.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>numpy.array</code></dt>
+<dd>the corrected image array</dd>
+</dl>
+<h2 id="see-also">See Also</h2>
+<p><code><a title="scm_confocal.util.flatfield_correction_init" href="#scm_confocal.util.flatfield_correction_init">flatfield_correction_init()</a></code></p></div>
+</dd>
+<dt id="scm_confocal.util.flatfield_correction_init"><code class="name flex">
+<span>def <span class="ident">flatfield_correction_init</span></span>(<span>images, kernelsize, average=True)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Provides a correction image for inhomogeneous illumination based on low
+frequency fourier components. Particularly useful for data from the
+Visitech recorded at relatively large frame size / low imaging rate.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>images</code></strong> :&ensp;<code>(sequence of) numpy array with &gt;= 2 dimensions</code></dt>
+<dd>image(s) to calculate a correction image for. The last two
+dimensions are taken as the 2D images.</dd>
+<dt><strong><code>kernelsize</code></strong> :&ensp;<code>int</code></dt>
+<dd>cutoff size in fourier-space pixels (i.e. cycles per image-size) of
+cone-shaped low-pass fourier filter.</dd>
+<dt><strong><code>average</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>whether to average correction images along the first dimension of
+the supplied data. Requires &gt;2 dimensions in the input data. The
+default is True.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>numpy array</code></dt>
+<dd>(array of) normalized correction images where the maximum is scaled
+to 1.</dd>
+</dl>
+<h2 id="see-also">See Also</h2>
+<p><code><a title="scm_confocal.util.flatfield_correction_apply" href="#scm_confocal.util.flatfield_correction_apply">flatfield_correction_apply()</a></code></p></div>
+</dd>
+<dt id="scm_confocal.util.mean_square_displacement"><code class="name flex">
+<span>def <span class="ident">mean_square_displacement</span></span>(<span>features, pos_cols=['x', 'y', 'z'], t_col='t (s)', nparticles=None, pickrandom=False, bins=20, tmin=None, tmax=None, itmin=1, itmax=None, parallel=False, cores=None, linear_sampling=False)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>calculate the mean square displacement vs time for linked particles</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>features</code></strong> :&ensp;<code>pandas.DataFrame</code></dt>
+<dd>output from trackpy.link containing tracking data</dd>
+<dt><strong><code>pos_cols</code></strong> :&ensp;<code>list</code> of <code>str</code>, optional</dt>
+<dd>names of columns to use for coordinates. The default is
+['x','y','z'].</dd>
+<dt><strong><code>t_col</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>name of column containing timestamps. The default is 't (s)'.</dd>
+<dt><strong><code>nparticles</code></strong> :&ensp;<code>int</code>, optional</dt>
+<dd>number of particles to use for calculation (useful for large
+datasets). The default is all particles.</dd>
+<dt><strong><code>pickrandom</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>whether to pick nparticles randomly or not, if False it takes the
+n longest tracked particles from data. The default is False.</dd>
+<dt><strong><code>bins</code></strong> :&ensp;<code>int</code> or <code>sequence</code> of <code>floats</code>, optional</dt>
+<dd>number of bins or bin edges for output. The default is 20.</dd>
+<dt><strong><code>tmin</code></strong> :&ensp;<code>float</code>, optional</dt>
+<dd>left edge of first bin. The default is min(t_col).</dd>
+<dt><strong><code>tmax</code></strong> :&ensp;<code>float</code>, optional</dt>
+<dd>&nbsp;</dd>
+<dt>right edge of last bin, The default is max(t_col).</dt>
+<dt><strong><code>itmin</code></strong> :&ensp;<code>int</code>, optional</dt>
+<dd>minimum (integer) step size in timesteps. The default is 1.</dd>
+<dt><strong><code>itmax</code></strong> :&ensp;<code>int</code>, optional</dt>
+<dd>maximum (integer) step size in timesteps. The default is no limit.</dd>
+<dt><strong><code>parallel</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>whether to use the parallelized implementation. Requires rest of
+the code to be protected in a if <strong>name</strong> == '<strong>main</strong>' block. The
+default is False.</dd>
+<dt><strong><code>cores</code></strong> :&ensp;<code>int</code>, optional</dt>
+<dd>the number of cores to use when using the parallelized
+implementation. When parallel=False this option is ignored</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>binedges</code></strong> :&ensp;<code>numpy.array</code></dt>
+<dd>edges of time bins</dd>
+<dt><strong><code>bincounts</code></strong> :&ensp;<code>numpy.array</code></dt>
+<dd>number of sampling points for each bin</dd>
+<dt><strong><code>binmeans</code></strong> :&ensp;<code>numpy.array</code></dt>
+<dd>mean square displacement values</dd>
+</dl></div>
+</dd>
+<dt id="scm_confocal.util.mean_square_displacement_legacy"><code class="name flex">
+<span>def <span class="ident">mean_square_displacement_legacy</span></span>(<span>features, pos_cols=['x', 'y', 'z'], t_col='t (s)', nparticles=None, pickrandom=False, nbins=20, tmin=None, tmax=None, itmin=1, itmax=None, parallel=False, cores=None)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>calculate the mean square displacement vs time for linked particles</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>features</code></strong> :&ensp;<code>pandas.DataFrame</code></dt>
+<dd>output from trackpy.link containing tracking data</dd>
+<dt><strong><code>pos_cols</code></strong> :&ensp;<code>list</code> of <code>str</code>, optional</dt>
+<dd>names of columns to use for coordinates. The default is
+['x','y','z'].</dd>
+<dt><strong><code>t_col</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>name of column containing timestamps. The default is 't (s)'.</dd>
+<dt><strong><code>nparticles</code></strong> :&ensp;<code>int</code>, optional</dt>
+<dd>number of particles to use for calculation (useful for large
+datasets). The default is all particles.</dd>
+<dt><strong><code>pickrandom</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>whether to pick nparticles randomly or not, if False it takes the
+n longest tracked particles from data. The default is False.</dd>
+<dt><strong><code>nbins</code></strong> :&ensp;<code>int</code>, optional</dt>
+<dd>number of bins for output. The default is 20.</dd>
+<dt><strong><code>tmin</code></strong> :&ensp;<code>float</code>, optional</dt>
+<dd>left edge of first bin. The default is min(t_col).</dd>
+<dt><strong><code>tmax</code></strong> :&ensp;<code>float</code>, optional</dt>
+<dd>&nbsp;</dd>
+<dt>right edge of last bin, The default is max(t_col).</dt>
+<dt><strong><code>itmin</code></strong> :&ensp;<code>int</code>, optional</dt>
+<dd>minimum (integer) step size in timesteps. The default is 1.</dd>
+<dt><strong><code>itmax</code></strong> :&ensp;<code>int</code>, optional</dt>
+<dd>maximum (integer) step size in timesteps. The default is no limit.</dd>
+<dt><strong><code>parallel</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>whether to use the parallelized implementation. Requires rest of
+the code to be protected in a if <strong>name</strong> == '<strong>main</strong>' block. The
+default is False.</dd>
+<dt><strong><code>cores</code></strong> :&ensp;<code>int</code>, optional</dt>
+<dd>the number of cores to use when using the parallelized
+implementation. When parallel=False this option is ignored</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>binedges</code></strong> :&ensp;<code>numpy.array</code></dt>
+<dd>edges of time bins</dd>
+<dt><strong><code>bincounts</code></strong> :&ensp;<code>numpy.array</code></dt>
+<dd>number of sampling points for each bin</dd>
+<dt><strong><code>binmeans</code></strong> :&ensp;<code>numpy.array</code></dt>
+<dd>mean square displacement values</dd>
+</dl></div>
+</dd>
+<dt id="scm_confocal.util.mean_square_displacement_per_frame"><code class="name flex">
+<span>def <span class="ident">mean_square_displacement_per_frame</span></span>(<span>features, pos_cols=['x', 'y'], feat_col='particle')</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Calculate the mean square movement of all tracked features between
+subsequent frames using efficient pandas linear algebra</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>features</code></strong> :&ensp;<code>pandas.Dataframe</code></dt>
+<dd>dataframe containing the tracking data over timesteps indexed by
+frame number and containing coordinates of features.</dd>
+<dt><strong><code>pos_cols</code></strong> :&ensp;<code>list</code> of <code>str</code>, optional</dt>
+<dd>names of the columns containing coordinates. The default is
+['x','y'].</dd>
+<dt><strong><code>feat_col</code></strong> :&ensp;<code>str</code></dt>
+<dd>name of column containing feature identifyers. The default is
+'particle'.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>msd</code></strong> :&ensp;<code>numpy.array</code></dt>
+<dd>averages of the squared displacements between each two steps</dd>
+</dl></div>
+</dd>
+<dt id="scm_confocal.util.multiply_intensity"><code class="name flex">
+<span>def <span class="ident">multiply_intensity</span></span>(<span>data, factor, dtype=None)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>For multiplying the values of a numpy array while accounting for
+integer overflow issues in integer datatypes. Corrected values larger
+than the datatype max are set to the max value.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>data</code></strong> :&ensp;<code>numpy.ndarray</code></dt>
+<dd>array containing the data values</dd>
+<dt><strong><code>factor</code></strong> :&ensp;<code>float</code></dt>
+<dd>factor to multiply data with</dd>
+<dt><strong><code>dtype</code></strong> :&ensp;<code>(numpy) datatype</code>, optional</dt>
+<dd>Datatype to scale data to. The default is the same type as the
+input data.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>data</code></strong> :&ensp;<code>numpy.ndarray</code></dt>
+<dd>data with new intensity values.</dd>
+</dl></div>
+</dd>
+<dt id="scm_confocal.util.pair_correlation_2d"><code class="name flex">
+<span>def <span class="ident">pair_correlation_2d</span></span>(<span>features, rmin=0, rmax=10, dr=None, ndensity=None, boundary=None, column_headers=['y', 'x'], periodic_boundary=False, handle_edge=True)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>calculates g(r) via a 'conventional' distance histogram method for a
+set of 2D coordinate sets. Edge correction is fully analytic.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>features</code></strong> :&ensp;<code>pandas DataFrame</code> or <code>numpy.ndarray</code></dt>
+<dd>contains coordinates in (y,x)</dd>
+<dt><strong><code>rmin</code></strong> :&ensp;<code>float</code>, optional</dt>
+<dd>lower bound for the pairwise distance, left edge of 0th bin. The
+default is 0.</dd>
+<dt><strong><code>rmax</code></strong> :&ensp;<code>float</code>, optional</dt>
+<dd>upper bound for the pairwise distance, right edge of last bin. The
+default is 10.</dd>
+<dt><strong><code>dr</code></strong> :&ensp;<code>float</code>, optional</dt>
+<dd>bin width for the pairwise distance bins. The default is
+(rmax-rmin)/20.</dd>
+<dt><strong><code>ndensity</code></strong> :&ensp;<code>float</code>, optional</dt>
+<dd>number density of particles in sample. The default is None which
+computes the number density from the input data.</dd>
+<dt><strong><code>boundary</code></strong> :&ensp;<code>array-like</code>, optional</dt>
+<dd>positions of the walls that define the bounding box of the
+coordinates, given as
+<code>(ymin,ymax,xmin,xmax)</code>. The
+default is the min and max values in the dataset along each
+dimension.</dd>
+<dt><strong><code>column_headers</code></strong> :&ensp;<code>list</code> of <code>string</code>, optional</dt>
+<dd>column labels which contain the coordinates to use in case features
+is given as a pandas.DataFrame. The default is [y','x'].</dd>
+<dt><strong><code>periodic_boundary</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>whether periodic boundary conditions are used. The default is
+False.</dd>
+<dt><strong><code>handle_edge</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>whether to correct for edge effects in non-periodic boundary
+conditions. The default is True.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>edges</code></strong> :&ensp;<code>numpy.array</code></dt>
+<dd>edges of the bins in r</dd>
+<dt><strong><code>counts</code></strong> :&ensp;<code>numpy.array</code></dt>
+<dd>normalized count values in each bin of the g(r)</dd>
+</dl></div>
+</dd>
+<dt id="scm_confocal.util.pair_correlation_3d"><code class="name flex">
+<span>def <span class="ident">pair_correlation_3d</span></span>(<span>features, rmin=0, rmax=10, dr=None, ndensity=None, boundary=None, column_headers=['z', 'y', 'x'], periodic_boundary=False, handle_edge=True)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>calculates g(r) via a 'conventional' distance histogram method for a
+set of 3D coordinate sets. Edge correction is fully analytic and based
+on refs [1] and [2].</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>features</code></strong> :&ensp;<code>pandas DataFrame</code> or <code>numpy.ndarray</code></dt>
+<dd>contains coordinates in (z,y,x)</dd>
+<dt><strong><code>rmin</code></strong> :&ensp;<code>float</code>, optional</dt>
+<dd>lower bound for the pairwise distance, left edge of 0th bin. The
+default is 0.</dd>
+<dt><strong><code>rmax</code></strong> :&ensp;<code>float</code>, optional</dt>
+<dd>upper bound for the pairwise distance, right edge of last bin. The
+default is 10.</dd>
+<dt><strong><code>dr</code></strong> :&ensp;<code>float</code>, optional</dt>
+<dd>bin width for the pairwise distance bins. The default is
+(rmax-rmin)/20.</dd>
+<dt><strong><code>ndensity</code></strong> :&ensp;<code>float</code>, optional</dt>
+<dd>number density of particles in sample. The default is None which
+computes the number density from the input data.</dd>
+<dt><strong><code>boundary</code></strong> :&ensp;<code>array-like</code>, optional</dt>
+<dd>positions of the walls that define the bounding box of the
+coordinates, given as
+<code>(zmin,zmax,ymin,ymax,xmin,xmax)</code>. The
+default is the min and max values in the dataset along each
+dimension.</dd>
+<dt><strong><code>column_headers</code></strong> :&ensp;<code>list</code> of <code>string</code>, optional</dt>
+<dd>column labels which contain the coordinates to use in case features
+is given as a pandas.DataFrame. The default is ['z','y','x'].</dd>
+<dt><strong><code>periodic_boundary</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>whether periodic boundary conditions are used. The default is
+False.</dd>
+<dt><strong><code>handle_edge</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>whether to correct for edge effects in non-periodic boundary
+conditions. The default is True.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>edges</code></strong> :&ensp;<code>numpy.array</code></dt>
+<dd>edges of the bins in r</dd>
+<dt><strong><code>counts</code></strong> :&ensp;<code>numpy.array</code></dt>
+<dd>normalized count values in each bin of the g(r)</dd>
+</dl>
+<h2 id="references">References</h2>
+<p>[1] Markus Seserno (2014). How to calculate a three-dimensional g(r)
+under periodic boundary conditions.
+<a href="https://www.cmu.edu/biolphys/deserno/pdf/gr_periodic.pdf">https://www.cmu.edu/biolphys/deserno/pdf/gr_periodic.pdf</a></p>
+<p>[2] Kopera, B. A. F., &amp; Retsch, M. (2018). Computing the 3D Radial
+Distribution Function from Particle Positions: An Advanced Analytic
+Approach. Analytical Chemistry, 90(23), 13909–13914.
+<a href="https://doi.org/10.1021/acs.analchem.8b03157">https://doi.org/10.1021/acs.analchem.8b03157</a></p></div>
+</dd>
+<dt id="scm_confocal.util.plot_stack_histogram"><code class="name flex">
+<span>def <span class="ident">plot_stack_histogram</span></span>(<span>images, bin_edges=range(0, 256), newfig=True, legendname=None, title='intensity histogram', **kwargs)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>manually flattens list of images to list of pixel values and plots
+histogram. Can combine multiple calls with newfig and legendname
+options</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>images</code></strong> :&ensp;<code>numpy ndarray</code></dt>
+<dd>array containing pixel values</dd>
+<dt><strong><code>bin_edges</code></strong> :&ensp;<code>list</code> or <code>range</code>, optional</dt>
+<dd>edges of bins to use. The default is range(0,256).</dd>
+<dt><strong><code>newfig</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>Whether to open a new figure or to add to currently active figure.
+The default is True.</dd>
+<dt><strong><code>legendname</code></strong> :&ensp;<code>string</code>, optional</dt>
+<dd>label to use for the legend. The default is None.</dd>
+<dt><strong><code>title</code></strong> :&ensp;<code>string</code>, optional</dt>
+<dd>text to use as plot title. The default is 'intensity histogram'.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>pyplot figure handle</code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+</dd>
+<dt id="scm_confocal.util.saveprompt"><code class="name flex">
+<span>def <span class="ident">saveprompt</span></span>(<span>question='Save/overwrite? 1=YES, 0=NO. ')</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Asks user a question (whether to save). If 1 is entered, it returns
+True, for any other answer it returns False</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>question</code></strong> :&ensp;<code>string</code></dt>
+<dd>The question to prompt the user for</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>save</code></strong> :&ensp;<code>bool</code></dt>
+<dd>whether to save</dd>
+</dl></div>
+</dd>
+<dt id="scm_confocal.util.subtract_background"><code class="name flex">
+<span>def <span class="ident">subtract_background</span></span>(<span>images, val=0, percentile=False)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>subtract a constant value from a numpy array without going below 0</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>images</code></strong> :&ensp;<code>numpy ndarray</code></dt>
+<dd>images to correct.</dd>
+<dt><strong><code>percentile</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>Whether to give the value as a percentile of the stack rather than
+an absolute value to subtrackt. The default is False.</dd>
+<dt><strong><code>val</code></strong> :&ensp;<code>int</code> or <code>float</code>, optional</dt>
+<dd>Value or percentile to subtract. The default is 0.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>images</code></strong> :&ensp;<code>numpy ndarray</code></dt>
+<dd>the corrected stack.</dd>
+</dl></div>
+</dd>
+<dt id="scm_confocal.util.write_textfile"><code class="name flex">
+<span>def <span class="ident">write_textfile</span></span>(<span>params, filename='parameters.txt')</span>
+</code></dt>
+<dd>
+<div class="desc"><p>stores parameter names and values in text file</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>params</code></strong> :&ensp;<code>dictionary</code> of <code>name:value</code></dt>
+<dd>the data to store</dd>
+<dt><strong><code>filename</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>file name to us for saving. The default is "parameters.txt".</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>None.</p></div>
+</dd>
+</dl>
+</section>
+<section>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="scm_confocal" href="index.html">scm_confocal</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="scm_confocal.util.align_stack" href="#scm_confocal.util.align_stack">align_stack</a></code></li>
+<li><code><a title="scm_confocal.util.average_nearest_neighbour_distance" href="#scm_confocal.util.average_nearest_neighbour_distance">average_nearest_neighbour_distance</a></code></li>
+<li><code><a title="scm_confocal.util.bin_stack" href="#scm_confocal.util.bin_stack">bin_stack</a></code></li>
+<li><code><a title="scm_confocal.util.fit_powerlaw" href="#scm_confocal.util.fit_powerlaw">fit_powerlaw</a></code></li>
+<li><code><a title="scm_confocal.util.flatfield_correction_apply" href="#scm_confocal.util.flatfield_correction_apply">flatfield_correction_apply</a></code></li>
+<li><code><a title="scm_confocal.util.flatfield_correction_init" href="#scm_confocal.util.flatfield_correction_init">flatfield_correction_init</a></code></li>
+<li><code><a title="scm_confocal.util.mean_square_displacement" href="#scm_confocal.util.mean_square_displacement">mean_square_displacement</a></code></li>
+<li><code><a title="scm_confocal.util.mean_square_displacement_legacy" href="#scm_confocal.util.mean_square_displacement_legacy">mean_square_displacement_legacy</a></code></li>
+<li><code><a title="scm_confocal.util.mean_square_displacement_per_frame" href="#scm_confocal.util.mean_square_displacement_per_frame">mean_square_displacement_per_frame</a></code></li>
+<li><code><a title="scm_confocal.util.multiply_intensity" href="#scm_confocal.util.multiply_intensity">multiply_intensity</a></code></li>
+<li><code><a title="scm_confocal.util.pair_correlation_2d" href="#scm_confocal.util.pair_correlation_2d">pair_correlation_2d</a></code></li>
+<li><code><a title="scm_confocal.util.pair_correlation_3d" href="#scm_confocal.util.pair_correlation_3d">pair_correlation_3d</a></code></li>
+<li><code><a title="scm_confocal.util.plot_stack_histogram" href="#scm_confocal.util.plot_stack_histogram">plot_stack_histogram</a></code></li>
+<li><code><a title="scm_confocal.util.saveprompt" href="#scm_confocal.util.saveprompt">saveprompt</a></code></li>
+<li><code><a title="scm_confocal.util.subtract_background" href="#scm_confocal.util.subtract_background">subtract_background</a></code></li>
+<li><code><a title="scm_confocal.util.write_textfile" href="#scm_confocal.util.write_textfile">write_textfile</a></code></li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.10.0</a>.</p>
+</footer>
+</body>
+</html>
