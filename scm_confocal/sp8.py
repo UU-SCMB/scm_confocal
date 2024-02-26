@@ -810,6 +810,8 @@ class sp8_image(sp8_lif):
         #default dim range (as None to prevent mutable default arg)
         if dim_range is None:
             dim_range= {}
+        else:#otherwise don't alter original
+            dim_range = dim_range.copy()
         
         #remove None items and store as attribute
         self._stack_dim_range = \
@@ -1405,6 +1407,8 @@ class sp8_series:
         #default dim range (as None to prevent mutable default arg)
         if dim_range is None:
             dim_range= {}
+        else:#otherwise don't alter original
+            dim_range = dim_range.copy()
         
         #append channel (but before x and y) information for multichannel data
         if len(channels)>1:
